@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marco AI</title>
+    <!-- Google Fonts: Inter para UI limpia y moderna -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons para iconografía elegante -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Capa de fondo animada/glass -->
+    <div class="background-glass">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+    </div>
+
+    <!-- Contenedor Principal SPA -->
+    <div id="app">
+        <!-- Loader inicial -->
+        <div class="initial-loader" id="initialLoader">
+            <div class="spinner"></div>
+            <p>Iniciando Marco AI...</p>
+        </div>
+
+        <!-- Render View (Inyectado por JS) -->
+        <main id="router-view" class="view-container hidden"></main>
+    </div>
+
+    <!-- Template: Layout con Sidebar (Se usa una vez auth es OK) -->
+    <template id="app-layout-template">
+        <div class="app-layout">
+            <aside class="sidebar glass-panel">
+                <div class="sidebar-header">
+                    <div class="logo">
+                        <i class="ph-fill ph-brain"></i>
+                        <span>Marco AI</span>
+                    </div>
+                </div>
+                
+                <nav class="sidebar-nav">
+                    <a href="#dashboard" class="nav-item" data-path="dashboard">
+                        <i class="ph ph-squares-four"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="#tiempo" class="nav-item" data-path="tiempo">
+                        <i class="ph ph-clock"></i>
+                        <span>Tiempo & Mail</span>
+                    </a>
+                    <a href="#conocimiento" class="nav-item" data-path="conocimiento">
+                        <i class="ph ph-notebook"></i>
+                        <span>Cerebro</span>
+                    </a>
+                    <a href="#lifestyle" class="nav-item" data-path="lifestyle">
+                        <i class="ph ph-leaf"></i>
+                        <span>Lifestyle</span>
+                    </a>
+                    <a href="#entretenimiento" class="nav-item" data-path="entretenimiento">
+                        <i class="ph ph-game-controller"></i>
+                        <span>Ocio</span>
+                    </a>
+                    <a href="#admin" class="nav-item" data-path="admin">
+                        <i class="ph ph-wallet"></i>
+                        <span>Admin</span>
+                    </a>
+                </nav>
+                
+                <div class="sidebar-footer">
+                    <div class="user-profile" id="userProfileBtn">
+                        <img src="" alt="User Avatar" id="userAvatar" class="avatar-img skeleton">
+                        <div class="user-info">
+                            <span class="user-name skeleton-text" id="userName">Cargando...</span>
+                            <span class="logout-btn" onclick="app.auth.logout()">Salir <i class="ph ph-sign-out"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Contenido Principal -->
+            <section class="main-content">
+                <header class="top-header">
+                    <h1 id="pageTitle">Dashboard</h1>
+                    <button class="fab-chat" id="fabChat" onclick="app.chat.toggle()">
+                        <i class="ph-fill ph-sparkle"></i>
+                        <span>Hablar con Marco</span>
+                    </button>
+                </header>
+
+                <div id="pageContent" class="page-scroll-area">
+                    <!-- El contenido de la página actual se renderiza aquí -->
+                </div>
+            </section>
+            
+            <!-- Modal de Chat (Floating Panel) -->
+            <aside class="chat-panel glass-panel closed" id="chatPanel">
+                <div class="chat-header">
+                    <div class="chat-title">
+                        <i class="ph-fill ph-sparkle text-gradient"></i>
+                        <h3>Marco AI</h3>
+                    </div>
+                    <button class="icon-btn" onclick="app.chat.toggle()">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </div>
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message system">Hola, ¿en qué te puedo ayudar hoy?</div>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" id="chatInput" placeholder="Pregunta algo o pide una acción..." onkeypress="if(event.key === 'Enter') app.chat.send()">
+                    <button class="send-btn" onclick="app.chat.send()">
+                        <i class="ph-fill ph-paper-plane-right"></i>
+                    </button>
+                </div>
+            </aside>
+        </div>
+    </template>
+
+    <!-- Template: Login View -->
+    <template id="login-template">
+        <div class="login-view glass-panel">
+            <div class="login-card">
+                <div class="login-logo">
+                    <i class="ph-fill ph-brain"></i>
+                </div>
+                <h2>Bienvenido a Marco AI</h2>
+                <p>Tu agente inteligente privado</p>
+                <button class="btn-google" onclick="window.location.href='/api/auth/login'">
+                    <i class="ph-bold ph-google-logo"></i>
+                    <span>Continuar con Google</span>
+                </button>
+                <div class="error-msg" id="loginError"></div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Scripts -->
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <!-- Componentes de Vistas -->
+    <script src="js/components/dashboard.js"></script>
+    <script src="js/components/tiempo.js"></script>
+    <script src="js/components/conocimiento.js"></script>
+    <script src="js/components/admin.js"></script>
+    <script src="js/components/lifestyle.js"></script>
+    <script src="js/components/entretenimiento.js"></script>
+    <!-- Core App -->
+    <script src="js/app.js"></script>
+</body>
+</html>
