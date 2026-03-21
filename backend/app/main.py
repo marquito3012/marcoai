@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_db
+from app.rag.engine import init_rag_db
 
 from app.auth import router as auth_router
 from app.agents import router as agent_router
@@ -45,6 +46,7 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     init_db()
+    init_rag_db()
     print("Base de datos inicializada o verificada.")
 
 @app.get("/")
