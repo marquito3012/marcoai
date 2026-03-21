@@ -100,11 +100,14 @@ const app = {
     toggleSidebar() {
         this.sidebarOpen = !this.sidebarOpen;
         const sidebar = document.querySelector('.sidebar');
+        const backdrop = document.querySelector('.sidebar-backdrop');
         if (sidebar) {
             if (this.sidebarOpen) {
                 sidebar.classList.add('open');
+                if (backdrop) backdrop.classList.add('show');
             } else {
                 sidebar.classList.remove('open');
+                if (backdrop) backdrop.classList.remove('show');
             }
         }
     },
