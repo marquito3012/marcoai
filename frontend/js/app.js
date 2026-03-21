@@ -3,6 +3,7 @@ const app = {
     auth: Auth,
     views: {}, // Almacena las funciones render de cada componente
     currentRoute: null,
+    sidebarOpen: false,
     
     // Elementos del DOM base
     elements: {
@@ -96,6 +97,18 @@ const app = {
         }
     },
 
+    toggleSidebar() {
+        this.sidebarOpen = !this.sidebarOpen;
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar) {
+            if (this.sidebarOpen) {
+                sidebar.classList.add('open');
+            } else {
+                sidebar.classList.remove('open');
+            }
+        }
+    },
+
     renderLogin() {
         this.elements.routerView.innerHTML = '';
         const clone = this.elements.loginTemplate.content.cloneNode(true);
@@ -115,6 +128,11 @@ const app = {
             activeItem.classList.add('active');
             let title = document.getElementById('pageTitle');
             if(title) title.textContent = activeItem.querySelector('span').textContent;
+            
+            // Auto close sidebar on mobile after clicking a link
+            if (window.innerWidth <= 768 && this.sidebarOpen) {
+                this.toggleSidebar();
+            }
         }
     },
 

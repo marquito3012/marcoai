@@ -83,7 +83,12 @@
             <!-- Contenido Principal -->
             <section class="main-content">
                 <header class="top-header">
-                    <h1 id="pageTitle">Dashboard</h1>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <button class="icon-btn mobile-menu-btn" onclick="app.toggleSidebar()">
+                            <i class="ph ph-list"></i>
+                        </button>
+                        <h1 id="pageTitle">Dashboard</h1>
+                    </div>
                     <button class="fab-chat" id="fabChat" onclick="app.chat.toggle()">
                         <i class="ph-fill ph-sparkle"></i>
                         <span>Hablar con Marco</span>
