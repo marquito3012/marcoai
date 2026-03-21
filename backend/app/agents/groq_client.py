@@ -3,7 +3,7 @@ from app.config import settings
 
 client = groq.AsyncGroq(api_key=settings.GROQ_API_KEY)
 
-async def chat_completion(messages: list[dict], model: str = "llama3-70b-8192", temperature: float = 0.7, max_tokens: int = 1000):
+async def chat_completion(messages: list[dict], model: str = "llama-3.3-70b-versatile", temperature: float = 0.7, max_tokens: int = 1000):
     """
     Función de utilidad para abstraer llamadas a la API de Groq.
     Si se desea "Tool Calling" nativo se puede extender aquí. 
