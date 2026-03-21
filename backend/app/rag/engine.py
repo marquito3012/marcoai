@@ -39,25 +39,28 @@ def get_connection():
 
 def init_rag_db():
     """Inicializa la tabla vectorial"""
-    db = sqlite_utils.Database(get_connection())
+    conn = get_connection()
+    c = conn.cursor()
     # Tabla base
-    if "documents" not in db.table_names():
-        db["documents"].create({
-            "id": int,
-            "user_id": int,
-            "content": str,
-            "metadata": str,
-            "embedding": "array" # guardamos array serializado como fallback
-        }, pk="id")
-        
-        # Intentamos crear la tabla virtual vss0 si sqlite-vss está disponible
-        try:
-             conn = get_connection()
-             conn.execute("CREATE VIRTUAL TABLE vss_documents USING vss0(embedding(768))")
-             conn.commit()
-             conn.close()
-        except:
-             print("Virtual table vss no creada - Fallback manual habilitado")
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            content TEXT,
+            metadata TEXT,
+            embedding array
+        )
+    ''')
+    conn.commit()
+    
+    # Intentamos crear la tabla virtual vss0 si sqlite-vss está disponible
+    try:
+         c.execute("CREATE VIRTUAL TABLE IF NOT EXISTS vss_documents USING vss0(embedding(768))")
+         conn.commit()
+    except Exception as e:
+         print("Virtual table vss no creada - Fallback manual habilitado. Razón:", e)
+         
+    conn.close()
 
 async def add_document(user_id: int, content: str, doc_metadata: dict = None):
     """Agrega un documento al RAG exclusivo para un usuario"""
