@@ -4,7 +4,7 @@ from app.agents.groq_client import chat_completion
 from app.agents.prompts import SYSTEM_PROMPT_ORCHESTRATOR
 from app.services.google_calendar import list_upcoming_events, create_event
 from app.services.google_gmail import list_unread_messages, create_draft
-from app.rag.engine import search, add_document
+from app.rag.engine import search, add_document, delete_documents
 
 async def process_message(user, user_message: str, history: list = None):
     """
@@ -102,6 +102,15 @@ async def process_message(user, user_message: str, history: list = None):
                         
                 await add_document(user.id, content, metadata)
                 context_result = "Información guardada en mi memoria exitosamente. Ya la tendré en cuenta para la próxima vez y aparecerá en el Dashboard."
+                
+            elif action == "rag_delete":
+                tipo = action_data.get("tipo")
+                query = action_data.get("query")
+                deleted = await delete_documents(user.id, tipo=tipo, query=query)
+                if deleted > 0:
+                    context_result = f"Se han eliminado {deleted} registros de tu memoria con éxito."
+                else:
+                    context_result = "No se encontró ningún registro que coincidiera con la solicitud para eliminar."
             
             # 2. Re-inyectar en el contexto para el siguiente loop
             messages.append({"role": "assistant", "content": response})

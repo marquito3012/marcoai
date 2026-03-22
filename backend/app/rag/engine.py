@@ -143,3 +143,27 @@ async def search(user_id: int, query: str, top_k: int = 3):
         
     conn.close()
     return results
+
+async def delete_documents(user_id: int, tipo: str = None, query: str = None):
+    """Elimina documentos del RAG de un usuario por tipo o contenido literal."""
+    conn = get_connection()
+    c = conn.cursor()
+    
+    deleted_count = 0
+    if tipo:
+        # Buscamos en metadata {"tipo": "..."} ya sea exacto o substring (ej: "presupuesto")
+        meta_like = f'%"{tipo}"%'
+        c.execute("DELETE FROM documents WHERE user_id = ? AND metadata LIKE ?", (user_id, meta_like))
+        deleted_count = c.rowcount
+    elif query:
+        # Buscamos coincidencia literal
+        c.execute("DELETE FROM documents WHERE user_id = ? AND (content LIKE ? OR metadata LIKE ?)", (user_id, f'%{query}%', f'%{query}%'))
+        deleted_count = c.rowcount
+    else:
+        # Borrar todo su cerebro
+        c.execute("DELETE FROM documents WHERE user_id = ?", (user_id,))
+        deleted_count = c.rowcount
+        
+    conn.commit()
+    conn.close()
+    return deleted_count
