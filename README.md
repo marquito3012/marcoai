@@ -28,7 +28,7 @@ Dentro de `nano`, configura tus credenciales reales:
 - `GROQ_API_KEY`
 - `SECRET_KEY` (puedes generar una rápida ejecutando `openssl rand -hex 32` en otra terminal)
 - `CLOUDFLARE_TUNNEL_TOKEN` (tu token de Cloudflared, esencial para acceso externo)
-- `FRONTEND_URL` (Debe ser tu dominio público, ej: `https://marco.tudominio.com`)
+- `FRONTEND_URL` (Debe ser tu dominio público, ej: `https://www.marcoai.com`)
 
 _Guarda y sal con `Ctrl+O`, `Enter`, `Ctrl+X`._
 
