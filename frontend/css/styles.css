@@ -363,9 +363,9 @@ body {
     position: fixed;
     right: 32px;
     bottom: 32px;
-    width: 380px;
-    height: 600px;
-    max-height: calc(100vh - 64px);
+    width: 480px;
+    height: 75vh;
+    max-height: 850px;
     display: flex;
     flex-direction: column;
     transform: translateY(0);
