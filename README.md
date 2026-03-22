@@ -9,7 +9,7 @@ Sigue estos comandos exactos en tu terminal SSH conectada a la Raspberry Pi:
 ### 1. Clonar el repositorio y entrar a la carpeta
 
 ```bash
-git clone https://TU_REPOSITORIO/marcoai.git
+git clone https://github.com/marquito3012/marcoai.git
 cd marcoai
 ```
 
