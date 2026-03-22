@@ -23,16 +23,29 @@ async def process_message(user, user_message: str):
         # 1. Obtenemos la decisión de Groq
         response = await chat_completion(messages)
         
-        # Buscar JSON en la respuesta (Tool Calling manual)
-        json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
+        # Buscar JSON en la respuesta (Tool Calling manual) más robusto
+        json_str = None
+        json_match = re.search(r'(?:```|""")(?:json)?\s*(\{.*?\})\s*(?:```|""")', response, re.DOTALL | re.IGNORECASE)
         
-        if not json_match:
-            # Si no hay JSON, es una respuesta conversacional final
+        if json_match:
+            json_str = json_match.group(1)
+        else:
+            # Fallback a capturar cualquier bloque {} que contenga "action"
+            alt_match = re.search(r'(\{\s*"action"\s*:.*?\})', response, re.DOTALL)
+            if alt_match:
+                json_str = alt_match.group(1)
+                
+        if not json_str:
+            # Si no hay JSON reconocible, asumimos que es una respuesta final conversacional
             return response
             
         try:
-            action_data = json.loads(json_match.group(1))
+            action_data = json.loads(json_str)
             action = action_data.get("action")
+            
+            # Normalizar alucinaciones de LLM sobre el nombre de la acción
+            if action in ["rag_create", "guardar_nota"]:
+                action = "rag_save"
             
             # Ejecutar Acción y proveer contexto de vuelta a Groq
             context_result = "La acción se ejecutó pero no devolvió resultados."
@@ -63,7 +76,22 @@ async def process_message(user, user_message: str):
                     context_result = "Resultados de mi memoria:\n" + "\n".join([f"- {r['content']}" for r in results])
                     
             elif action == "rag_save":
-                await add_document(user.id, action_data["content"], action_data.get("metadata", {}))
+                content = action_data.get("content") or action_data.get("title", "Nota general")
+                metadata = action_data.get("metadata", {})
+                if not isinstance(metadata, dict):
+                    metadata = {}
+                    
+                # Heurística en caso de que el LLM olvide el campo metadata
+                content_lower = content.lower()
+                if "tipo" not in metadata:
+                    if "presupuesto" in content_lower or "dinero" in content_lower or "gastos" in content_lower:
+                        metadata["tipo"] = "presupuesto"
+                    elif "suscripci" in content_lower or "netflix" in content_lower:
+                        metadata["tipo"] = "suscripcion"
+                    elif "hábito" in content_lower or "habito" in content_lower:
+                        metadata["tipo"] = "habito"
+                        
+                await add_document(user.id, content, metadata)
                 context_result = "Información guardada en mi memoria exitosamente. Ya la tendré en cuenta para la próxima vez y aparecerá en el Dashboard."
             
             # 2. Re-inyectar en el contexto para el siguiente loop
