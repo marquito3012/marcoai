@@ -18,13 +18,18 @@ async def process_message(user, user_message: str):
         {"role": "user", "content": user_message}
     ]
     
-    # 1. Obtenemos la decisión inicial de Groq
-    initial_response = await chat_completion(messages)
-    
-    # Buscar JSON en la respuesta (Tool Calling manual)
-    json_match = re.search(r'```json\s*(.*?)\s*```', initial_response, re.DOTALL)
-    
-    if json_match:
+    max_loops = 3
+    for _ in range(max_loops):
+        # 1. Obtenemos la decisión de Groq
+        response = await chat_completion(messages)
+        
+        # Buscar JSON en la respuesta (Tool Calling manual)
+        json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
+        
+        if not json_match:
+            # Si no hay JSON, es una respuesta conversacional final
+            return response
+            
         try:
             action_data = json.loads(json_match.group(1))
             action = action_data.get("action")
@@ -56,17 +61,18 @@ async def process_message(user, user_message: str):
                     context_result = "No encontré nada en mis notas sobre eso."
                 else:
                     context_result = "Resultados de mi memoria:\n" + "\n".join([f"- {r['content']}" for r in results])
+                    
+            elif action == "rag_save":
+                await add_document(user.id, action_data["content"], action_data.get("metadata", {}))
+                context_result = "Información guardada en mi memoria exitosamente. Ya la tendré en cuenta para la próxima vez y aparecerá en el Dashboard."
             
-            # 2. Generar respuesta final con el contexto añadido
-            messages.append({"role": "assistant", "content": initial_response})
-            messages.append({"role": "system", "content": f"RESULTADO DE LA ACCION:\n{context_result}\nResponde al usuario basándote únicamente en esto."})
-            
-            final_response = await chat_completion(messages)
-            return final_response
+            # 2. Re-inyectar en el contexto para el siguiente loop
+            messages.append({"role": "assistant", "content": response})
+            messages.append({"role": "user", "content": f"SISTEMA (RESULTADO ACCIÓN):\n{context_result}\nSi necesitas hacer OTRA acción, genera un nuevo bloque JSON. Si ya tienes la respuesta definitiva para el usuario, responde en texto plano sin bloques de código."})
             
         except Exception as e:
             print(f"Error procesando acción: {e}")
-            return f"Hubo un error interno procesando esa acción. Detalles: {str(e)}"
+            messages.append({"role": "assistant", "content": response})
+            messages.append({"role": "user", "content": f"SISTEMA (ERROR): Hubo un fallo técnico ejecutando la herramienta: {str(e)}. Explícaselo al usuario."})
             
-    # Si no hay JSON, es una respuesta conversacional
-    return initial_response
+    return "Lo siento, tuve que realizar demasiadas acciones consecutivas y me he detenido. ¿Podrías reformular tu petición?"
