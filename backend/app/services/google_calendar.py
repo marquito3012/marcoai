@@ -30,15 +30,18 @@ def create_event(user, summary, start_time, end_time, description=""):
     """Crea un evento en el calendario principal"""
     service = get_calendar_service(user)
     
+    start_str = start_time if isinstance(start_time, str) else start_time.isoformat()
+    end_str = end_time if isinstance(end_time, str) else end_time.isoformat()
+
     event = {
       'summary': summary,
       'description': description,
       'start': {
-        'dateTime': start_time.isoformat(),
+        'dateTime': start_str,
         'timeZone': 'UTC',
       },
       'end': {
-        'dateTime': end_time.isoformat(),
+        'dateTime': end_str,
         'timeZone': 'UTC',
       },
     }
