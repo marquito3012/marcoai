@@ -147,6 +147,14 @@ body {
     margin-bottom: 1rem;
     color: var(--accent-primary);
     filter: drop-shadow(0 0 15px var(--accent-glow));
+    display: flex;
+    justify-content: center;
+}
+
+.login-logo img {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
 }
 
 .login-card h2 { margin-bottom: 0.5rem; }
@@ -227,6 +235,7 @@ body {
 }
 
 .logo i { color: var(--accent-primary); }
+.logo img { width: 28px; height: 28px; object-fit: contain; }
 
 .sidebar-nav {
     flex: 1;
