@@ -11,6 +11,7 @@ from app.modules.conocimiento import router as conocimiento_router
 from app.modules.admin import router as admin_router
 from app.modules.lifestyle import router as lifestyle_router
 from app.modules.entretenimiento import router as entretenimiento_router
+from app.modules.dashboard import router as dashboard_router
 
 # Configuración Inicial
 app = FastAPI(
@@ -26,6 +27,7 @@ app.include_router(conocimiento_router.router, prefix="/api")
 app.include_router(admin_router.router, prefix="/api")
 app.include_router(lifestyle_router.router, prefix="/api")
 app.include_router(entretenimiento_router.router, prefix="/api")
+app.include_router(dashboard_router.router, prefix="/api")
 
 
 # CORS
