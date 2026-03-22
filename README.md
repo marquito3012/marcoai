@@ -2,6 +2,8 @@
 
 Aplicación web full-stack que actúa como agente personal multiusuario, optimizada para desplegarse en una **Raspberry Pi 3** usando Docker y la API de Groq para inferencia LLM ultra ruda y rápida.
 
+![Marco AI](https://github.com/user-attachments/assets/1493c3d5-f1da-4fb2-8f33-98fd9bada40d)
+
 ## 🚀 Despliegue en Raspberry Pi 3 (vía SSH)
 
 Sigue estos comandos exactos en tu terminal SSH conectada a la Raspberry Pi:
