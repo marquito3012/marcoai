@@ -30,8 +30,8 @@ async def process_message(user, user_message: str):
         if json_match:
             json_str = json_match.group(1)
         else:
-            # Fallback a capturar cualquier bloque {} que contenga "action"
-            alt_match = re.search(r'(\{\s*"action"\s*:.*?\})', response, re.DOTALL)
+            # Fallback a capturar cualquier bloque {} que contenga "action", codicioso para coger llaves anidadas
+            alt_match = re.search(r'(\{\s*"action"\s*:.*\})', response, re.DOTALL)
             if alt_match:
                 json_str = alt_match.group(1)
                 
