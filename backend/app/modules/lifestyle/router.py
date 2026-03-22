@@ -5,19 +5,56 @@ from app.auth.dependencies import get_current_user
 
 router = APIRouter(prefix="/lifestyle", tags=["lifestyle"])
 
+import json
+from app.rag.engine import get_connection
+
 @router.get("/comidas")
 def get_meal_plan(current_user: User = Depends(get_current_user)):
-    """Plan de comidas de la semana (Mock base)"""
+    """Busca comidas o dieta en el cerebro del usuario."""
+    comidas = []
+    lista_compra = []
+    try:
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT metadata FROM documents WHERE user_id = ?", (current_user.id,))
+        rows = c.fetchall()
+        for row in rows:
+            meta = json.loads(row[0])
+            if meta.get("tipo") == "comida" or meta.get("type") == "comida":
+                comidas.append(meta.get("nombre") or meta.get("titulo") or "Comida guardada")
+            elif meta.get("tipo") == "compra" or meta.get("type") == "compra":
+                items = meta.get("items")
+                if isinstance(items, list):
+                     lista_compra.extend(items)
+                else:
+                     lista_compra.append(meta.get("nombre", "Artículo de compra"))
+        conn.close()
+    except Exception as e:
+        print("Error fetch comidas:", e)
+
     return {
-        "lunes": "Pollo a la plancha con arroz",
-        "martes": "Ensalada de Atún",
-        "lista_compra": ["Pollo", "Arroz", "Atún", "Lechuga"]
+        "comidas": comidas,
+        "lista_compra": lista_compra
     }
     
 @router.get("/habitos")
 def get_habitos(current_user: User = Depends(get_current_user)):
-    """Seguimiento de hábitos diarios"""
-    return [
-         {"nombre": "Leer 30 mins", "completado": True},
-         {"nombre": "Beber 2L Agua", "completado": False}
-    ]
+    """Recupera hábitos del Cerebro del usuario."""
+    habitos = []
+    try:
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT metadata FROM documents WHERE user_id = ?", (current_user.id,))
+        rows = c.fetchall()
+        for row in rows:
+            meta = json.loads(row[0])
+            if meta.get("tipo") == "habito" or meta.get("type") == "habito":
+                habitos.append({
+                    "nombre": meta.get("nombre") or meta.get("titulo", "Hábito sin título"),
+                    "completado": meta.get("completado", False)
+                })
+        conn.close()
+    except Exception as e:
+        print("Error fetch habitos:", e)
+        
+    return habitos
