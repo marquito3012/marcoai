@@ -6,17 +6,26 @@ from app.services.google_calendar import list_upcoming_events, create_event
 from app.services.google_gmail import list_unread_messages, create_draft
 from app.rag.engine import search, add_document
 
-async def process_message(user, user_message: str):
+async def process_message(user, user_message: str, history: list = None):
     """
     Orquestador principal del Agente. Recibe un mensaje, decide si requiere acción
     y genera una respuesta.
     """
+    if history is None:
+        history = []
+        
     system_msg = SYSTEM_PROMPT_ORCHESTRATOR.replace("{user_name}", user.name.split(" ")[0])
     
     messages = [
-        {"role": "system", "content": system_msg},
-        {"role": "user", "content": user_message}
+        {"role": "system", "content": system_msg}
     ]
+    
+    # Inyectar memoria de la conversación actual (limitada a 3 turnos / 6 mensajes)
+    for h in history[-6:]:
+        if isinstance(h, dict) and h.get('role') in ['user', 'assistant'] and h.get('content'):
+            messages.append({"role": h['role'], "content": h['content']})
+            
+    messages.append({"role": "user", "content": user_message})
     
     max_loops = 3
     for _ in range(max_loops):

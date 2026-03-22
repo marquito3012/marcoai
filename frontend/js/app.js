@@ -145,6 +145,7 @@ const app = {
         element: null,
         messagesArea: null,
         input: null,
+        chatHistory: [],
         
         init() {
             this.element = document.getElementById('chatPanel');
@@ -181,9 +182,21 @@ const app = {
             const loadId = this.addMessage('...', 'system', true);
 
             try {
-                const response = await API.post('/agente/chat', { message: text });
+                const payload = { 
+                    message: text,
+                    history: this.chatHistory 
+                };
+                const response = await API.post('/agente/chat', payload);
                 this.removeMessage(loadId);
                 this.addMessage(response.reply, 'system');
+                
+                // Keep track of memory
+                this.chatHistory.push({ role: 'user', content: text });
+                this.chatHistory.push({ role: 'assistant', content: response.reply });
+                // Keep only the last 6 messages (3 turns)
+                if (this.chatHistory.length > 6) {
+                    this.chatHistory = this.chatHistory.slice(-6);
+                }
             } catch (error) {
                 this.removeMessage(loadId);
                 this.addMessage(`Error de red: ${error.message}`, 'system');
