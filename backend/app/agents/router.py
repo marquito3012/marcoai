@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File, Response
 from sqlalchemy.orm import Session
 from app.database import get_db, User
 from app.auth.dependencies import get_current_user
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 from app.agents.orchestrator import process_message
-from app.agents.groq_client import speech_to_text
+from app.agents.groq_client import speech_to_text, text_to_speech
 
 router = APIRouter(prefix="/agente", tags=["agente"])
 
@@ -28,3 +28,12 @@ async def transcribe_audio(audio: UploadFile = File(...), current_user: User = D
         return {"transcript": text or ""}
     except Exception as e:
         return {"error": str(e), "transcript": ""}
+
+@router.get("/tts")
+async def get_tts(text: str, current_user: User = Depends(get_current_user)):
+    """Endpoint para generar voz realista"""
+    audio_content = await text_to_speech(text)
+    if not audio_content:
+        return Response(status_code=500)
+    
+    return Response(content=audio_content, media_type="audio/mpeg")

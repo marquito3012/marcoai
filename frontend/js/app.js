@@ -152,7 +152,7 @@ const app = {
         isListening: false,
         mediaRecorder: null,
         audioChunks: [],
-        bestVoice: null,
+        currentAudio: null,
 
         init() {
             this.element = document.getElementById('chatPanel');
@@ -163,18 +163,6 @@ const app = {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 console.warn('MediaDevices no soportado');
             }
-
-            // Cargar mejores voces para el TTS
-            const loadVoices = () => {
-                const voices = window.speechSynthesis.getVoices();
-                // Prioridad: 1. Google Español, 2. Microsoft Natural, 3. Cualquier español
-                this.bestVoice = voices.find(v => v.lang.startsWith('es') && v.name.includes('Google')) || 
-                                 voices.find(v => v.lang.startsWith('es') && v.name.includes('Natural')) ||
-                                 voices.find(v => v.lang.startsWith('es'));
-                if (this.bestVoice) console.log('Voz elegida:', this.bestVoice.name);
-            };
-            window.speechSynthesis.onvoiceschanged = loadVoices;
-            loadVoices();
         },
 
         toggleVoice() {
@@ -266,22 +254,34 @@ const app = {
             }
         },
 
-        speak(text) {
-            if (!this.isVoiceEnabled) return;
-            
-            // Cancelar cualquier discurso previo
-            window.speechSynthesis.cancel();
+        async speak(text) {
+            if (!this.isVoiceEnabled || !text) return;
             
             // Limpiar Markdown simple del texto para que no lea asteriscos
-            const cleanText = text.replace(/[\*\#\_{\}\[\]\(\)\>\+\-\.\!]/g, '');
+            const cleanText = text.replace(/[\*\#\_{\}\[\]\(\)\>\+\-\.\!]/g, ' ').trim();
+            if (!cleanText) return;
 
-            const utterance = new SpeechSynthesisUtterance(cleanText);
-            utterance.lang = 'es-ES';
-            if (this.bestVoice) utterance.voice = this.bestVoice;
-            utterance.rate = 1.05; // Un pelín más rápido suena más natural
-            utterance.pitch = 1.0;
-            
-            window.speechSynthesis.speak(utterance);
+            try {
+                // Usamos la API del backend para obtener voz realista (Edge-TTS)
+                // Usamos audio nativo para reproducir el stream del servidor
+                const url = `/api/agente/tts?text=${encodeURIComponent(cleanText)}`;
+                
+                // Si ya hay un audio sonando, lo paramos
+                if (this.currentAudio) {
+                    this.currentAudio.pause();
+                    this.currentAudio = null;
+                }
+
+                this.currentAudio = new Audio(url);
+                await this.currentAudio.play();
+            } catch (error) {
+                console.error('Error al reproducir voz realista:', error);
+                
+                // Fallback a síntesis nativa si el servidor falla (opcional)
+                const utterance = new SpeechSynthesisUtterance(cleanText);
+                utterance.lang = 'es-ES';
+                window.speechSynthesis.speak(utterance);
+            }
         },
 
         toggle() {

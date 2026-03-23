@@ -1,5 +1,7 @@
 import groq
 from app.config import settings
+import edge_tts
+import io
 
 client = groq.AsyncGroq(api_key=settings.GROQ_API_KEY)
 
@@ -34,4 +36,24 @@ async def speech_to_text(file_bytes: bytes, filename: str):
         return transcription.text
     except Exception as e:
         print(f"Error transcribiendo audio con Groq: {e}")
+        return None
+
+async def text_to_speech(text: str):
+    """
+    Genera audio realista usando edge-tts.
+    """
+    try:
+        # Usamos Álvaro o Elvira para máxima naturalidad
+        voice = "es-ES-AlvaroNeural"
+        communicate = edge_tts.Communicate(text, voice)
+        
+        audio_stream = io.BytesIO()
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_stream.write(chunk["data"])
+        
+        audio_stream.seek(0)
+        return audio_stream.read()
+    except Exception as e:
+        print(f"Error generando TTS con edge-tts: {e}")
         return None
