@@ -53,7 +53,7 @@ async def upload_file(
                 # Chunking básico por párrafos
                 chunks = [c.strip() for c in content.split("\n\n") if len(c.strip()) > 10]
                 for i, chunk in enumerate(chunks):
-                    add_document(
+                    await add_document(
                         user_id=current_user.id,
                         content=chunk,
                         doc_metadata={
@@ -82,7 +82,7 @@ async def upload_file(
                 # Chunking básico por párrafos
                 chunks = [c.strip() for c in full_text.split("\n\n") if len(c.strip()) > 20]
                 for i, chunk in enumerate(chunks):
-                    add_document(
+                    await add_document(
                         user_id=current_user.id,
                         content=chunk,
                         doc_metadata={

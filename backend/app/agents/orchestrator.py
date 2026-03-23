@@ -83,9 +83,9 @@ async def process_message(user, user_message: str, history: list = None):
             elif action == "rag_search":
                 results = await search(user.id, action_data["query"])
                 if not results:
-                    context_result = "No encontré nada en mis notas sobre eso."
+                    context_result = "No encontré información relevante en mi memoria (notas ni archivos de la Bóveda)."
                 else:
-                    context_result = "Resultados de mi memoria:\n" + "\n".join([f"- {r['content']}" for r in results])
+                    context_result = "Resultados encontrados en mi memoria (notas/archivos):\n" + "\n".join([f"- {r['content']}" for r in results])
                     
             elif action == "rag_save":
                 content = action_data.get("content") or action_data.get("title", "Nota general")
