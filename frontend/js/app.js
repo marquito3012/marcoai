@@ -146,6 +146,7 @@ const app = {
         messagesArea: null,
         input: null,
         chatHistory: [],
+        msgCounter: 0,
         
         isVoiceEnabled: false,
         isListening: false,
@@ -320,7 +321,7 @@ const app = {
         },
 
         addMessage(text, role, isLoading = false) {
-            const id = 'msg-' + Date.now();
+            const id = `msg-${role}-${this.msgCounter++}`;
             const div = document.createElement('div');
             div.id = id;
             div.className = `message ${role}`;
