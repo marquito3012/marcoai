@@ -20,3 +20,18 @@ async def chat_completion(messages: list[dict], model: str = "llama-3.3-70b-vers
     except Exception as e:
         print(f"Error llamando a Groq API: {e}")
         return "Lo siento, tuve un problema procesando tu solicitud con mi cerebro principal. Intenta de nuevo en unos segundos."
+
+async def speech_to_text(file_bytes: bytes, filename: str):
+    """
+    Usa Groq Whisper para transcribir audio a texto.
+    """
+    try:
+        transcription = await client.audio.transcriptions.create(
+            file=(filename, file_bytes),
+            model="whisper-large-v3-turbo",
+            response_format="verbose_json",
+        )
+        return transcription.text
+    except Exception as e:
+        print(f"Error transcribiendo audio con Groq: {e}")
+        return None

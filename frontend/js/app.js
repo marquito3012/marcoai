@@ -149,42 +149,17 @@ const app = {
         
         isVoiceEnabled: false,
         isListening: false,
-        recognition: null,
+        mediaRecorder: null,
+        audioChunks: [],
 
         init() {
             this.element = document.getElementById('chatPanel');
             this.messagesArea = document.getElementById('chatMessages');
             this.input = document.getElementById('chatInput');
             
-            // Inicializar reconocimiento si el navegador lo soporta
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (SpeechRecognition) {
-                this.recognition = new SpeechRecognition();
-                this.recognition.lang = 'es-ES';
-                this.recognition.continuous = false;
-                this.recognition.interimResults = false;
-
-                this.recognition.onstart = () => {
-                    this.isListening = true;
-                    document.getElementById('micBtn').classList.add('listening');
-                };
-
-                this.recognition.onresult = (event) => {
-                    const transcript = event.results[0][0].transcript;
-                    this.input.value = transcript;
-                    this.send();
-                };
-
-                this.recognition.onend = () => {
-                    this.isListening = false;
-                    document.getElementById('micBtn').classList.remove('listening');
-                };
-
-                this.recognition.onerror = (event) => {
-                    console.error('Speech recognition error:', event.error);
-                    this.isListening = false;
-                    document.getElementById('micBtn').classList.remove('listening');
-                };
+            // Verificamos si podemos usar el micro
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                console.warn('MediaDevices no soportado');
             }
         },
 
@@ -200,15 +175,80 @@ const app = {
             }
         },
 
-        startListening() {
-            if (!this.recognition) {
-                alert("Tu navegador no soporta reconocimiento de voz.");
+        async startListening() {
+            const micBtn = document.getElementById('micBtn');
+            
+            if (this.isListening) {
+                this.stopRecording();
                 return;
             }
-            if (this.isListening) {
-                this.recognition.stop();
-            } else {
-                this.recognition.start();
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                this.mediaRecorder = new MediaRecorder(stream);
+                this.audioChunks = [];
+
+                this.mediaRecorder.ondataavailable = (event) => {
+                    this.audioChunks.push(event.data);
+                };
+
+                this.mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+                    await this.uploadAudio(audioBlob);
+                    // Cerrar el stream del micro
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                this.mediaRecorder.start();
+                this.isListening = true;
+                micBtn.classList.add('listening');
+                
+                // Auto-stop tras 8 segundos de silencio o tiempo max
+                setTimeout(() => {
+                    if (this.isListening) this.stopRecording();
+                }, 8000);
+
+            } catch (err) {
+                console.error('Error accediendo al micro:', err);
+                alert('No se pudo acceder al micrófono. Revisa los permisos.');
+            }
+        },
+
+        stopRecording() {
+            if (this.mediaRecorder && this.isListening) {
+                this.mediaRecorder.stop();
+                this.isListening = false;
+                document.getElementById('micBtn').classList.remove('listening');
+            }
+        },
+
+        async uploadAudio(blob) {
+            const formData = new FormData();
+            formData.append('audio', blob, 'recording.webm');
+            
+            // Usamos fetch directo para manejar FormData sin las cabeceras de API.js (JSON)
+            try {
+                this.input.placeholder = "Transcribiendo...";
+                const response = await fetch('/api/agente/stt', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.status === 401) {
+                    window.location.hash = '#login';
+                    return;
+                }
+
+                const data = await response.json();
+                this.input.placeholder = "Pregunta algo...";
+                
+                if (data.transcript) {
+                    this.input.value = data.transcript;
+                    this.send();
+                }
+            } catch (error) {
+                console.error('Error enviando audio:', error);
+                this.input.placeholder = "Error en voz...";
             }
         },
 
