@@ -152,6 +152,7 @@ const app = {
         isListening: false,
         mediaRecorder: null,
         audioChunks: [],
+        bestVoice: null,
 
         init() {
             this.element = document.getElementById('chatPanel');
@@ -162,6 +163,18 @@ const app = {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 console.warn('MediaDevices no soportado');
             }
+
+            // Cargar mejores voces para el TTS
+            const loadVoices = () => {
+                const voices = window.speechSynthesis.getVoices();
+                // Prioridad: 1. Google Español, 2. Microsoft Natural, 3. Cualquier español
+                this.bestVoice = voices.find(v => v.lang.startsWith('es') && v.name.includes('Google')) || 
+                                 voices.find(v => v.lang.startsWith('es') && v.name.includes('Natural')) ||
+                                 voices.find(v => v.lang.startsWith('es'));
+                if (this.bestVoice) console.log('Voz elegida:', this.bestVoice.name);
+            };
+            window.speechSynthesis.onvoiceschanged = loadVoices;
+            loadVoices();
         },
 
         toggleVoice() {
@@ -259,9 +272,13 @@ const app = {
             // Cancelar cualquier discurso previo
             window.speechSynthesis.cancel();
             
-            const utterance = new SpeechSynthesisUtterance(text);
+            // Limpiar Markdown simple del texto para que no lea asteriscos
+            const cleanText = text.replace(/[\*\#\_{\}\[\]\(\)\>\+\-\.\!]/g, '');
+
+            const utterance = new SpeechSynthesisUtterance(cleanText);
             utterance.lang = 'es-ES';
-            utterance.rate = 1.0;
+            if (this.bestVoice) utterance.voice = this.bestVoice;
+            utterance.rate = 1.05; // Un pelín más rápido suena más natural
             utterance.pitch = 1.0;
             
             window.speechSynthesis.speak(utterance);
