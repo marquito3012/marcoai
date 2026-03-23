@@ -49,7 +49,8 @@ def init_rag_db():
             content TEXT,
             metadata TEXT,
             embedding array
-        )
+        );
+        CREATE INDEX IF NOT EXISTS idx_documents_user ON documents(user_id);
     ''')
     conn.commit()
     
@@ -129,7 +130,10 @@ async def search(user_id: int, query: str, top_k: int = 3):
             dot = np.dot(query_np, doc_emb)
             norm_q = np.linalg.norm(query_np)
             norm_d = np.linalg.norm(doc_emb)
-            score = dot / (norm_q * norm_d)
+            if norm_q > 0 and norm_d > 0:
+                score = dot / (norm_q * norm_d)
+            else:
+                score = 0.0
             scored.append((score, {
                 "id": doc_id,
                 "content": content,
@@ -144,7 +148,7 @@ async def search(user_id: int, query: str, top_k: int = 3):
     conn.close()
     return results
 
-async def delete_documents(user_id: int, tipo: str = None, query: str = None):
+async def delete_documents(user_id: int, tipo: str | None = None, query: str | None = None):
     """Elimina documentos del RAG de un usuario por tipo o contenido literal."""
     conn = get_connection()
     c = conn.cursor()

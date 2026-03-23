@@ -67,8 +67,11 @@ async def process_message(user, user_message: str, history: list = None):
                     context_result = "Eventos próximos:\n" + "\n".join([f"- {e.get('summary')} ({e['start'].get('dateTime', e['start'].get('date'))})" for e in events])
                     
             elif action == "calendar_create":
-                evt = create_event(user, action_data["summary"], action_data["start_time"], action_data["end_time"])
-                context_result = f"Evento '{action_data['summary']}' creado exitosamente."
+                if all(k in action_data for k in ["summary", "start_time", "end_time"]):
+                    evt = create_event(user, action_data["summary"], action_data["start_time"], action_data["end_time"])
+                    context_result = f"Evento '{action_data['summary']}' creado exitosamente."
+                else:
+                    context_result = "ERROR: Faltan parámetros requeridos (summary, start_time o end_time) para crear el evento."
                 
             elif action == "gmail_read":
                 msgs = list_unread_messages(user)
