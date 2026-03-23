@@ -46,6 +46,18 @@ class EventCache(Base):
     raw_data = Column(JSON)
     synced_at = Column(DateTime, default=datetime.utcnow)
 
+class DocumentFile(Base):
+    __tablename__ = "document_files"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    filename = Column(String)
+    filepath = Column(String)
+    file_size = Column(Integer)
+    file_type = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    processed = Column(JSON) # Almacena info sobre si se ha indexado en RAG
+
 # NOTA: La tabla vectorial para el RAG de SQLite se creará/administrará
 # mediante queries raw en sqlite3 / sqlite_utils dado que SQLAlchemy 
 # no soporta nativamente la extensión vss.
