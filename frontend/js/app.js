@@ -42,6 +42,44 @@ const app = {
         }
     },
 
+    utils: {
+        showToast(message, type = 'info') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                document.body.appendChild(container);
+            }
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icon = type === 'success' ? 'ph-check-circle' : 
+                         type === 'error' ? 'ph-warning-circle' : 'ph-info';
+
+            toast.innerHTML = `
+                <i class="ph ${icon}"></i>
+                <span class="text-sm font-medium">${message}</span>
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(20px)';
+                setTimeout(() => toast.remove(), 400);
+            }, 4000);
+        },
+        
+        formatSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+    },
+
     async handleRoute() {
         let hash = window.location.hash.slice(1).split('?')[0]; // Ej: 'dashboard'
         if (hash === '') hash = 'dashboard';

@@ -12,7 +12,8 @@ app.views['files'] = {
         this.loading = true;
         this.updateContent();
         try {
-            const response = await api.get('/files');
+            // Usamos API global (mayúsculas)
+            const response = await API.get('/files');
             this.files = response;
         } catch (error) {
             console.error('Error cargando archivos:', error);
@@ -30,21 +31,26 @@ app.views['files'] = {
         formData.append('file', file);
 
         try {
-            utils.showToast('Subiendo e indexando...', 'info');
-            await api.post('/files/upload', formData, true);
-            utils.showToast('Archivo listo en la bóveda', 'success');
+            // Usamos app.utils global
+            app.utils.showToast('Subiendo e indexando...', 'info');
+            await API.request('/files/upload', { 
+                method: 'POST', 
+                body: formData, 
+                headers: {} // Vacío para que el navegador ponga el boundary multipart
+            });
+            app.utils.showToast('Archivo listo en la bóveda', 'success');
             await this.loadFiles();
         } catch (error) {
             console.error('Error subiendo archivo:', error);
-            utils.showToast('Error al subir archivo', 'error');
+            app.utils.showToast('Error al subir archivo', 'error');
         }
     },
 
     async deleteFile(id) {
         if (!confirm('¿Seguro que quieres eliminar este archivo? Se borrará de la memoria de Marco.')) return;
         try {
-            await api.delete(`/files/${id}`);
-            utils.showToast('Archivo eliminado', 'success');
+            await API.delete(`/files/${id}`);
+            app.utils.showToast('Archivo eliminado', 'success');
             await this.loadFiles();
         } catch (error) {
             console.error('Error eliminando archivo:', error);
@@ -52,7 +58,7 @@ app.views['files'] = {
     },
 
     downloadFile(id) {
-        window.open(`${api.baseUrl}/files/download/${id}`, '_blank');
+        window.open(`/api/files/download/${id}`, '_blank');
     },
 
     renderLayout() {
@@ -109,7 +115,7 @@ app.views['files'] = {
                             </div>
                             <div style="flex: 1; min-width: 0;">
                                 <h4 class="text-white text-sm font-semibold truncate" title="${file.filename}">${file.filename}</h4>
-                                <p class="text-muted text-xs">${utils.formatSize(file.file_size)}</p>
+                                <p class="text-muted text-xs">${app.utils.formatSize(file.file_size)}</p>
                             </div>
                         </div>
                         <div style="display: flex; gap: 8px; margin-top: 5px;">

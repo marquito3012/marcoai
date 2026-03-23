@@ -3,13 +3,13 @@ const API = {
     async request(url, options = {}) {
         // Asume que la auth cookie (session_token) se envía automáticamente
         // si httponly=true o si configuramos include
-        const defaultOptions = {
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        };
+        const config = { ...options };
+        if (!config.headers) config.headers = {};
 
-        const config = { ...defaultOptions, ...options };
+        // No poner Content-Type si es FormData (el navegador lo pondrá con el boundary)
+        if (!(options.body instanceof FormData)) {
+            config.headers['Content-Type'] = 'application/json';
+        }
         
         try {
             const response = await fetch(`/api${url}`, config);
