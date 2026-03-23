@@ -531,6 +531,35 @@ body {
 }
 
 /* ==========================================================================
+   Chat Controls
+   ========================================================================== */
+.chat-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.mic-btn {
+    color: var(--text-muted);
+    transition: 0.3s;
+}
+
+.mic-btn:hover {
+    color: var(--accent-primary);
+}
+
+.mic-btn.listening {
+    color: #f87171;
+    animation: mic-pulse 1.5s infinite;
+}
+
+@keyframes mic-pulse {
+    0% { transform: scale(1); filter: drop-shadow(0 0 0px rgba(248, 113, 113, 0)); }
+    50% { transform: scale(1.15); filter: drop-shadow(0 0 10px rgba(248, 113, 113, 0.5)); }
+    100% { transform: scale(1); filter: drop-shadow(0 0 0px rgba(248, 113, 113, 0)); }
+}
+
+/* ==========================================================================
    Mobile Responsive Styles (Max 768px)
    ========================================================================== */
 .mobile-menu-btn {

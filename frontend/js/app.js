@@ -147,10 +147,83 @@ const app = {
         input: null,
         chatHistory: [],
         
+        isVoiceEnabled: false,
+        isListening: false,
+        recognition: null,
+
         init() {
             this.element = document.getElementById('chatPanel');
             this.messagesArea = document.getElementById('chatMessages');
             this.input = document.getElementById('chatInput');
+            
+            // Inicializar reconocimiento si el navegador lo soporta
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                this.recognition = new SpeechRecognition();
+                this.recognition.lang = 'es-ES';
+                this.recognition.continuous = false;
+                this.recognition.interimResults = false;
+
+                this.recognition.onstart = () => {
+                    this.isListening = true;
+                    document.getElementById('micBtn').classList.add('listening');
+                };
+
+                this.recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    this.input.value = transcript;
+                    this.send();
+                };
+
+                this.recognition.onend = () => {
+                    this.isListening = false;
+                    document.getElementById('micBtn').classList.remove('listening');
+                };
+
+                this.recognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error);
+                    this.isListening = false;
+                    document.getElementById('micBtn').classList.remove('listening');
+                };
+            }
+        },
+
+        toggleVoice() {
+            this.isVoiceEnabled = !this.isVoiceEnabled;
+            const icon = document.getElementById('voiceIcon');
+            if (this.isVoiceEnabled) {
+                icon.className = 'ph-fill ph-speaker-high text-accent';
+                this.speak("Voz activada");
+            } else {
+                icon.className = 'ph ph-speaker-simple-none';
+                window.speechSynthesis.cancel();
+            }
+        },
+
+        startListening() {
+            if (!this.recognition) {
+                alert("Tu navegador no soporta reconocimiento de voz.");
+                return;
+            }
+            if (this.isListening) {
+                this.recognition.stop();
+            } else {
+                this.recognition.start();
+            }
+        },
+
+        speak(text) {
+            if (!this.isVoiceEnabled) return;
+            
+            // Cancelar cualquier discurso previo
+            window.speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'es-ES';
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            
+            window.speechSynthesis.speak(utterance);
         },
 
         toggle() {
@@ -189,6 +262,9 @@ const app = {
                 const response = await API.post('/agente/chat', payload);
                 this.removeMessage(loadId);
                 this.addMessage(response.reply, 'system');
+                
+                // Si la voz está activa, Marco habla
+                this.speak(response.reply);
                 
                 // Keep track of memory
                 this.chatHistory.push({ role: 'user', content: text });

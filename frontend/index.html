@@ -11,7 +11,7 @@
     <!-- Phosphor Icons para iconografía elegante -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link rel="icon" type="image/svg+xml" href="logo_wob.svg">
-    <link rel="stylesheet" href="css/styles.css?v=5">
+    <link rel="stylesheet" href="css/styles.css?v=6">
 </head>
 <body>
     <!-- Capa de fondo animada/glass -->
@@ -109,14 +109,22 @@
                         <i class="ph-fill ph-sparkle text-gradient"></i>
                         <h3>Marco AI</h3>
                     </div>
-                    <button class="icon-btn" onclick="app.chat.toggle()">
-                        <i class="ph ph-x"></i>
-                    </button>
+                    <div class="chat-controls">
+                        <button class="icon-btn" id="voiceToggle" onclick="app.chat.toggleVoice()" title="Activar/Desactivar Voz">
+                            <i class="ph ph-speaker-simple-none" id="voiceIcon"></i>
+                        </button>
+                        <button class="icon-btn" onclick="app.chat.toggle()">
+                            <i class="ph ph-x"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="chat-messages" id="chatMessages">
                     <div class="message system">Hola, ¿en qué te puedo ayudar hoy?</div>
                 </div>
                 <div class="chat-input-area">
+                    <button class="icon-btn mic-btn" id="micBtn" onclick="app.chat.startListening()" title="Hablar">
+                        <i class="ph-fill ph-microphone"></i>
+                    </button>
                     <input type="text" id="chatInput" placeholder="Pregunta algo o pide una acción..." onkeypress="if(event.key === 'Enter') app.chat.send()">
                     <button class="send-btn" onclick="app.chat.send()">
                         <i class="ph-fill ph-paper-plane-right"></i>
@@ -148,7 +156,7 @@
     <script src="js/api.js?v=3"></script>
     <script src="js/auth.js?v=3"></script>
     <!-- Core App -->
-    <script src="js/app.js?v=4"></script>
+    <script src="js/app.js?v=5"></script>
     <!-- Componentes de Vistas -->
     <!-- Componentes de Vistas -->
     <script src="js/components/dashboard.js?v=5"></script>
