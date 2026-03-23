@@ -1,21 +1,56 @@
 // Cliente API Centralizado
 const API = {
     async request(url, options = {}) {
-        // Asume que la auth cookie (session_token) se envía automáticamente
-        // si httponly=true o si configuramos include
         const config = { ...options };
         if (!config.headers) config.headers = {};
 
-        // No poner Content-Type si es FormData (el navegador lo pondrá con el boundary)
         if (!(options.body instanceof FormData)) {
             config.headers['Content-Type'] = 'application/json';
         }
+
+        // Si hay onProgress, usamos XHR para trackear la subida
+        if (options.onProgress) {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open(options.method || 'GET', `/api${url}`);
+                
+                // Configurar headers
+                Object.keys(config.headers).forEach(key => {
+                    xhr.setRequestHeader(key, config.headers[key]);
+                });
+
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        options.onProgress(percent);
+                    }
+                };
+
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        try {
+                            resolve(JSON.parse(xhr.responseText));
+                        } catch (e) {
+                            resolve(xhr.responseText);
+                        }
+                    } else if (xhr.status === 401) {
+                        window.location.hash = '#login';
+                        reject(new Error('No autorizado'));
+                    } else {
+                        reject(new Error(xhr.statusText || 'Error en la petición'));
+                    }
+                };
+
+                xhr.onerror = () => reject(new Error('Error de red'));
+                xhr.send(options.body);
+            });
+        }
         
+        // Fallback a fetch normal para el resto
         try {
             const response = await fetch(`/api${url}`, config);
             
             if (response.status === 401) {
-                // Redirigir a login si expira
                 window.location.hash = '#login';
                 throw new Error('No autorizado');
             }
