@@ -12,8 +12,8 @@ app.views['files'] = {
         this.loading = true;
         this.updateContent();
         try {
-            // Usamos API global (mayúsculas)
-            const response = await API.get('/files');
+            // Usamos la barra al final para evitar redirecciones 307 (FastAPI)
+            const response = await API.get('/files/');
             this.files = response;
         } catch (error) {
             console.error('Error cargando archivos:', error);
