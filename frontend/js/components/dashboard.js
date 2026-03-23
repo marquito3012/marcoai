@@ -29,13 +29,14 @@ app.views['dashboard'] = {
             if (isAllDay) {
                 eventoHTML = `
                     <div class="stat-value text-accent" style="font-size: 1.2rem; margin-top: 8px;">${dayStr}</div>
-                    <p class="text-muted mt-8">${summary.evento.titulo} (Todo el día)</p>
+                    <p class="text-muted mt-8">🏆 Todo el día • ${summary.evento.titulo}</p>
                 `;
             } else {
                 const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 eventoHTML = `
-                    <div class="stat-value text-accent" style="font-size: 1.2rem; margin-top: 8px;">${timeStr}</div>
-                    <p class="text-muted mt-8">📅 ${dayStr} • ${summary.evento.titulo}</p>
+                    <div class="stat-value text-accent" style="font-size: 1.4rem; margin-top: 8px;">${timeStr}</div>
+                    <div class="text-accent" style="font-weight: 600; font-size: 0.9rem; margin-top: 4px;">📅 ${dayStr}</div>
+                    <p class="text-muted mt-8">${summary.evento.titulo}</p>
                 `;
             }
         } else {
