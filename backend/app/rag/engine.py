@@ -49,9 +49,9 @@ def init_rag_db():
             content TEXT,
             metadata TEXT,
             embedding array
-        );
-        CREATE INDEX IF NOT EXISTS idx_documents_user ON documents(user_id);
+        )
     ''')
+    c.execute("CREATE INDEX IF NOT EXISTS idx_documents_user ON documents(user_id)")
     conn.commit()
     
     # Intentamos crear la tabla virtual vss0 si sqlite-vss está disponible
