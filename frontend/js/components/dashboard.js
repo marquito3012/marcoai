@@ -17,11 +17,33 @@ app.views['dashboard'] = {
         }
 
         // Formatear evento
-        const eventoHTML = summary.evento 
-            ? `<div class="stat-value text-accent" style="font-size: 1.2rem; margin-top: 8px;">${new Date(summary.evento.hora).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-               <p class="text-muted mt-8">${summary.evento.titulo}</p>`
-            : `<div class="stat-value text-muted" style="font-size: 1.2rem; margin-top: 8px;">--</div>
-               <p class="text-muted mt-8">Sin eventos próximos</p>`;
+        let eventoHTML = '';
+        if (summary.evento) {
+            const iso = summary.evento.hora;
+            const dateObj = new Date(iso);
+            const isAllDay = !iso.includes('T') && !iso.includes(':');
+            
+            // Formatear día (ej: "Lun 24 Mar" o "lunes, 24 de marzo" según locale)
+            const dayStr = dateObj.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+            
+            if (isAllDay) {
+                eventoHTML = `
+                    <div class="stat-value text-accent" style="font-size: 1.2rem; margin-top: 8px;">${dayStr}</div>
+                    <p class="text-muted mt-8">${summary.evento.titulo} (Todo el día)</p>
+                `;
+            } else {
+                const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                eventoHTML = `
+                    <div class="stat-value text-accent" style="font-size: 1.2rem; margin-top: 8px;">${timeStr}</div>
+                    <p class="text-muted mt-8">📅 ${dayStr} • ${summary.evento.titulo}</p>
+                `;
+            }
+        } else {
+            eventoHTML = `
+                <div class="stat-value text-muted" style="font-size: 1.2rem; margin-top: 8px;">--</div>
+                <p class="text-muted mt-8">Sin eventos próximos</p>
+            `;
+        }
 
         // Formatear correos
         const correosHTML = `
