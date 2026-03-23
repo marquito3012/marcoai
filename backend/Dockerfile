@@ -1,5 +1,5 @@
 # Dockerfile multi-stage as requested, optimized for ARM/RPi3
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 # Instalar dependencias de compilación para C extensions (sqlite-vss, etc)
 RUN apt-get update && apt-get install -y \
