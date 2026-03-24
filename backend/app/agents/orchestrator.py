@@ -1,168 +1,129 @@
-import json
-import re
 from app.agents.groq_client import chat_completion
 from app.agents.prompts import SYSTEM_PROMPT_ORCHESTRATOR
 from app.services.google_calendar import list_upcoming_events, create_event
 from app.services.google_gmail import list_unread_messages, list_messages, create_draft, send_email, list_labels, modify_message_labels, create_label
 from app.agents.specialists.gmail_agent import analyze_inbox as gmail_expert_analyze
 from app.rag.engine import search, add_document, delete_documents
+import json
 
 async def process_message(user, user_message: str, history: list = None):
     """
-    Orquestador principal del Agente. Recibe un mensaje, decide si requiere acción
-    y genera una respuesta.
+    Orquestador principal que maneja el loop de razonamiento y herramientas.
     """
     if history is None:
         history = []
         
-    system_msg = SYSTEM_PROMPT_ORCHESTRATOR.replace("{user_name}", user.name.split(" ")[0])
-    
+    # --- Fase 1: Análisis Multi-Agente (Handoff) ---
+    email_keywords = ["organiza", "gestiona", "limpia", "triage", "clasifica", "correos", "inbox"]
+    if any(k in user_message.lower() for k in email_keywords) and "calendario" not in user_message.lower():
+        # Obtenemos visión amplia del inbox
+        msgs = list_messages(user, max_results=20)
+        if msgs:
+            expert_response = await gmail_expert_analyze(user, msgs, user_message)
+            # Inyectamos el análisis del experto como contexto prioritario
+            user_message = f"USER REQUEST: {user_message}\n\nGMAIL EXPERT ANALYSIS & PLAN:\n{expert_response}\n\nINSTRUCTION: Execute the expert's plan using JSON tools immediately. Do not ask for confirmation."
+
+    # --- Fase 2: Configuración del Contexto LLM ---
+    system_msg = SYSTEM_PROMPT_ORCHESTRATOR.format(user_name=user.full_name or "Usuario")
     messages = [
         {"role": "system", "content": system_msg}
     ]
     
-    # Inyectar memoria de la conversación actual (limitada a 3 turnos / 6 mensajes)
+    # Inyectar memoria de la conversación (últimos 6 mensajes)
     for h in history[-6:]:
         if isinstance(h, dict) and h.get('role') in ['user', 'assistant'] and h.get('content'):
             messages.append({"role": h['role'], "content": h['content']})
             
+    # Añadir el mensaje actual (posiblemente modificado por el experto)
     messages.append({"role": "user", "content": user_message})
     
-    # --- Fase 1: Análisis Multi-Agente (Handoff) ---
-    # Si la petición es sobre organizar o gestionar el correo, delegamos al experto
-    email_keywords = ["organiza", "gestiona", "limpia", "triage", "clasifica", "correos", "inbox"]
-    if any(k in user_message.lower() for k in email_keywords) and "calendario" not in user_message.lower():
-        # Obtenemos una visión más amplia del inbox (incluyendo leídos)
-        msgs = list_messages(user, max_results=15)
-        if msgs:
-            expert_response = await gmail_expert_analyze(user, msgs, user_message)
-            # El experto devuelve texto + JSON. Lo inyectamos en el flujo del orquestador.
-            user_message = f"PETICIÓN ORIGINAL DEL USUARIO: {user_message}\nANÁLISIS PROACTIVO DEL EXPERTO GMAIL:\n{expert_response}\nIMPORTANTE: Si el experto ha propuesto acciones claras, EJECÚTALAS YA en formato JSON sin preguntar de nuevo."
-
     max_loops = 3
     for _ in range(max_loops):
-        # 1. Obtenemos la decisión de Groq
-        response = await chat_completion(messages)
+        # 1. Decisión de Groq
+        response_text = await chat_completion(messages)
+        messages.append({"role": "assistant", "content": response_text})
         
-        # Buscar JSON en la respuesta (Tool Calling manual) más robusto
-        json_str = None
-        json_match = re.search(r'(?:```|""")(?:json)?\s*(\{.*?\})\s*(?:```|""")', response, re.DOTALL | re.IGNORECASE)
-        
-        if json_match:
-            json_str = json_match.group(1)
-        else:
-            # Fallback a capturar cualquier bloque {} que contenga "action", codicioso para coger llaves anidadas
-            alt_match = re.search(r'(\{\s*"action"\s*:.*\})', response, re.DOTALL)
-            if alt_match:
-                json_str = alt_match.group(1)
+        # 2. ¿Hay comando JSON?
+        if "```json" in response_text:
+            try:
+                # Extraer JSON
+                json_str = response_text.split("```json")[1].split("```")[0].strip()
+                action_data = json.loads(json_str)
+                action = action_data.get("action")
                 
-        if not json_str:
-            # Si no hay JSON reconocible, asumimos que es una respuesta final conversacional
-            return response
-            
-        try:
-            action_data = json.loads(json_str)
-            action = action_data.get("action")
-            
-            # Normalizar alucinaciones de LLM sobre el nombre de la acción
-            if action in ["rag_create", "guardar_nota"]:
-                action = "rag_save"
-            
-            # Ejecutar Acción y proveer contexto de vuelta a Groq
-            context_result = "La acción se ejecutó pero no devolvió resultados."
-            
-            if action == "calendar_list":
-                events = list_upcoming_events(user)
-                if not events:
-                    context_result = "No hay eventos próximos."
-                else:
-                    context_result = "Eventos próximos:\n" + "\n".join([f"- {e.get('summary')} ({e['start'].get('dateTime', e['start'].get('date'))})" for e in events])
-                    
-            elif action == "calendar_create":
-                if all(k in action_data for k in ["summary", "start_time", "end_time"]):
-                    evt = create_event(user, action_data["summary"], action_data["start_time"], action_data["end_time"])
+                context_result = ""
+                
+                if action == "calendar_list":
+                    events = list_upcoming_events(user)
+                    if not events:
+                        context_result = "No tienes eventos próximos."
+                    else:
+                        context_result = "Eventos próximos:\n" + "\n".join([f"- {e['summary']} ({e['start']})" for e in events])
+                
+                elif action == "calendar_create":
+                    create_event(user, action_data["summary"], action_data["start_time"], action_data["end_time"])
                     context_result = f"Evento '{action_data['summary']}' creado exitosamente."
-                else:
-                    context_result = "ERROR: Faltan parámetros requeridos (summary, start_time o end_time) para crear el evento."
                 
-            elif action == "gmail_read":
-                msgs = list_unread_messages(user)
-                if not msgs:
-                    context_result = "No tienes correos nuevos."
-                else:
-                    context_result = "Últimos correos:\n" + "\n".join([f"- ID: {m['id']} | De: {m['from']} | Asunto: {m['subject']} | Resumen: {m['snippet']}" for m in msgs])
+                elif action == "gmail_read":
+                    # Ahora gmail_read puede ser más flexible
+                    q = action_data.get("query")
+                    msgs = list_messages(user, q=q, max_results=10)
+                    if not msgs:
+                        context_result = "No se encontraron correos."
+                    else:
+                        context_result = "Correos encontrados:\n" + "\n".join([f"- ID: {m['id']} | De: {m['from']} | Asunto: {m['subject']} | Resumen: {m['snippet']}" for m in msgs])
 
-            elif action == "gmail_send":
-                if all(k in action_data for k in ["to", "subject", "body"]):
-                    send_email(user, action_data["to"], action_data["subject"], action_data["body"])
-                    context_result = f"Correo enviado a {action_data['to']} exitosamente."
-                else:
-                    context_result = "ERROR: Faltan parámetros (to, subject o body) para enviar el correo."
+                elif action == "gmail_send":
+                    if all(k in action_data for k in ["to", "subject", "body"]):
+                        send_email(user, action_data["to"], action_data["subject"], action_data["body"])
+                        context_result = f"Correo enviado a {action_data['to']} exitosamente."
+                    else:
+                        context_result = "ERROR: Faltan parámetros (to, subject o body) para enviar el correo."
 
-            elif action == "gmail_modify":
-                msg_id = action_data.get("message_id")
-                add = action_data.get("add_labels")
-                remove = action_data.get("remove_labels")
-                if msg_id:
-                    modify_message_labels(user, msg_id, add, remove)
-                    context_result = f"Correo {msg_id} modificado correctamente (Etiquetas: +{add or []}, -{remove or []})."
-                else:
-                    context_result = "ERROR: No se proporcionó el ID del mensaje para modificar."
+                elif action == "gmail_modify":
+                    msg_id = action_data.get("message_id")
+                    add = action_data.get("add_labels")
+                    remove = action_data.get("remove_labels")
+                    if msg_id:
+                        modify_message_labels(user, msg_id, add, remove)
+                        context_result = f"Correo {msg_id} modificado (Etiquetas: +{add or []}, -{remove or []})."
+                    else:
+                        context_result = "ERROR: No hay ID de mensaje."
 
-            elif action == "gmail_labels":
-                labels = list_labels(user)
-                context_result = "Carpetas/Etiquetas disponibles:\n" + "\n".join([f"- {l['name']} (ID: {l['id']})" for l in labels])
+                elif action == "gmail_labels":
+                    labels = list_labels(user)
+                    context_result = "Etiquetas:\n" + "\n".join([f"- {l['name']} (ID: {l['id']})" for l in labels])
 
-            elif action == "gmail_create_label":
-                name = action_data.get("name")
-                if name:
-                    new_label = create_label(user, name)
-                    context_result = f"Carpeta '{name}' creada con éxito (ID: {new_label['id']})."
-                else:
-                    context_result = "ERROR: No se proporcionó un nombre para la nueva carpeta."
-                    
-            elif action == "rag_search":
-                results = await search(user.id, action_data["query"])
-                if not results:
-                    context_result = "No encontré información relevante en mi memoria (notas ni archivos de la Bóveda)."
-                else:
-                    context_result = "Resultados encontrados en mi memoria (notas/archivos):\n" + "\n".join([f"- {r['content']}" for r in results])
-                    
-            elif action == "rag_save":
-                content = action_data.get("content") or action_data.get("title", "Nota general")
-                metadata = action_data.get("metadata", {})
-                if not isinstance(metadata, dict):
-                    metadata = {}
-                    
-                # Heurística en caso de que el LLM olvide el campo metadata
-                content_lower = content.lower()
-                if "tipo" not in metadata:
-                    if "presupuesto" in content_lower or "dinero" in content_lower or "gastos" in content_lower:
-                        metadata["tipo"] = "presupuesto"
-                    elif "suscripci" in content_lower or "netflix" in content_lower:
-                        metadata["tipo"] = "suscripcion"
-                    elif "hábito" in content_lower or "habito" in content_lower:
-                        metadata["tipo"] = "habito"
+                elif action == "gmail_create_label":
+                    name = action_data.get("name")
+                    if name:
+                        new_label = create_label(user, name)
+                        context_result = f"Carpeta '{name}' creada (ID: {new_label['id']})."
+                    else:
+                        context_result = "ERROR: Sin nombre para la carpeta."
                         
-                await add_document(user.id, content, metadata)
-                context_result = "Información guardada en mi memoria exitosamente. Ya la tendré en cuenta para la próxima vez y aparecerá en el Dashboard."
+                elif action == "rag_search":
+                    results = await search(user.id, action_data["query"])
+                    if not results:
+                        context_result = "No encontré información relevante en mi memoria."
+                    else:
+                        context_result = "Resultados memoria:\n" + "\n".join([f"- {r['content']}" for r in results])
+
+                elif action == "rag_save":
+                    doc_id = await add_document(user.id, action_data["content"], action_data.get("metadata", {}))
+                    context_result = f"Información guardada en memoria (ID: {doc_id})."
+
+                elif action == "rag_delete":
+                    count = delete_documents(user.id, action_data.get("tipo"), action_data.get("query"))
+                    context_result = f"Se han eliminado {count} registros de la memoria."
                 
-            elif action == "rag_delete":
-                tipo = action_data.get("tipo")
-                query = action_data.get("query")
-                deleted = await delete_documents(user.id, tipo=tipo, query=query)
-                if deleted > 0:
-                    context_result = f"Se han eliminado {deleted} registros de tu memoria con éxito."
-                else:
-                    context_result = "No se encontró ningún registro que coincidiera con la solicitud para eliminar."
+                # Inyectar resultado de vuelta al loop
+                messages.append({"role": "system", "content": f"SISTEMA (RESULTADO ACCIÓN): {context_result}"})
+                
+            except Exception as e:
+                messages.append({"role": "system", "content": f"ERROR EJECUTANDO ACCIÓN: {str(e)}"})
+        else:
+            # Si no hay JSON, es que el agente ya dio su respuesta final al usuario
+            return response_text
             
-            # 2. Re-inyectar en el contexto para el siguiente loop
-            messages.append({"role": "assistant", "content": response})
-            messages.append({"role": "user", "content": f"SISTEMA (RESULTADO ACCIÓN):\n{context_result}\nSi necesitas hacer OTRA acción, genera un nuevo bloque JSON. Si ya tienes la respuesta definitiva para el usuario, responde en texto plano sin bloques de código."})
-            
-        except Exception as e:
-            print(f"Error procesando acción: {e}")
-            messages.append({"role": "assistant", "content": response})
-            messages.append({"role": "user", "content": f"SISTEMA (ERROR): Hubo un fallo técnico ejecutando la herramienta: {str(e)}. Explícaselo al usuario."})
-            
-    return "Lo siento, tuve que realizar demasiadas acciones consecutivas y me he detenido. ¿Podrías reformular tu petición?"
+    return response_text
