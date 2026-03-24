@@ -53,9 +53,43 @@ def create_draft(user, to, subject, body_text):
     message['From'] = user.email
     message['Subject'] = subject
 
-    # codificado base64url
     encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
     create_message = {'message': {'raw': encoded_message}}
     
     draft = service.users().drafts().create(userId='me', body=create_message).execute()
     return draft
+
+def send_email(user, to, subject, body_text):
+    """Envía un correo directamente"""
+    service = get_gmail_service(user)
+    
+    message = EmailMessage()
+    message.set_content(body_text)
+    message['To'] = to
+    message['From'] = user.email
+    message['Subject'] = subject
+
+    encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+    create_message = {'raw': encoded_message}
+    
+    send_msg = service.users().messages().send(userId='me', body=create_message).execute()
+    return send_msg
+
+def list_labels(user):
+    """Obtiene la lista de etiquetas (carpetas) de Gmail"""
+    service = get_gmail_service(user)
+    results = service.users().labels().list(userId='me').execute()
+    return results.get('labels', [])
+
+def modify_message_labels(user, message_id, add_labels=None, remove_labels=None):
+    """Añade o quita etiquetas de un mensaje (ej: marcar como leído, mover a carpeta)"""
+    service = get_gmail_service(user)
+    
+    body = {}
+    if add_labels:
+        body['addLabelIds'] = add_labels
+    if remove_labels:
+        body['removeLabelIds'] = remove_labels
+        
+    result = service.users().messages().modify(userId='me', id=message_id, body=body).execute()
+    return result

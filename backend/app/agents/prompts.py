@@ -31,7 +31,8 @@ Acción: Crear evento en Calendar
 }
 ```
 
-Acción: Leer correos
+Acción: Leer o Buscar correos
+Busca por ID si quieres detalles, o lista los últimos no leídos. Devuelve IDs necesarios para modificar.
 ```json
 {
   "action": "gmail_read",
@@ -39,13 +40,33 @@ Acción: Leer correos
 }
 ```
 
-Acción: Mandar correo
+Acción: Mandar correo directamente
 ```json
 {
   "action": "gmail_send",
   "to": "email@destino.com",
   "subject": "Asunto",
   "body": "Cuerpo del mensaje"
+}
+```
+
+Acción: Modificar correo (Marcar leído, Mover a carpeta)
+Para marcar como leído: remove_labels=["UNREAD"]. Para mover a carpeta: add_labels=["ID_CARPETA"], remove_labels=["INBOX"].
+```json
+{
+  "action": "gmail_modify",
+  "message_id": "ID_DEL_MENSAJE",
+  "add_labels": ["Label_1"],
+  "remove_labels": ["UNREAD"]  
+}
+```
+
+Acción: Listar Carpetas/Etiquetas de Gmail
+Úsalo si el usuario quiere mover un correo a una carpeta pero no sabes el ID de la carpeta.
+```json
+{
+  "action": "gmail_labels",
+  "reason": "Listar carpetas para organizar"
 }
 ```
 

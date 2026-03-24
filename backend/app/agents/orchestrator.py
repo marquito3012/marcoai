@@ -3,7 +3,7 @@ import re
 from app.agents.groq_client import chat_completion
 from app.agents.prompts import SYSTEM_PROMPT_ORCHESTRATOR
 from app.services.google_calendar import list_upcoming_events, create_event
-from app.services.google_gmail import list_unread_messages, create_draft
+from app.services.google_gmail import list_unread_messages, create_draft, send_email, list_labels, modify_message_labels
 from app.rag.engine import search, add_document, delete_documents
 
 async def process_message(user, user_message: str, history: list = None):
@@ -78,7 +78,28 @@ async def process_message(user, user_message: str, history: list = None):
                 if not msgs:
                     context_result = "No tienes correos nuevos."
                 else:
-                    context_result = "Últimos correos:\n" + "\n".join([f"- De: {m['from']} | Asunto: {m['subject']} | Resumen: {m['snippet']}" for m in msgs])
+                    context_result = "Últimos correos:\n" + "\n".join([f"- ID: {m['id']} | De: {m['from']} | Asunto: {m['subject']} | Resumen: {m['snippet']}" for m in msgs])
+
+            elif action == "gmail_send":
+                if all(k in action_data for k in ["to", "subject", "body"]):
+                    send_email(user, action_data["to"], action_data["subject"], action_data["body"])
+                    context_result = f"Correo enviado a {action_data['to']} exitosamente."
+                else:
+                    context_result = "ERROR: Faltan parámetros (to, subject o body) para enviar el correo."
+
+            elif action == "gmail_modify":
+                msg_id = action_data.get("message_id")
+                add = action_data.get("add_labels")
+                remove = action_data.get("remove_labels")
+                if msg_id:
+                    modify_message_labels(user, msg_id, add, remove)
+                    context_result = f"Correo {msg_id} modificado correctamente (Etiquetas: +{add or []}, -{remove or []})."
+                else:
+                    context_result = "ERROR: No se proporcionó el ID del mensaje para modificar."
+
+            elif action == "gmail_labels":
+                labels = list_labels(user)
+                context_result = "Carpetas/Etiquetas disponibles:\n" + "\n".join([f"- {l['name']} (ID: {l['id']})" for l in labels])
                     
             elif action == "rag_search":
                 results = await search(user.id, action_data["query"])
