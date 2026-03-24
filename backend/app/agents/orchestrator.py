@@ -4,6 +4,7 @@ from app.agents.groq_client import chat_completion
 from app.agents.prompts import SYSTEM_PROMPT_ORCHESTRATOR
 from app.services.google_calendar import list_upcoming_events, create_event
 from app.services.google_gmail import list_unread_messages, create_draft, send_email, list_labels, modify_message_labels, create_label
+from app.agents.specialists.gmail_agent import analyze_inbox as gmail_expert_analyze
 from app.rag.engine import search, add_document, delete_documents
 
 async def process_message(user, user_message: str, history: list = None):
@@ -27,6 +28,16 @@ async def process_message(user, user_message: str, history: list = None):
             
     messages.append({"role": "user", "content": user_message})
     
+    # --- Fase 1: Análisis Multi-Agente (Handoff) ---
+    # Si la petición es sobre organizar o gestionar el correo, delegamos al experto
+    email_keywords = ["organiza", "gestiona", "limpia", "triage", "clasifica", "correos", "inbox"]
+    if any(k in user_message.lower() for k in email_keywords) and "calendario" not in user_message.lower():
+        msgs = list_unread_messages(user, max_results=15)
+        if msgs:
+            expert_response = await gmail_expert_analyze(user, msgs, user_message)
+            # El experto devuelve texto + JSON. Lo inyectamos en el flujo del orquestador.
+            user_message = f"PETICIÓN ORIGINAL: {user_message}\nANÁLISIS DEL EXPERTO GMAIL:\n{expert_response}"
+
     max_loops = 3
     for _ in range(max_loops):
         # 1. Obtenemos la decisión de Groq
