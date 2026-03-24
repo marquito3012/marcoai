@@ -20,8 +20,8 @@ async def process_message(user, user_message: str, history: list = None):
         msgs = list_messages(user, max_results=20)
         if msgs:
             expert_response = await gmail_expert_analyze(user, msgs, user_message)
-            # Inyectamos el análisis del experto como contexto prioritario
-            user_message = f"USER REQUEST: {user_message}\n\nGMAIL EXPERT ANALYSIS & PLAN:\n{expert_response}\n\nINSTRUCTION: Execute the expert's plan using JSON tools immediately. Do not ask for confirmation."
+            # Inyectamos el análisis de forma que el orquestador entienda que es un REPORTE, no un comando directo
+            user_message = f"PETICIÓN USUARIO: {user_message}\n\nREPORTE EXPERTO GMAIL:\n{expert_response}\n\nINSTRUCCIÓN: Basándote en el reporte, usa tus herramientas JSON para ejecutar el plan AHORA."
 
     # --- Fase 2: Configuración del Contexto LLM ---
     system_msg = SYSTEM_PROMPT_ORCHESTRATOR.replace("{user_name}", user.name or "Usuario")
@@ -37,17 +37,21 @@ async def process_message(user, user_message: str, history: list = None):
     # Añadir el mensaje actual (posiblemente modificado por el experto)
     messages.append({"role": "user", "content": user_message})
     
-    max_loops = 3
+    max_loops = 5
     for _ in range(max_loops):
         # 1. Decisión de Groq
         response_text = await chat_completion(messages)
         messages.append({"role": "assistant", "content": response_text})
         
-        # 2. ¿Hay comando JSON?
-        if "```json" in response_text:
+        # 2. ¿Hay comando JSON? (Detección robusta con Regex)
+        import re
+        # Busca bloques ```json { ... } ``` o simplemente ``` { ... } ``` (insensible a mayúsculas)
+        json_pattern = r"```(?:json)?\s*(\{.*?\})\s*```"
+        match = re.search(json_pattern, response_text, re.DOTALL | re.IGNORECASE)
+        
+        if match:
             try:
-                # Extraer JSON
-                json_str = response_text.split("```json")[1].split("```")[0].strip()
+                json_str = match.group(1).strip()
                 action_data = json.loads(json_str)
                 action = action_data.get("action")
                 
