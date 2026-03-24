@@ -49,11 +49,12 @@ Acción: Mandar correo
 }
 ```
 
-Acción: Buscar en base de datos personal (RAG)
+Acción: Buscar en tu memoria o en documentos de la Bóveda (RAG)
+El campo "query" debe contener las palabras clave más importantes de la búsqueda (ej: "nombre novia", "gastos marzo", "tema TFM").
 ```json
 {
   "action": "rag_search",
-  "query": "Búsqueda semántica en notas y archivos de la Bóveda"
+  "query": "nombre de mi novia"
 }
 ```
 
