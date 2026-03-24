@@ -24,7 +24,7 @@ async def process_message(user, user_message: str, history: list = None):
             user_message = f"USER REQUEST: {user_message}\n\nGMAIL EXPERT ANALYSIS & PLAN:\n{expert_response}\n\nINSTRUCTION: Execute the expert's plan using JSON tools immediately. Do not ask for confirmation."
 
     # --- Fase 2: Configuración del Contexto LLM ---
-    system_msg = SYSTEM_PROMPT_ORCHESTRATOR.format(user_name=user.full_name or "Usuario")
+    system_msg = SYSTEM_PROMPT_ORCHESTRATOR.replace("{user_name}", user.name or "Usuario")
     messages = [
         {"role": "system", "content": system_msg}
     ]
