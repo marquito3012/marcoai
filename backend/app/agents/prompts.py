@@ -31,12 +31,12 @@ Acción: Crear evento en Calendar
 }
 ```
 
-Acción: Leer o Buscar correos
-Busca por ID si quieres detalles, o lista los últimos no leídos. Devuelve IDs necesarios para modificar.
+Acción: Leer o Buscar correos (Inbox completo)
+Úsalo para listar los últimos correos (leídos o no) o buscar específicamente. Devuelve IDs necesarios para organizar.
 ```json
 {
   "action": "gmail_read",
-  "reason": "¿Puedes leer mis últimos correos?"
+  "reason": "Analizar la bandeja de entrada completa para organizar"
 }
 ```
 

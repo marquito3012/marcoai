@@ -15,22 +15,22 @@ def get_gmail_service(user):
     )
     return build('gmail', 'v1', credentials=creds)
 
-def list_unread_messages(user, max_results=10):
-    """Obtiene los últimos mensajes no leídos"""
+def list_messages(user, q=None, label_ids=None, max_results=10):
+    """Lista mensajes con filtros opcionales (query o etiquetas)"""
     service = get_gmail_service(user)
     
-    results = service.users().messages().list(
-        userId='me', labelIds=['INBOX', 'UNREAD'], maxResults=max_results).execute()
-        
+    params = {'userId': 'me', 'maxResults': max_results}
+    if q: params['q'] = q
+    if label_ids: params['labelIds'] = label_ids
+    
+    results = service.users().messages().list(**params).execute()
     messages = results.get('messages', [])
     
     detailed_messages = []
     for msg in messages:
-        # Obtenemos el detalle (headers y snippet)
         msg_detail = service.users().messages().get(userId='me', id=msg['id'], format='metadata', metadataHeaders=['From', 'Subject', 'Date']).execute()
         headers = msg_detail.get('payload', {}).get('headers', [])
         
-        # Extraemos infos
         subject = next((h['value'] for h in headers if h['name'] == 'Subject'), "Sin asunto")
         sender = next((h['value'] for h in headers if h['name'] == 'From'), "Desconocido")
         
@@ -42,6 +42,10 @@ def list_unread_messages(user, max_results=10):
         })
         
     return detailed_messages
+
+def list_unread_messages(user, max_results=10):
+    """Legacy helper: Obtiene los últimos mensajes no leídos"""
+    return list_messages(user, label_ids=['INBOX', 'UNREAD'], max_results=max_results)
 
 def create_draft(user, to, subject, body_text):
     """Crea un borrador de correo en Gmail"""
