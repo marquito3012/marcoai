@@ -93,3 +93,14 @@ def modify_message_labels(user, message_id, add_labels=None, remove_labels=None)
         
     result = service.users().messages().modify(userId='me', id=message_id, body=body).execute()
     return result
+
+def create_label(user, label_name):
+    """Crea una nueva etiqueta (carpeta) en Gmail"""
+    service = get_gmail_service(user)
+    label_object = {
+        'name': label_name,
+        'labelListVisibility': 'labelShow',
+        'messageListVisibility': 'show'
+    }
+    result = service.users().labels().create(userId='me', body=label_object).execute()
+    return result

@@ -70,6 +70,15 @@ Acción: Listar Carpetas/Etiquetas de Gmail
 }
 ```
 
+Acción: Crear Carpeta/Etiqueta en Gmail
+Úsalo si el usuario quiere organizar correos en una categoría que aún no existe.
+```json
+{
+  "action": "gmail_create_label",
+  "name": "Nombre de la Carpeta"
+}
+```
+
 Acción: Buscar en tu memoria o en documentos de la Bóveda (RAG)
 El campo "query" debe contener las palabras clave más importantes de la búsqueda (ej: "nombre novia", "gastos marzo", "tema TFM").
 ```json

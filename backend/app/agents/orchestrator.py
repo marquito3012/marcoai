@@ -3,7 +3,7 @@ import re
 from app.agents.groq_client import chat_completion
 from app.agents.prompts import SYSTEM_PROMPT_ORCHESTRATOR
 from app.services.google_calendar import list_upcoming_events, create_event
-from app.services.google_gmail import list_unread_messages, create_draft, send_email, list_labels, modify_message_labels
+from app.services.google_gmail import list_unread_messages, create_draft, send_email, list_labels, modify_message_labels, create_label
 from app.rag.engine import search, add_document, delete_documents
 
 async def process_message(user, user_message: str, history: list = None):
@@ -100,6 +100,14 @@ async def process_message(user, user_message: str, history: list = None):
             elif action == "gmail_labels":
                 labels = list_labels(user)
                 context_result = "Carpetas/Etiquetas disponibles:\n" + "\n".join([f"- {l['name']} (ID: {l['id']})" for l in labels])
+
+            elif action == "gmail_create_label":
+                name = action_data.get("name")
+                if name:
+                    new_label = create_label(user, name)
+                    context_result = f"Carpeta '{name}' creada con éxito (ID: {new_label['id']})."
+                else:
+                    context_result = "ERROR: No se proporcionó un nombre para la nueva carpeta."
                     
             elif action == "rag_search":
                 results = await search(user.id, action_data["query"])
