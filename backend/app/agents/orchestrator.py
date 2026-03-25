@@ -161,7 +161,16 @@ async def process_message(user, user_message: str, history: list = None):
             final_context = "\n".join(results_list)
             messages.append({"role": "system", "content": f"SISTEMA (RESULTADOS): {final_context}"})
         else:
-            # Si no hay JSON, es que el agente ya dio su respuesta final al usuario
-            return response_text
+            # SI NO HAY JSON: Es la respuesta final. 
+            # Limpiamos bloques sobrantes por si acaso (ej: ejemplos que el LLM ponga)
+            clean_text = re.sub(json_pattern, "", response_text, flags=re.DOTALL).strip()
+            if not clean_text:
+                # Si se quedó vacío (solo era JSON), pedimos una confirmación final
+                messages.append({"role": "system", "content": "Acciones completadas. Responde al usuario confirmando lo hecho en español, sin usar bloques de código."})
+                confirm_res = await chat_completion(messages)
+                return re.sub(json_pattern, "", confirm_res, flags=re.DOTALL).strip() or "Hecho."
+            return clean_text
             
-    return response_text
+    # Si agotamos bucles y el último mensaje aún tiene JSON, lo limpiamos para el usuario
+    final_clean = re.sub(r"```(?:json)?\s*(\{.*?\})\s*```", "", response_text, flags=re.DOTALL | re.IGNORECASE).strip()
+    return final_clean or "Acciones procesadas correctamente."
