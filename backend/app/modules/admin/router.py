@@ -12,6 +12,10 @@ from app.rag.engine import get_connection
 def get_admin_dashboard(current_user: User = Depends(get_current_user)):
     """Busca suscripciones y balance basado en: gasto-mensual, gasto-puntual e ingreso"""
     suscripciones = []
+    ingresos_lista = []
+    gastos_mensuales_lista = []
+    gastos_puntuales_lista = []
+    
     total_ingresos = 0.0
     total_gastos_mensuales = 0.0
     total_gastos_puntuales = 0.0
@@ -22,46 +26,58 @@ def get_admin_dashboard(current_user: User = Depends(get_current_user)):
     try:
         conn = get_connection()
         c = conn.cursor()
-        # Traemos metadata y fecha de creación
-        c.execute("SELECT metadata, created_at FROM documents WHERE user_id = ?", (current_user.id,))
+        c.execute("SELECT content, metadata, created_at FROM documents WHERE user_id = ?", (current_user.id,))
         rows = c.fetchall()
         for row in rows:
-            meta = json.loads(row[0])
-            created_at = row[1] or ""
+            content = row[0]
+            meta = json.loads(row[1])
+            created_at = row[2] or ""
             tipo = meta.get("tipo") or meta.get("type")
             
-            # 1. Suscripciones (para la lista UI)
+            # --- Proceso por Tipo ---
+            
             if tipo == "suscripcion":
                 costo = float(meta.get("costo") or meta.get("precio") or 0.0)
-                suscripciones.append({
-                    "nombre": meta.get("nombre") or meta.get("servicio", "Desconocido"),
+                item = {
+                    "nombre": meta.get("nombre") or meta.get("servicio", content),
                     "costo": costo,
                     "renovacion": meta.get("renovacion") or meta.get("fecha", "Mensual")
-                })
-                # Las suscripciones cuentan como gasto mensual automáticamente
+                }
+                suscripciones.append(item)
+                # Las suscripciones son gastos mensuales
                 total_gastos_mensuales += costo
+                gastos_mensuales_lista.append({"content": item["nombre"], "amount": costo})
 
-            # 2. Ingresos
             elif tipo == "ingreso":
-                total_ingresos += float(meta.get("monto") or meta.get("cantidad") or 0.0)
+                monto = float(meta.get("monto") or meta.get("cantidad") or 0.0)
+                total_ingresos += monto
+                ingresos_lista.append({"content": meta.get("content") or content, "amount": monto})
             
-            # 3. Gastos Mensuales
             elif tipo == "gasto-mensual":
-                total_gastos_mensuales += float(meta.get("amount") or meta.get("monto") or 0.0)
+                monto = float(meta.get("amount") or meta.get("monto") or 0.0)
+                total_gastos_mensuales += monto
+                gastos_mensuales_lista.append({"content": content, "amount": monto})
             
-            # 4. Gastos Puntuales (Solo del mes actual)
             elif tipo == "gasto-puntual":
                 if created_at.startswith(now_prefix):
-                    total_gastos_puntuales += float(meta.get("amount") or meta.get("monto") or 0.0)
+                    monto = float(meta.get("amount") or meta.get("monto") or 0.0)
+                    total_gastos_puntuales += monto
+                    gastos_puntuales_lista.append({"content": content, "amount": monto})
             
-            # --- Compatibilidad con tipos antiguos ---
+            # --- Compatibilidad ---
             elif tipo == "presupuesto":
-                total_ingresos += float(meta.get("restante") or 0.0)
+                monto = float(meta.get("restante") or 0.0)
+                total_ingresos += monto
+                ingresos_lista.append({"content": "Ajuste presupuesto base", "amount": monto})
             elif tipo == "beneficio":
-                total_ingresos += float(meta.get("monto") or 0.0)
+                monto = float(meta.get("monto") or 0.0)
+                total_ingresos += monto
+                ingresos_lista.append({"content": content, "amount": monto})
             elif tipo == "gasto":
                 if created_at.startswith(now_prefix):
-                    total_gastos_puntuales += float(meta.get("amount") or meta.get("monto") or 0.0)
+                    monto = float(meta.get("amount") or meta.get("monto") or 0.0)
+                    total_gastos_puntuales += monto
+                    gastos_puntuales_lista.append({"content": content, "amount": monto})
 
         conn.close()
     except Exception as e:
@@ -70,11 +86,11 @@ def get_admin_dashboard(current_user: User = Depends(get_current_user)):
     presupuesto_final = total_ingresos - total_gastos_mensuales - total_gastos_puntuales
     
     return {
-        "suscripciones": suscripciones,
         "presupuesto_restante": presupuesto_final,
+        "suscripciones": suscripciones,
         "detalles": {
-            "ingresos": total_ingresos,
-            "gastos_mensuales": total_gastos_mensuales,
-            "gastos_puntuales": total_gastos_puntuales
+            "ingresos": {"total": total_ingresos, "items": ingresos_lista},
+            "gastos_mensuales": {"total": total_gastos_mensuales, "items": gastos_mensuales_lista},
+            "gastos_puntuales": {"total": total_gastos_puntuales, "items": gastos_puntuales_lista}
         }
     }
