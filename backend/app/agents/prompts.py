@@ -102,10 +102,12 @@ Acción: Buscar en memoria o documentos (RAG)
 ```
 
 Acción: Guardar nota general (Cerebro)
+Solo para pensamientos o información que NO sea un gasto, ingreso, hábito, comida o ítem de ocio.
+IMPORTANTE: TODO lo relativo a dinero, hábitos o intereses DEBE usar su herramienta específica de arriba. NUNCA guardes un gasto como nota general.
 ```json
 {
   "action": "rag_save",
-  "content": "Nota o pensamiento general que no encaja en las anteriores"
+  "content": "Ayer aprendí que el cielo es azul por la dispersión de Rayleigh."
 }
 ```
 

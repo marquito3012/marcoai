@@ -18,6 +18,11 @@ async def crear_nota(nota: Nota, current_user: User = Depends(get_current_user))
 
 @router.get("/buscar")
 async def buscar_conocimiento(q: str, current_user: User = Depends(get_current_user)):
-    """Busca en el cerebro digital del usuario"""
+    """Busca en el cerebro digital del usuario (Solo notas generales)"""
     resultados = await search(current_user.id, q)
-    return {"results": resultados}
+    # Filtrar: solo lo que NO tiene tipo (es nota general) o es explícitamente tipo "nota"
+    filtrados = [
+        r for r in resultados 
+        if not r.get("metadata") or not r["metadata"].get("tipo") or r["metadata"].get("tipo") == "nota"
+    ]
+    return {"results": filtrados}

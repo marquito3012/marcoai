@@ -36,6 +36,12 @@ def get_admin_dashboard(current_user: User = Depends(get_current_user)):
                         presupuesto_encontrado = True
                     except ValueError:
                         pass
+        
+        # RESTAR suscripciones del presupuesto restante si hay presupuesto establecido
+        if presupuesto_encontrado:
+            total_subs = sum(float(s["costo"]) for s in suscripciones)
+            presupuesto_restante -= total_subs
+
         conn.close()
     except Exception as e:
         print("Error fetch admin:", e)
