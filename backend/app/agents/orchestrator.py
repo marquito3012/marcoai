@@ -2,7 +2,6 @@ from app.agents.groq_client import chat_completion
 from app.agents.prompts import SYSTEM_PROMPT_ORCHESTRATOR
 from app.services.google_calendar import list_upcoming_events, create_event
 from app.services.google_gmail import list_unread_messages, list_messages, create_draft, send_email, list_labels, modify_message_labels, create_label
-from app.agents.specialists.gmail_agent import analyze_inbox as gmail_expert_analyze
 from app.rag.engine import search, add_document, delete_documents
 import json
 
@@ -12,18 +11,8 @@ async def process_message(user, user_message: str, history: list = None):
     """
     if history is None:
         history = []
-        
-    # --- Fase 1: Análisis Multi-Agente (Handoff) ---
-    email_keywords = ["organiza", "gestiona", "limpia", "triage", "clasifica", "correos", "inbox"]
-    if any(k in user_message.lower() for k in email_keywords) and "calendario" not in user_message.lower():
-        # Obtenemos visión amplia del inbox
-        msgs = list_messages(user, max_results=20)
-        if msgs:
-            expert_response = await gmail_expert_analyze(user, msgs, user_message)
-            # Inyectamos el análisis de forma que el orquestador entienda que es un REPORTE, no un comando directo
-            user_message = f"PETICIÓN USUARIO: {user_message}\n\nREPORTE EXPERTO GMAIL:\n{expert_response}\n\nINSTRUCCIÓN: Basándote en el reporte, usa tus herramientas JSON para ejecutar el plan AHORA."
-
-    # --- Fase 2: Configuración del Contexto LLM ---
+         
+    # --- Fase 1: Configuración del Contexto LLM ---
     system_msg = SYSTEM_PROMPT_ORCHESTRATOR.replace("{user_name}", user.name or "Usuario")
     messages = [
         {"role": "system", "content": system_msg}
@@ -37,7 +26,7 @@ async def process_message(user, user_message: str, history: list = None):
     # Añadir el mensaje actual (posiblemente modificado por el experto)
     messages.append({"role": "user", "content": user_message})
     
-    max_loops = 5
+    max_loops = 3
     for _ in range(max_loops):
         # 1. Decisión de Groq
         response_text = await chat_completion(messages)
