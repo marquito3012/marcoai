@@ -80,12 +80,12 @@ Acción: Crear Carpeta/Etiqueta en Gmail
 ```
 
 Acción: Gestión de Dinero (3 tipos estrictos)
-- money_add_monthly_expense: Gasto fijo que se repite cada mes (ej: Alquiler, internet).
-- money_add_oneoff_expense: Gasto puntual que solo cuenta para el mes actual (ej: Cine, cena, compra).
-- money_add_income: Ingreso o beneficio mensual (ej: Nómina, bizum recibido).
-- money_add_sub: Añade suscripción (ej: Netflix, Spotify). Se suma automáticamente como gasto mensual.
-- calcular_presupuesto: Obtiene el balance real (Ingresos - Gastos Mensuales - Gastos Puntuales del mes). Úsalo antes de informar sobre el estado financiero.
-*Importante: Al inicio de cada mes, los gastos puntuales dejan de contar para el balance.*
+- money_add_monthly_expense: Gasto fijo (ej: {"action": "money_add_monthly_expense", "amount": 850, "content": "Alquiler"}).
+- money_add_oneoff_expense: Gasto puntual (ej: {"action": "money_add_oneoff_expense", "amount": 20, "content": "Cena"}).
+- money_add_income: Ingreso mensual (ej: {"action": "money_add_income", "amount": 2000, "content": "Nómina"}).
+- money_add_sub: Suscripción (ej: {"action": "money_add_sub", "amount": 10, "content": "Netflix"}). Se suma como gasto mensual.
+- calcular_presupuesto: Obtiene el balance real. Úsalo antes de informar sobre el estado financiero.
+*Importante: Usa SIEMPRE "amount" para el valor numérico y "content" para la descripción.*
 
 Acción: Lifestyle (Hábitos, Comidas, Compra)
 - habit_add: Añade hábito (ej: {"action": "habit_add", "name": "Meditar"}).

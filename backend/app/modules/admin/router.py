@@ -48,20 +48,20 @@ def get_admin_dashboard(current_user: User = Depends(get_current_user)):
 
             # 2. Ingresos
             elif tipo == "ingreso":
-                monto = float(meta.get("monto") or meta.get("cantidad") or 0.0)
+                monto = float(meta.get("amount") or meta.get("monto") or meta.get("cantidad") or 0.0)
                 total_ingresos += monto
                 lista_ingresos.append({"nombre": content, "monto": monto})
             
             # 3. Gastos Mensuales
             elif tipo == "gasto-mensual":
-                monto = float(meta.get("amount") or meta.get("monto") or 0.0)
+                monto = float(meta.get("amount") or meta.get("monto") or meta.get("costo") or 0.0)
                 total_gastos_mensuales += monto
                 lista_gastos_mensuales.append({"nombre": content, "costo": monto})
             
             # 4. Gastos Puntuales (Solo del mes actual)
             elif tipo == "gasto-puntual":
                 if created_at.startswith(now_prefix):
-                    monto = float(meta.get("amount") or meta.get("monto") or 0.0)
+                    monto = float(meta.get("amount") or meta.get("monto") or meta.get("costo") or 0.0)
                     total_gastos_puntuales += monto
                     lista_gastos_puntuales.append({"nombre": content, "costo": monto})
             

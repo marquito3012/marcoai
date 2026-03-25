@@ -94,20 +94,28 @@ async def process_message(user, user_message: str, history: list = None):
                             
                             # --- Specialized Tools mapping to RAG (3-Type Schema) ---
                             elif action == "money_add_monthly_expense":
-                                await add_document(user.id, f"Gasto Mensual: {entry['content']} ({entry['amount']}€)", {"tipo": "gasto-mensual", "amount": float(entry["amount"])})
-                                context_result = f"Gasto mensual de {entry['amount']}€ registrado."
+                                amount = float(entry.get("amount") or entry.get("cost") or 0.0)
+                                content = entry.get("content") or entry.get("name") or "Gasto mensual"
+                                await add_document(user.id, f"Gasto Mensual: {content} ({amount}€)", {"tipo": "gasto-mensual", "amount": amount})
+                                context_result = f"Gasto mensual de {amount}€ registrado."
                             
                             elif action == "money_add_oneoff_expense":
-                                await add_document(user.id, f"Gasto Puntual: {entry['content']} ({entry['amount']}€)", {"tipo": "gasto-puntual", "amount": float(entry["amount"])})
-                                context_result = f"Gasto puntual de {entry['amount']}€ registrado."
+                                amount = float(entry.get("amount") or entry.get("cost") or 0.0)
+                                content = entry.get("content") or entry.get("name") or "Gasto puntual"
+                                await add_document(user.id, f"Gasto Puntual: {content} ({amount}€)", {"tipo": "gasto-puntual", "amount": amount})
+                                context_result = f"Gasto puntual de {amount}€ registrado."
 
                             elif action == "money_add_income":
-                                await add_document(user.id, f"Ingreso: {entry['content']} ({entry['amount']}€)", {"tipo": "ingreso", "monto": float(entry["amount"])})
-                                context_result = f"Ingreso de {entry['amount']}€ registrado."
+                                amount = float(entry.get("amount") or entry.get("monto") or 0.0)
+                                content = entry.get("content") or "Ingreso"
+                                await add_document(user.id, f"Ingreso: {content} ({amount}€)", {"tipo": "ingreso", "amount": amount})
+                                context_result = f"Ingreso de {amount}€ registrado."
                             
                             elif action == "money_add_sub":
-                                await add_document(user.id, f"Suscripción: {entry['name']}", {"tipo": "suscripcion", "nombre": entry["name"], "costo": float(entry["cost"]), "renovacion": entry.get("period", "Mensual")})
-                                context_result = f"Suscripción a {entry['name']} guardada."
+                                amount = float(entry.get("cost") or entry.get("amount") or 0.0)
+                                name = entry.get("name") or entry.get("content") or "Suscripción"
+                                await add_document(user.id, f"Suscripción: {name}", {"tipo": "suscripcion", "nombre": name, "costo": amount, "renovacion": entry.get("period", "Mensual")})
+                                context_result = f"Suscripción a {name} guardada."
 
                             elif action == "calcular_presupuesto":
                                 from app.rag.engine import get_connection
