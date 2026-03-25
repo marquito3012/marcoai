@@ -61,7 +61,10 @@ def get_dashboard_summary(current_user: User = Depends(get_current_user)):
     if summary["evento"]:
         # Formatear la fecha para el mensaje (ej: "lunes 23")
         fecha_obj = datetime.datetime.fromisoformat(summary["evento"]["hora"].replace("Z", "+00:00"))
-        fecha_str = fecha_obj.strftime("%A %d") # ej: "Monday 23"
+        dias_es = {"Monday": "lunes", "Tuesday": "martes", "Wednesday": "miércoles", 
+                   "Thursday": "jueves", "Friday": "viernes", "Saturday": "sábado", "Sunday": "domingo"}
+        dia_semana = dias_es.get(fecha_obj.strftime("%A"), fecha_obj.strftime("%A"))
+        fecha_str = f"{dia_semana} {fecha_obj.day:02}"
         summary["mensaje_agente"] = f"¡Hola! Tienes el buzón con {summary['correos']['total']} correos nuevos. Tu siguiente compromiso es '{summary['evento']['titulo']}' para el {fecha_str}."
     else:
         summary["mensaje_agente"] = f"¡Hola! Agenda libre por ahora. Aprovecha para ponerte al día con tus {summary['correos']['total']} correos."
