@@ -168,6 +168,12 @@ async def delete_documents(user_id: int, tipo: str | None = None, query: str | N
         c.execute("DELETE FROM documents WHERE user_id = ?", (user_id,))
         deleted_count = c.rowcount
         
+    # Sincronizar VSS: Eliminar huérfanos si la tabla virtual existe
+    try:
+        c.execute("DELETE FROM vss_documents WHERE rowid NOT IN (SELECT id FROM documents)")
+    except:
+        pass
+        
     conn.commit()
     conn.close()
     return deleted_count

@@ -4,6 +4,7 @@ from app.services.google_calendar import list_upcoming_events, create_event
 from app.services.google_gmail import list_unread_messages, list_messages, create_draft, send_email, list_labels, modify_message_labels, create_label
 from app.rag.engine import search, add_document, delete_documents
 import json
+import re
 
 async def process_message(user, user_message: str, history: list = None):
     """
@@ -33,7 +34,6 @@ async def process_message(user, user_message: str, history: list = None):
         messages.append({"role": "assistant", "content": response_text})
         
         # 2. ¿Hay comandos JSON? (Detección múltiple con finditer)
-        import re
         json_pattern = r"```(?:json)?\s*(\{.*?\})\s*```"
         matches = list(re.finditer(json_pattern, response_text, re.DOTALL | re.IGNORECASE))
         

@@ -90,6 +90,7 @@ El campo "query" debe contener las palabras clave más importantes de la búsque
 
 Acción: Guardar información en memoria (RAG / Cerebro)
 Úsalo para presupuestos, suscripciones, hábitos, comidas, radar de ocio u ofertas.
+IMPORTANTE: Para gastos u operaciones de resta, usa valores NEGATIVOS en "restante" (ej: -10.50).
 El campo "metadata" es OBLIGATORIO. Estructuras exactas según tipo:
 - presupuesto: {"tipo": "presupuesto", "restante": 1200.50}
 - suscripcion: {"tipo": "suscripcion", "nombre": "Amazon", "costo": 4.99, "renovacion": "Mensual"}
