@@ -10,51 +10,71 @@ from app.rag.engine import get_connection
 
 @router.get("/dashboard")
 def get_admin_dashboard(current_user: User = Depends(get_current_user)):
-    """Busca suscripciones y presupuesto en el cerebro"""
+    """Busca suscripciones y balance basado en: gasto-mensual, gasto-puntual e ingreso"""
     suscripciones = []
-    presupuesto_restante = 0.0
-    presupuesto_encontrado = False
+    total_ingresos = 0.0
+    total_gastos_mensuales = 0.0
+    total_gastos_puntuales = 0.0
+    
+    from datetime import datetime
+    now_prefix = datetime.now().strftime("%Y-%m")
     
     try:
         conn = get_connection()
         c = conn.cursor()
-        c.execute("SELECT metadata FROM documents WHERE user_id = ?", (current_user.id,))
+        # Traemos metadata y fecha de creación
+        c.execute("SELECT metadata, created_at FROM documents WHERE user_id = ?", (current_user.id,))
         rows = c.fetchall()
         for row in rows:
             meta = json.loads(row[0])
-            if meta.get("tipo") == "suscripcion" or meta.get("type") == "suscripcion":
+            created_at = row[1] or ""
+            tipo = meta.get("tipo") or meta.get("type")
+            
+            # 1. Suscripciones (para la lista UI)
+            if tipo == "suscripcion":
+                costo = float(meta.get("costo") or meta.get("precio") or 0.0)
                 suscripciones.append({
-                    "nombre": meta.get("nombre") or meta.get("servicio", "Servicio Desconocido"),
-                    "costo": meta.get("costo") or meta.get("precio", 0.0),
-                    "renovacion": meta.get("renovacion") or meta.get("fecha", "Desconocida")
+                    "nombre": meta.get("nombre") or meta.get("servicio", "Desconocido"),
+                    "costo": costo,
+                    "renovacion": meta.get("renovacion") or meta.get("fecha", "Mensual")
                 })
-            elif meta.get("tipo") in ["ingreso", "beneficio"]:
-                val = meta.get("monto") or meta.get("cantidad") or meta.get("valor")
-                if val is not None:
-                    try:
-                        presupuesto_restante += float(val)
-                        presupuesto_encontrado = True
-                    except ValueError:
-                        pass
-            elif meta.get("tipo") == "presupuesto" or meta.get("type") == "presupuesto":
-                val = meta.get("restante") or meta.get("cantidad") or meta.get("presupuesto")
-                if val is not None:
-                    try:
-                        presupuesto_restante += float(val)
-                        presupuesto_encontrado = True
-                    except ValueError:
-                        pass
-        
-        # RESTAR suscripciones del presupuesto restante si hay presupuesto o ingresos
-        if presupuesto_encontrado:
-            total_subs = sum(float(s["costo"]) for s in suscripciones)
-            presupuesto_restante -= total_subs
+                # Las suscripciones cuentan como gasto mensual automáticamente
+                total_gastos_mensuales += costo
+
+            # 2. Ingresos
+            elif tipo == "ingreso":
+                total_ingresos += float(meta.get("monto") or meta.get("cantidad") or 0.0)
+            
+            # 3. Gastos Mensuales
+            elif tipo == "gasto-mensual":
+                total_gastos_mensuales += float(meta.get("amount") or meta.get("monto") or 0.0)
+            
+            # 4. Gastos Puntuales (Solo del mes actual)
+            elif tipo == "gasto-puntual":
+                if created_at.startswith(now_prefix):
+                    total_gastos_puntuales += float(meta.get("amount") or meta.get("monto") or 0.0)
+            
+            # --- Compatibilidad con tipos antiguos ---
+            elif tipo == "presupuesto":
+                total_ingresos += float(meta.get("restante") or 0.0)
+            elif tipo == "beneficio":
+                total_ingresos += float(meta.get("monto") or 0.0)
+            elif tipo == "gasto":
+                if created_at.startswith(now_prefix):
+                    total_gastos_puntuales += float(meta.get("amount") or meta.get("monto") or 0.0)
 
         conn.close()
     except Exception as e:
-        print("Error fetch admin:", e)
+        print("Error fetch admin dashboard refactored:", e)
         
+    presupuesto_final = total_ingresos - total_gastos_mensuales - total_gastos_puntuales
+    
     return {
         "suscripciones": suscripciones,
-        "presupuesto_restante": presupuesto_restante if presupuesto_encontrado else None
+        "presupuesto_restante": presupuesto_final,
+        "detalles": {
+            "ingresos": total_ingresos,
+            "gastos_mensuales": total_gastos_mensuales,
+            "gastos_puntuales": total_gastos_puntuales
+        }
     }

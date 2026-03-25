@@ -92,41 +92,49 @@ async def process_message(user, user_message: str, history: list = None):
                                 count = await delete_documents(user.id, entry.get("tipo"), entry.get("query"))
                                 context_result = f"Eliminados {count} registros."
                             
-                            # --- Specialized Tools mapping to RAG ---
-                            elif action == "money_add_expense":
-                                await add_document(user.id, f"Gasto: {entry['content']}", {"tipo": "presupuesto", "restante": -float(entry["amount"])})
-                                context_result = f"Gasto de {entry['amount']} registrado."
+                            # --- Specialized Tools mapping to RAG (3-Type Schema) ---
+                            elif action == "money_add_monthly_expense":
+                                await add_document(user.id, f"Gasto Mensual: {entry['content']} ({entry['amount']}€)", {"tipo": "gasto-mensual", "amount": float(entry["amount"])})
+                                context_result = f"Gasto mensual de {entry['amount']}€ registrado."
                             
-                            elif action == "money_set_budget":
-                                await add_document(user.id, "Presupuesto inicial/actualización", {"tipo": "presupuesto", "restante": float(entry["amount"])})
-                                context_result = f"Presupuesto establecido en {entry['amount']}."
-                                
+                            elif action == "money_add_oneoff_expense":
+                                await add_document(user.id, f"Gasto Puntual: {entry['content']} ({entry['amount']}€)", {"tipo": "gasto-puntual", "amount": float(entry["amount"])})
+                                context_result = f"Gasto puntual de {entry['amount']}€ registrado."
+
+                            elif action == "money_add_income":
+                                await add_document(user.id, f"Ingreso: {entry['content']} ({entry['amount']}€)", {"tipo": "ingreso", "monto": float(entry["amount"])})
+                                context_result = f"Ingreso de {entry['amount']}€ registrado."
+                            
                             elif action == "money_add_sub":
                                 await add_document(user.id, f"Suscripción: {entry['name']}", {"tipo": "suscripcion", "nombre": entry["name"], "costo": float(entry["cost"]), "renovacion": entry.get("period", "Mensual")})
                                 context_result = f"Suscripción a {entry['name']} guardada."
 
-                            elif action == "money_add_income":
-                                await add_document(user.id, f"Ingreso: {entry['content']}", {"tipo": "ingreso", "monto": float(entry["amount"])})
-                                context_result = f"Ingreso de {entry['amount']} registrado."
-
                             elif action == "calcular_presupuesto":
-                                # Re-usamos lógica de balance integral
                                 from app.rag.engine import get_connection
+                                from datetime import datetime
+                                now_prefix = datetime.now().strftime("%Y-%m")
                                 conn = get_connection()
                                 c = conn.cursor()
-                                c.execute("SELECT metadata FROM documents WHERE user_id = ?", (user.id,))
+                                c.execute("SELECT metadata, created_at FROM documents WHERE user_id = ?", (user.id,))
                                 balance = 0.0
-                                subs_total = 0.0
                                 for row in c.fetchall():
                                     m = json.loads(row[0])
+                                    created_at = row[1] or ""
                                     t = m.get("tipo")
-                                    if t in ["presupuesto", "ingreso", "beneficio"]:
-                                        balance += float(m.get("restante") or m.get("monto") or 0)
+                                    if t == "ingreso":
+                                        balance += float(m.get("monto") or 0)
+                                    elif t == "gasto-mensual":
+                                        balance -= float(m.get("amount") or 0)
+                                    elif t == "gasto-puntual":
+                                        if created_at.startswith(now_prefix):
+                                            balance -= float(m.get("amount") or 0)
                                     elif t == "suscripcion":
-                                        subs_total += float(m.get("costo") or 0)
+                                        balance -= float(m.get("costo") or 0)
+                                    # Compatibilidad
+                                    elif t == "presupuesto":
+                                        balance += float(m.get("restante") or 0)
                                 conn.close()
-                                final_balance = balance - subs_total
-                                context_result = f"BALANCE ACTUAL: {final_balance}€. (Ingresos/Gastos: {balance}€, Suscripciones: -{subs_total}€)."
+                                context_result = f"TU BALANCE ACTUAL ES: {balance}€. (Incluye ingresos, gastos mensuales, suscripciones y gastos puntuales de este mes)."
 
                             elif action == "habit_add":
                                 await add_document(user.id, f"Hábito: {entry['name']}", {"tipo": "habito", "nombre": entry["name"]})

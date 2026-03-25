@@ -48,9 +48,16 @@ def init_rag_db():
             user_id INTEGER,
             content TEXT,
             metadata TEXT,
-            embedding array
+            embedding array,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    # Migración voluntaria: si la columna no existe, la añadimos
+    try:
+        c.execute("ALTER TABLE documents ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP")
+    except:
+        pass # Ya existe
+    
     c.execute("CREATE INDEX IF NOT EXISTS idx_documents_user ON documents(user_id)")
     conn.commit()
     
