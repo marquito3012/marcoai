@@ -34,7 +34,7 @@ async def process_message(user, user_message: str, history: list = None):
         messages.append({"role": "assistant", "content": response_text})
         
         # 2. ¿Hay comandos JSON? (Detección múltiple con finditer)
-        json_pattern = r"```(?:json)?\s*(\{.*?\})\s*```"
+        json_pattern = r"```(?:json)?\s*([\{\[].*?[\}\]])\s*```"
         matches = list(re.finditer(json_pattern, response_text, re.DOTALL | re.IGNORECASE))
         
         if matches:
@@ -180,5 +180,5 @@ async def process_message(user, user_message: str, history: list = None):
             return clean_text
             
     # Si agotamos bucles y el último mensaje aún tiene JSON, lo limpiamos para el usuario
-    final_clean = re.sub(r"```(?:json)?\s*(\{.*?\})\s*```", "", response_text, flags=re.DOTALL | re.IGNORECASE).strip()
+    final_clean = re.sub(r"```(?:json)?\s*([\{\[].*?[\}\]])\s*```", "", response_text, flags=re.DOTALL | re.IGNORECASE).strip()
     return final_clean or "Acciones procesadas correctamente."
