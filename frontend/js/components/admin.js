@@ -20,6 +20,9 @@ app.views['admin'] = {
                         <div class="card-header">
                             <i class="ph-fill ph-trend-up"></i>
                             <h3>Ingresos</h3>
+                            <button class="icon-btn-small" onclick="app.views.admin.clearType('ingresos')" title="Borrar todo">
+                                <i class="ph ph-trash"></i>
+                            </button>
                             <span id="totalIngresos" class="badge">€0.00</span>
                         </div>
                         <div id="ingresosList" class="item-list scroll-shadow">
@@ -32,6 +35,9 @@ app.views['admin'] = {
                         <div class="card-header">
                             <i class="ph-fill ph-calendar-check"></i>
                             <h3>Gastos Mensuales</h3>
+                            <button class="icon-btn-small" onclick="app.views.admin.clearType('gastos-mensuales')" title="Borrar todo">
+                                <i class="ph ph-trash"></i>
+                            </button>
                             <span id="totalMensuales" class="badge">€0.00</span>
                         </div>
                         <div id="mensualesList" class="item-list scroll-shadow">
@@ -44,6 +50,9 @@ app.views['admin'] = {
                         <div class="card-header">
                             <i class="ph-fill ph-receipt"></i>
                             <h3>Gastos Puntuales</h3>
+                            <button class="icon-btn-small" onclick="app.views.admin.clearType('gastos-puntuales')" title="Borrar todo">
+                                <i class="ph ph-trash"></i>
+                            </button>
                             <span id="totalPuntuales" class="badge">€0.00</span>
                         </div>
                         <div id="puntualesList" class="item-list scroll-shadow">
@@ -76,6 +85,9 @@ app.views['admin'] = {
                 .card-header i { font-size: 24px; color: var(--accent); }
                 .card-header h3 { flex: 1; font-size: 1.1rem; color: white; }
                 .card-header .badge { background: rgba(255,255,255,0.05); color: white; padding: 4px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; }
+                
+                .icon-btn-small { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 5px; border-radius: 6px; transition: 0.2s; }
+                .icon-btn-small:hover { color: #f43f5e; background: rgba(244, 63, 94, 0.1); }
 
                 /* Variaciones de color */
                 .income-card .card-header i { color: #10b981; }
@@ -103,6 +115,10 @@ app.views['admin'] = {
             </style>
         `;
 
+        await this.loadData();
+    },
+
+    async loadData() {
         try {
             const data = await API.get('/admin/dashboard');
             
@@ -122,6 +138,19 @@ app.views['admin'] = {
         } catch (error) {
             console.error('Error dashboard:', error);
             app.utils.showToast('Error al cargar datos financieros', 'error');
+        }
+    },
+
+    async clearType(tipo) {
+        if (!confirm(`¿Estás seguro de que quieres borrar todos los registros de "${tipo.replace('-', ' ')}"?`)) return;
+        
+        try {
+            await API.delete(`/admin/clear-type?tipo=${tipo}`);
+            app.utils.showToast(`Registros de ${tipo} eliminados`, 'success');
+            await this.loadData();
+        } catch (error) {
+            console.error('Error clearing:', error);
+            app.utils.showToast('Error al eliminar registros', 'error');
         }
     },
 

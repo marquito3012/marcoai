@@ -116,11 +116,11 @@ IMPORTANTE: TODO lo relativo a dinero, hábitos o intereses DEBE usar su herrami
 
 Acción: Eliminar información de la memoria (RAG)
 Úsalo cuando el usuario te pida explícitamente borrar datos, gastos, suscripciones, u otra información de su cerebro o dashboard.
-Para borrar por categoría exacta, usa "tipo" (ej: "presupuesto", "suscripcion", "habito"). Para borrar por palabra clave, usa "query". Si dejas ambos vacíos, ¡se borrará TODA la memoria del usuario!
+Para borrar por categoría exacta, usa "tipo" (Valores válidos: "gasto-mensual", "gasto-puntual", "ingreso", "suscripcion"). Para borrar por palabra clave, usa "query". Si dejas ambos vacíos, ¡se borrará TODA la memoria del usuario!
 ```json
 {
   "action": "rag_delete",
-  "tipo": "presupuesto"
+  "tipo": "gasto-mensual"
 }
 ```
 

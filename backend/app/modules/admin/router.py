@@ -88,3 +88,23 @@ def get_admin_dashboard(current_user: User = Depends(get_current_user)):
         },
         "suscripciones": suscripciones # Legacy support just in case
     }
+
+@router.delete("/clear-type")
+async def clear_financial_type(tipo: str, user: any = Depends(get_current_user)):
+    """Elimina todos los registros de un tipo específico de finanzas."""
+    from app.rag.engine import delete_documents
+    # Validamos tipos permitidos (incluyendo plurales comunes)
+    mapping = {
+        "ingresos": "ingreso",
+        "gastos-mensuales": "gasto-mensual",
+        "gastos-puntuales": "gasto-puntual",
+        "suscripciones": "suscripcion"
+    }
+    target_tipo = mapping.get(tipo, tipo)
+    
+    valid_types = ["gasto-mensual", "gasto-puntual", "ingreso", "suscripcion"]
+    if target_tipo not in valid_types:
+        return {"error": f"Tipo '{tipo}' no es válido para limpieza masiva"}
+        
+    count = await delete_documents(user.id, tipo=target_tipo)
+    return {"status": "ok", "deleted_count": count}
