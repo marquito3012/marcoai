@@ -18,7 +18,8 @@ class Settings(BaseSettings):
     
     # Groq API
     GROQ_API_KEY: str
-    OPENROUTER_API_KEY: str = None
+    OPENROUTER_API_KEY: str
+    GOOGLE_API_KEY: str = None
     
     # DB
     DATABASE_URL: str = "sqlite:///./data/marcoai.db"
