@@ -100,7 +100,7 @@ async def process_message(user, user_message: str, history: list = None):
                             context_result = f"Guardado (ID: {doc_id})."
 
                         elif action == "rag_delete":
-                            count = delete_documents(user.id, entry.get("tipo"), entry.get("query"))
+                            count = await delete_documents(user.id, entry.get("tipo"), entry.get("query"))
                             context_result = f"Eliminados {count} registros."
                         else:
                             context_result = f"Acción desconocida: {action}"
