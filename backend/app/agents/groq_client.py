@@ -1,18 +1,27 @@
 import groq
+import openai
 from app.config import settings
 import edge_tts
 import io
 
-client = groq.AsyncGroq(api_key=settings.GROQ_API_KEY)
+# Clientes principales
+groq_client = groq.AsyncGroq(api_key=settings.GROQ_API_KEY)
+
+# Cliente de respaldo (OpenRouter usa el SDK de OpenAI)
+or_client = None
+if settings.OPENROUTER_API_KEY:
+    or_client = openai.AsyncOpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=settings.OPENROUTER_API_KEY,
+    )
 
 async def chat_completion(messages: list[dict], model: str = "llama-3.3-70b-versatile", temperature: float = 0.7, max_tokens: int = 1000):
     """
-    Función de utilidad para abstraer llamadas a la API de Groq.
-    Si se desea "Tool Calling" nativo se puede extender aquí. 
-    En esta primera versión usaremos Tool Calling manual para mayor control.
+    Intenta llamar a Groq. Si falla por límites (429) o tokens, rota a OpenRouter.
     """
+    # 1. Intento con Groq
     try:
-        response = await client.chat.completions.create(
+        response = await groq_client.chat.completions.create(
             messages=messages,
             model=model,
             temperature=temperature,
@@ -20,15 +29,47 @@ async def chat_completion(messages: list[dict], model: str = "llama-3.3-70b-vers
         )
         return response.choices[0].message.content
     except Exception as e:
-        print(f"Error llamando a Groq API: {e}")
-        return "Lo siento, tuve un problema procesando tu solicitud con mi cerebro principal. Intenta de nuevo en unos segundos."
+        error_msg = str(e).lower()
+        # Verificar si es un error de cuota o límite
+        if "rate_limit" in error_msg or "429" in error_msg or "token" in error_msg:
+            print(f"⚠️ Groq límite alcanzado, rotando a OpenRouter... (Error: {e})")
+            if or_client:
+                return await chat_completion_openrouter(messages, temperature, max_tokens)
+        
+        print(f"❌ Error crítico en Groq API: {e}")
+        return "Lo siento, tuve un problema procesando tu solicitud. Intenta de nuevo en unos segundos."
+
+async def chat_completion_openrouter(messages: list[dict], temperature: float = 0.7, max_tokens: int = 1000):
+    """
+    Fallback usando OpenRouter (Gemini 2.0 Flash por defecto).
+    """
+    try:
+        if not or_client:
+            return "El proveedor de respaldo (OpenRouter) no está configurado."
+            
+        # Usamos un modelo estable y económico de respaldo
+        fallback_model = "google/gemini-2.0-flash-001"
+        response = await or_client.chat.completions.create(
+            model=fallback_model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            extra_headers={
+                "HTTP-Referer": "https://marcoai.org", # Opcional para OpenRouter
+                "X-Title": "Marco AI",
+            }
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"❌ Error crítico en OpenRouter Fallback: {e}")
+        return "Ambos proveedores (Groq y OpenRouter) han fallado. Por favor, revisa tus límites de API."
 
 async def speech_to_text(file_bytes: bytes, filename: str):
     """
     Usa Groq Whisper para transcribir audio a texto.
     """
     try:
-        transcription = await client.audio.transcriptions.create(
+        transcription = await groq_client.audio.transcriptions.create(
             file=(filename, file_bytes),
             model="whisper-large-v3-turbo",
             response_format="verbose_json",
