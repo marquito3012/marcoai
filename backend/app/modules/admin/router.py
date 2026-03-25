@@ -28,6 +28,14 @@ def get_admin_dashboard(current_user: User = Depends(get_current_user)):
                     "costo": meta.get("costo") or meta.get("precio", 0.0),
                     "renovacion": meta.get("renovacion") or meta.get("fecha", "Desconocida")
                 })
+            elif meta.get("tipo") in ["ingreso", "beneficio"]:
+                val = meta.get("monto") or meta.get("cantidad") or meta.get("valor")
+                if val is not None:
+                    try:
+                        presupuesto_restante += float(val)
+                        presupuesto_encontrado = True
+                    except ValueError:
+                        pass
             elif meta.get("tipo") == "presupuesto" or meta.get("type") == "presupuesto":
                 val = meta.get("restante") or meta.get("cantidad") or meta.get("presupuesto")
                 if val is not None:
@@ -37,7 +45,7 @@ def get_admin_dashboard(current_user: User = Depends(get_current_user)):
                     except ValueError:
                         pass
         
-        # RESTAR suscripciones del presupuesto restante si hay presupuesto establecido
+        # RESTAR suscripciones del presupuesto restante si hay presupuesto o ingresos
         if presupuesto_encontrado:
             total_subs = sum(float(s["costo"]) for s in suscripciones)
             presupuesto_restante -= total_subs

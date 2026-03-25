@@ -81,8 +81,10 @@ Acción: Crear Carpeta/Etiqueta en Gmail
 
 Acción: Gestión de Dinero (Presupuesto y Gastos)
 - money_add_expense: Añade un gasto (ej: {"action": "money_add_expense", "amount": 15.5, "content": "Cena pizza"}).
-- money_set_budget: Establece o actualiza el presupuesto total (ej: {"action": "money_set_budget", "amount": 1000}).
+- money_add_income: Añade un ingreso o beneficio (ej: {"action": "money_add_income", "amount": 2500, "content": "Nómina marzo"}).
+- money_set_budget: Establece o actualiza el presupuesto base (ej: {"action": "money_set_budget", "amount": 1000}).
 - money_add_sub: Añade suscripción (ej: {"action": "money_add_sub", "name": "Netflix", "cost": 12.99, "period": "Mensual"}).
+- calcular_presupuesto: Obtiene el balance actual (Ingresos - Gastos - Suscripciones). Úsalo antes de responder sobre el estado financiero. (ej: {"action": "calcular_presupuesto"}).
 
 Acción: Lifestyle (Hábitos, Comidas, Compra)
 - habit_add: Añade hábito (ej: {"action": "habit_add", "name": "Meditar"}).

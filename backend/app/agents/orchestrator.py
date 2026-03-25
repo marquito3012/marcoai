@@ -104,7 +104,30 @@ async def process_message(user, user_message: str, history: list = None):
                             elif action == "money_add_sub":
                                 await add_document(user.id, f"Suscripción: {entry['name']}", {"tipo": "suscripcion", "nombre": entry["name"], "costo": float(entry["cost"]), "renovacion": entry.get("period", "Mensual")})
                                 context_result = f"Suscripción a {entry['name']} guardada."
-                                
+
+                            elif action == "money_add_income":
+                                await add_document(user.id, f"Ingreso: {entry['content']}", {"tipo": "ingreso", "monto": float(entry["amount"])})
+                                context_result = f"Ingreso de {entry['amount']} registrado."
+
+                            elif action == "calcular_presupuesto":
+                                # Re-usamos lógica de balance integral
+                                from app.rag.engine import get_connection
+                                conn = get_connection()
+                                c = conn.cursor()
+                                c.execute("SELECT metadata FROM documents WHERE user_id = ?", (user.id,))
+                                balance = 0.0
+                                subs_total = 0.0
+                                for row in c.fetchall():
+                                    m = json.loads(row[0])
+                                    t = m.get("tipo")
+                                    if t in ["presupuesto", "ingreso", "beneficio"]:
+                                        balance += float(m.get("restante") or m.get("monto") or 0)
+                                    elif t == "suscripcion":
+                                        subs_total += float(m.get("costo") or 0)
+                                conn.close()
+                                final_balance = balance - subs_total
+                                context_result = f"BALANCE ACTUAL: {final_balance}€. (Ingresos/Gastos: {balance}€, Suscripciones: -{subs_total}€)."
+
                             elif action == "habit_add":
                                 await add_document(user.id, f"Hábito: {entry['name']}", {"tipo": "habito", "nombre": entry["name"]})
                                 context_result = f"Hábito '{entry['name']}' añadido."
