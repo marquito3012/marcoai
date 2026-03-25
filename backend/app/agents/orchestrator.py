@@ -91,6 +91,40 @@ async def process_message(user, user_message: str, history: list = None):
                             elif action == "rag_delete":
                                 count = await delete_documents(user.id, entry.get("tipo"), entry.get("query"))
                                 context_result = f"Eliminados {count} registros."
+                            
+                            # --- Specialized Tools mapping to RAG ---
+                            elif action == "money_add_expense":
+                                await add_document(user.id, f"Gasto: {entry['content']}", {"tipo": "presupuesto", "restante": -float(entry["amount"])})
+                                context_result = f"Gasto de {entry['amount']} registrado."
+                            
+                            elif action == "money_set_budget":
+                                await add_document(user.id, "Presupuesto inicial/actualización", {"tipo": "presupuesto", "restante": float(entry["amount"])})
+                                context_result = f"Presupuesto establecido en {entry['amount']}."
+                                
+                            elif action == "money_add_sub":
+                                await add_document(user.id, f"Suscripción: {entry['name']}", {"tipo": "suscripcion", "nombre": entry["name"], "costo": float(entry["cost"]), "renovacion": entry.get("period", "Mensual")})
+                                context_result = f"Suscripción a {entry['name']} guardada."
+                                
+                            elif action == "habit_add":
+                                await add_document(user.id, f"Hábito: {entry['name']}", {"tipo": "habito", "nombre": entry["name"]})
+                                context_result = f"Hábito '{entry['name']}' añadido."
+                                
+                            elif action == "meal_add":
+                                await add_document(user.id, f"Comida: {entry['name']}", {"tipo": "comida", "nombre": entry["name"]})
+                                context_result = f"Comida '{entry['name']}' añadida al plan."
+                                
+                            elif action == "buy_list_add":
+                                await add_document(user.id, f"Compra: {entry['item']}", {"tipo": "compra", "items": [entry["item"]]})
+                                context_result = f"Añadido '{entry['item']}' a la lista de la compra."
+                                
+                            elif action == "radar_add":
+                                await add_document(user.id, f"Radar: {entry['title']}", {"tipo": "radar", "titulo": entry["title"], "fecha": entry.get("date", "Por confirmar"), "categoria": entry.get("category", "Interés")})
+                                context_result = f"Añadido '{entry['title']}' al radar de ocio."
+                                
+                            elif action == "offer_add":
+                                await add_document(user.id, f"Oferta: {entry['title']}", {"tipo": "oferta", "juego": entry["title"], "tienda": entry.get("store", "Internet"), "precio": entry["price"], "descuento": entry.get("discount", "")})
+                                context_result = f"Oferta de '{entry['title']}' guardada."
+                            
                             else:
                                 context_result = f"Acción desconocida: {action}"
                         except Exception as e:

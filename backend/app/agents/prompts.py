@@ -79,30 +79,33 @@ Acción: Crear Carpeta/Etiqueta en Gmail
 }
 ```
 
-Acción: Buscar en tu memoria o en documentos de la Bóveda (RAG)
-El campo "query" debe contener las palabras clave más importantes de la búsqueda (ej: "nombre novia", "gastos marzo", "tema TFM").
+Acción: Gestión de Dinero (Presupuesto y Gastos)
+- money_add_expense: Añade un gasto (ej: {"action": "money_add_expense", "amount": 15.5, "content": "Cena pizza"}).
+- money_set_budget: Establece o actualiza el presupuesto total (ej: {"action": "money_set_budget", "amount": 1000}).
+- money_add_sub: Añade suscripción (ej: {"action": "money_add_sub", "name": "Netflix", "cost": 12.99, "period": "Mensual"}).
+
+Acción: Lifestyle (Hábitos, Comidas, Compra)
+- habit_add: Añade hábito (ej: {"action": "habit_add", "name": "Meditar"}).
+- meal_add: Añade comida al plan (ej: {"action": "meal_add", "name": "Ensalada César"}).
+- buy_list_add: Añade ítem a lista compra (ej: {"action": "buy_list_add", "item": "Huevos"}).
+
+Acción: Ocio (Radar y Ofertas)
+- radar_add: Añade interés (ej: {"action": "radar_add", "title": "GTA VI", "date": "2025", "category": "Juego"}).
+- offer_add: Guarda oferta (ej: {"action": "offer_add", "title": "iPhone 15", "store": "MediaMarkt", "price": "800€", "discount": "20%"}).
+
+Acción: Buscar en memoria o documentos (RAG)
 ```json
 {
   "action": "rag_search",
-  "query": "nombre de mi novia"
+  "query": "presupuesto marzo"
 }
 ```
 
-Acción: Guardar información en memoria (RAG / Cerebro)
-Úsalo para presupuestos, suscripciones, hábitos, comidas, radar de ocio u ofertas.
-IMPORTANTE: Para gastos u operaciones de resta, usa valores NEGATIVOS en "restante" (ej: -10.50).
-El campo "metadata" es OBLIGATORIO. Estructuras exactas según tipo:
-- presupuesto: {"tipo": "presupuesto", "restante": 1200.50}
-- suscripcion: {"tipo": "suscripcion", "nombre": "Amazon", "costo": 4.99, "renovacion": "Mensual"}
-- habito: {"tipo": "habito", "nombre": "Hacer ejercicio"}
-- comida: {"tipo": "comida", "nombre": "Pasta boloñesa"}
-- radar: {"tipo": "radar", "titulo": "GTA VI", "fecha": "2025", "categoria": "Juego"}
-- oferta: {"tipo": "oferta", "juego": "Elden Ring", "tienda": "Steam", "precio": 29.99, "descuento": "50%"}
+Acción: Guardar nota general (Cerebro)
 ```json
 {
   "action": "rag_save",
-  "content": "Suelo gastar 850 en alquiler al mes.",
-  "metadata": {"tipo": "presupuesto", "restante": 850.0}
+  "content": "Nota o pensamiento general que no encaja en las anteriores"
 }
 ```
 
