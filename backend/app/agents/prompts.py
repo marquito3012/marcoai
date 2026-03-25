@@ -89,14 +89,19 @@ El campo "query" debe contener las palabras clave más importantes de la búsque
 ```
 
 Acción: Guardar información en memoria (RAG / Cerebro)
-Úsalo para guardar presupuestos, suscripciones, hábitos, comidas, radar de ocio u ofertas, o notas.
-El campo "metadata" es OBLIGATORIO para categorizar datos para los módulos dinámicos.
-Tipos obligatorios ("tipo"): "presupuesto" (campos: restante), "suscripcion" (nombre, costo, renovacion), "habito" (nombre), "comida" (nombre), "radar" (titulo, fecha, categoria), "oferta" (juego, tienda, precio, descuento).
+Úsalo para presupuestos, suscripciones, hábitos, comidas, radar de ocio u ofertas.
+El campo "metadata" es OBLIGATORIO. Estructuras exactas según tipo:
+- presupuesto: {"tipo": "presupuesto", "restante": 1200.50}
+- suscripcion: {"tipo": "suscripcion", "nombre": "Amazon", "costo": 4.99, "renovacion": "Mensual"}
+- habito: {"tipo": "habito", "nombre": "Hacer ejercicio"}
+- comida: {"tipo": "comida", "nombre": "Pasta boloñesa"}
+- radar: {"tipo": "radar", "titulo": "GTA VI", "fecha": "2025", "categoria": "Juego"}
+- oferta: {"tipo": "oferta", "juego": "Elden Ring", "tienda": "Steam", "precio": 29.99, "descuento": "50%"}
 ```json
 {
   "action": "rag_save",
-  "content": "Suscripción a Netflix por 15.99 al mes.",
-  "metadata": {"tipo": "suscripcion", "nombre": "Netflix", "costo": 15.99, "renovacion": "Mensual"}
+  "content": "Suelo gastar 850 en alquiler al mes.",
+  "metadata": {"tipo": "presupuesto", "restante": 850.0}
 }
 ```
 

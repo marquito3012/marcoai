@@ -32,7 +32,7 @@ def get_admin_dashboard(current_user: User = Depends(get_current_user)):
                 val = meta.get("restante") or meta.get("cantidad") or meta.get("presupuesto")
                 if val is not None:
                     try:
-                        presupuesto_restante = float(val)
+                        presupuesto_restante += float(val)
                         presupuesto_encontrado = True
                     except ValueError:
                         pass
