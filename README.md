@@ -45,6 +45,7 @@ Marco AI puede realizar las siguientes acciones de forma autónoma mediante leng
 ### 📅 Gestión de Tiempo (Google Calendar)
 - **Consultar Agenda:** Listar tus próximos eventos y compromisos.
 - **Crear Eventos:** Añadir citas especificando nombre, fecha y hora de inicio/fin.
+- **Modificar Eventos:** Cambiar el nombre, la fecha o la hora (inicio/fin) de eventos existentes.
 
 ### 📧 Comunicación (Gmail)
 - **Leer Correos:** Buscar y resumir mensajes recibidos o filtrar por criterios.

@@ -48,3 +48,26 @@ def create_event(user, summary, start_time, end_time, description=""):
     
     event = service.events().insert(calendarId='primary', body=event).execute()
     return event
+
+def update_event(user, event_id, summary=None, start_time=None, end_time=None, description=None):
+    """Actualiza un evento existente en el calendario principal"""
+    service = get_calendar_service(user)
+    
+    # Primero obtenemos el evento actual para no sobreescribir campos que no queremos cambiar
+    event = service.events().get(calendarId='primary', eventId=event_id).execute()
+    
+    if summary:
+        event['summary'] = summary
+    if description is not None:
+        event['description'] = description
+    
+    if start_time:
+        start_str = start_time if isinstance(start_time, str) else start_time.isoformat()
+        event['start'] = {'dateTime': start_str, 'timeZone': 'UTC'}
+    
+    if end_time:
+        end_str = end_time if isinstance(end_time, str) else end_time.isoformat()
+        event['end'] = {'dateTime': end_str, 'timeZone': 'UTC'}
+        
+    updated_event = service.events().update(calendarId='primary', eventId=event_id, body=event).execute()
+    return updated_event
