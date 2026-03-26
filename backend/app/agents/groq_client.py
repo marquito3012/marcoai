@@ -79,18 +79,29 @@ async def chat_completion_openrouter(messages: list[dict], model: str, temperatu
     if not or_client:
         return "Error: OpenRouter no configurado."
 
-    try:
-        response = await or_client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            extra_headers={"X-Title": "Marco AI"}
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        print(f"❌ Nivel 3 (OpenRouter Free) falló: {e}")
-        return "Lo siento, Marco está experimentando una sobrecarga mental. Por favor, inténtalo de nuevo en unos minutos."
+    models_to_try = [
+        "google/gemini-2.0-flash-lite-preview-02-05:free",
+        "meta-llama/llama-3-8b-instruct:free",
+        "mistralai/pixtral-12b:free",
+        "qwen/qwen-2.5-72b-instruct:free"
+    ]
+    
+    for current_model in models_to_try:
+        try:
+            print(f"🔄 Probando Nivel 3 (OpenRouter) con modelo: {current_model}...")
+            response = await or_client.chat.completions.create(
+                model=current_model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                extra_headers={"X-Title": "Marco AI"}
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            print(f"⚠️ Modelo {current_model} falló en Nivel 3: {e}")
+            continue
+
+    return "Lo siento, todos los proveedores de IA están saturados en este momento. Por favor, inténtalo de nuevo en unos minutos."
 
 async def speech_to_text(file_bytes: bytes, filename: str):
     """
