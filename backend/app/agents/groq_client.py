@@ -80,10 +80,7 @@ async def chat_completion_openrouter(messages: list[dict], model: str, temperatu
         return "Error: OpenRouter no configurado."
 
     models_to_try = [
-        "google/gemini-2.0-flash-lite-preview-02-05:free",
-        "meta-llama/llama-3-8b-instruct:free",
-        "mistralai/pixtral-12b:free",
-        "qwen/qwen-2.5-72b-instruct:free"
+        "meta-llama/llama-3.3-70b-instruct:free"
     ]
     
     for current_model in models_to_try:
