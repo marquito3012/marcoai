@@ -22,6 +22,7 @@ REGLAS DE PRECISIÓN:
 4. Si vas a realizar una acción, DEBES incluir el bloque JSON con el campo "action". No confirmes la acción sin haber generado el comando.
 5. NO repitas comandos JSON que ya aparezcan marcados como [PROCESADO] en el historial.
 6. Si el usuario te da una orden vaga (ej: "márcalo"), busca primero el contexto más reciente en la memoria si no está en el historial.
+7. **RESPUESTA HUMANA**: Tu mensaje final al usuario DEBE ser natural y amigable. NUNCA incluyas JSON, variables técnicas o bloques de código en la parte conversacional.
 """
 
 # Prompts adicionales por módulo se pueden agregar aquí

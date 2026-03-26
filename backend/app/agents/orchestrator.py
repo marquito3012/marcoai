@@ -230,17 +230,15 @@ async def process_message(user, user_message: str, history: list = None):
             messages[-1]["content"] = re.sub(json_pattern, "[COMANDO PROCESADO POR EL SISTEMA]", response_text, flags=re.DOTALL | re.IGNORECASE)
             
             messages.append({"role": "system", "content": f"SISTEMA (RESULTADOS): {final_context}"})
-        else:
-            # SI NO HAY JSON: Es la respuesta final. 
-            # Limpiamos bloques sobrantes por si acaso (ej: ejemplos que el LLM ponga)
-            clean_text = re.sub(json_pattern, "", response_text, flags=re.DOTALL).strip()
-            if not clean_text:
-                # Si se quedó vacío (solo era JSON), pedimos una confirmación final
-                messages.append({"role": "system", "content": "Acciones completadas. Responde al usuario confirmando lo hecho en español, sin usar bloques de código."})
-                confirm_res = await chat_completion(messages)
-                return re.sub(json_pattern, "", confirm_res, flags=re.DOTALL).strip() or "Hecho."
-            return clean_text
-            
-    # Si agotamos bucles y el último mensaje aún tiene JSON, lo limpiamos para el usuario
-    final_clean = re.sub(r"```(?:json)?\s*([\{\[].*?[\}\]])\s*```", "", response_text, flags=re.DOTALL | re.IGNORECASE).strip()
-    return final_clean or "Acciones procesadas correctamente."
+    # 5. Respuesta Final (Limpieza y Humanización)
+    # Si detectamos que el LLM aún intenta enviar JSON o la respuesta está vacía, forzamos humanización
+    is_technical = bool(re.search(r"\{.*\"action\".*\}|\[.*\{\"action\".*\}\]", response_text, flags=re.DOTALL))
+    clean_text = re.sub(json_pattern, "", response_text, flags=re.DOTALL).strip()
+    
+    if is_technical or not clean_text or clean_text.startswith(("{", "[")):
+        messages.append({"role": "system", "content": "Acciones completadas con éxito. Responde al usuario de forma humana y natural en español confirmando lo hecho. PROHIBIDO usar JSON o bloques de código."})
+        final_response = await chat_completion(messages)
+        # Limpieza final extrema por si el LLM ignora la instrucción
+        return re.sub(json_pattern, "", final_response, flags=re.DOTALL).strip() or "Hecho, todo listo."
+
+    return clean_text
