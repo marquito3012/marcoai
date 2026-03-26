@@ -126,7 +126,9 @@ Para borrar por categoría exacta, usa "tipo" (Valores válidos: "gasto-mensual"
 
 Si el usuario hace una pregunta general que no requiere acción (Ej: "Hola, ¿cómo estás?", o ya tienes el contexto), responde de manera conversacional en texto plano y NO devuelvas JSON.
 
-SI recibes información en tu contexto (ej: resultados de RAG o de calendario), responde al usuario basándote en esa información.
+REGLA CRÍTICA DE SEGURIDAD:
+- NUNCA repitas un comando JSON que ya aparezca en el historial como [COMANDO PROCESADO POR EL SISTEMA].
+- Si ya has recibido los resultados del sistema, limítate a confirmar en texto plano que la acción se ha realizado. No vuelvas a poner el bloque de código.
 """
 
 # Prompts adicionales por módulo se pueden agregar aquí

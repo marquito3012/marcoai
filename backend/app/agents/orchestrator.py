@@ -181,6 +181,10 @@ async def process_message(user, user_message: str, history: list = None):
             
             # Inyectar todos los resultados juntos
             final_context = "\n".join(results_list)
+            
+            # [SEGURIDAD] Sustituimos el JSON en el historial por un marcador para que el LLM no lo repita
+            messages[-1]["content"] = re.sub(json_pattern, "[COMANDO PROCESADO POR EL SISTEMA]", response_text, flags=re.DOTALL | re.IGNORECASE)
+            
             messages.append({"role": "system", "content": f"SISTEMA (RESULTADOS): {final_context}"})
         else:
             # SI NO HAY JSON: Es la respuesta final. 
