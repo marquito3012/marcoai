@@ -20,7 +20,7 @@ if settings.OPENROUTER_API_KEY:
 if settings.GOOGLE_API_KEY:
     genai.configure(api_key=settings.GOOGLE_API_KEY)
 
-async def chat_completion(messages: list[dict], model: str = "llama-3.3-70b-versatile", temperature: float = 0.7, max_tokens: int = 1000):
+async def chat_completion(messages: list[dict], model: str = "llama-3.3-70b-versatile", temperature: float = 0.1, max_tokens: int = 1000):
     """
     Rotación en 3 niveles:
     1. Groq (Llama 3.3 70b)

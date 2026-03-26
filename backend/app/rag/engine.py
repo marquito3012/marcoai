@@ -100,8 +100,8 @@ async def add_document(user_id: int, content: str, doc_metadata: dict = None):
     conn.close()
     return doc_id
 
-async def search(user_id: int, query: str, top_k: int = 3):
-    """Busca en el RAG filtrando por user_id."""
+async def search(user_id: int, query: str, tipo: str | None = None, top_k: int = 5):
+    """Busca en el RAG filtrando por user_id y opcionalmente por tipo."""
     query_vec = await generate_embedding(query)
     query_np = np.array(query_vec, dtype=np.float32)
     
@@ -110,14 +110,22 @@ async def search(user_id: int, query: str, top_k: int = 3):
     
     results = []
     try:
-        # Usamos VSS si está
-        c.execute(f"""
+        sql = """
             SELECT d.id, d.content, d.metadata 
             FROM vss_documents v
             JOIN documents d ON v.rowid = d.id
-            WHERE d.user_id = ? AND vss_search(v.embedding, ?)
-            LIMIT ?
-        """, (user_id, json.dumps(query_vec), top_k))
+            WHERE d.user_id = ?
+        """
+        params = [user_id]
+        
+        if tipo:
+            sql += " AND (json_extract(d.metadata, '$.tipo') = ? OR json_extract(d.metadata, '$.type') = ?)"
+            params.extend([tipo, tipo])
+            
+        sql += " AND vss_search(v.embedding, ?) LIMIT ?"
+        params.extend([json.dumps(query_vec), top_k])
+        
+        c.execute(sql, tuple(params))
         
         rows = c.fetchall()
         for row in rows:
@@ -125,12 +133,17 @@ async def search(user_id: int, query: str, top_k: int = 3):
                 "id": row[0],
                 "content": row[1],
                 "metadata": json.loads(row[2]),
-                "score": 0.0 # sqlite-vss retorna distancias, pero podemos simular
+                "score": 0.0
             })
     except Exception as e:
-        print(f"VSS search failed, using python cosine similarity fallback: {e}")
-        # Fallback de Coseno en Python PURO + Numpy (Ultra ligero) -> Puesto que filtramos por user, no son muchos docs
-        c.execute("SELECT id, content, metadata, embedding FROM documents WHERE user_id = ?", (user_id,))
+        print(f"VSS search failed/not used, using python fallback: {e}")
+        sql = "SELECT id, content, metadata, embedding FROM documents WHERE user_id = ?"
+        params = [user_id]
+        if tipo:
+            sql += " AND (json_extract(metadata, '$.tipo') = ? OR json_extract(metadata, '$.type') = ?)"
+            params.extend([tipo, tipo])
+            
+        c.execute(sql, tuple(params))
         rows = c.fetchall()
         
         scored = []

@@ -102,7 +102,7 @@ async def process_message(user, user_message: str, history: list = None):
                                 context_result = f"Carpeta '{entry.get('name')}' creada (ID: {new_label['id']})."
                                     
                             elif action == "rag_search":
-                                results = await search(user.id, entry["query"])
+                                results = await search(user.id, entry["query"], tipo=entry.get("tipo"))
                                 context_result = "Memoria:\n" + "\n".join([f"- {r['content']}" for r in results]) if results else "Sin resultados en memoria."
 
                             elif action == "rag_save":
@@ -117,7 +117,7 @@ async def process_message(user, user_message: str, history: list = None):
                                     count += await delete_documents(user.id, "suscripcion", query)
                                 else:
                                     count = await delete_documents(user.id, tipo, query)
-                                    context_result = f"Se han eliminado {count} registros de la memoria correctamente." if count > 0 else "No se encontraron registros que coincidan para eliminar."
+                                context_result = f"Se han eliminado {count} registros de la memoria correctamente." if count > 0 else "No se encontraron registros que coincidan para eliminar."
                             
                             # --- Specialized Tools mapping to RAG (3-Type Schema) ---
                             elif action == "money_add_monthly_expense":
