@@ -1,72 +1,95 @@
-# Marco AI - Agente Personal Inteligente
+# 🤖 Marco AI - Tu Agente Personal Inteligente
 
-Aplicación web full-stack que actúa como agente personal multiusuario, optimizada para desplegarse en una **Raspberry Pi 3** usando Docker y la API de Groq para inferencia LLM ultra ruda y rápida.
+**Marco AI** es un asistente virtual de vanguardia diseñado para centralizar y simplificar tu vida digital. Optimizado para ejecutarse en hardware eficiente como una **Raspberry Pi 3**, Marco combina la potencia de los modelos de lenguaje más avanzados (Llama 3.3, Gemini 2.0) con herramientas locales para gestionar tu tiempo, finanzas y hábitos.
 
-![Marco AI](https://github.com/user-attachments/assets/1493c3d5-f1da-4fb2-8f33-98fd9bada40d)
+![Marco AI Interface](https://github.com/user-attachments/assets/1493c3d5-f1da-4fb2-8f33-98fd9bada40d)
 
-## 🚀 Despliegue en Raspberry Pi 3 (vía SSH)
+## 🌌 Visión General
+Marco no es solo un chatbot; es un **agente de acción**. Gracias a su orquestador inteligente, puede razonar sobre tus peticiones, consultar tu historial (RAG), interactuar con APIs externas y ejecutar comandos asíncronos para mantener tu mundo en orden, todo a través de una interfaz elegante y minimalista.
 
-Sigue estos comandos exactos en tu terminal SSH conectada a la Raspberry Pi:
+## 🏗️ Arquitectura Técnica
+El sistema está construido bajo una arquitectura de microservicios ligera y robusta:
 
-### 1. Clonar el repositorio y entrar a la carpeta
+```mermaid
+graph TD
+    User((Usuario)) -->|HTTPS| CF[Cloudflare Tunnel]
+    CF -->|Proxy| Nginx[Nginx / Frontend]
+    Nginx -->|API Requests| FastAPI[FastAPI Backend]
+    
+    subgraph "Backend Core (Python 3.11)"
+        FastAPI --> Auth[Google OAuth 2.0]
+        FastAPI --> Orch[Orquestador de Agente]
+        Orch --> Groq[Groq / LLM Inference]
+    end
 
-```bash
-git clone https://github.com/marquito3012/marcoai.git
-cd marcoai
+    subgraph "Recursos & Inteligencia"
+        Orch --> RAG[RAG Engine / Vector DB]
+        Orch --> Google[Google Calendar / Gmail]
+        Orch --> Modules[Lifestyle / Finanzas / Ocio]
+    end
+
+    subgraph "Persistencia"
+        RAG --> DB[(SQLite Database)]
+        Modules --> DB
+    end
 ```
 
-### 2. Configurar Variables de Entorno
+- **Inferencia Ultra-Rápida:** Delegada a Groq para respuestas en milisegundos.
+- **Memoria de Largo Plazo (RAG):** Implementada en SQLite con búsqueda vectorial (VSS) y aislamiento total por usuario.
+- **Frontend SPA:** Sistema Glassmorphism ultra-ligero (<5MB RAM) en Vanilla JS.
 
-Copia el archivo de ejemplo y edítalo con nano:
+## 🛠️ Capacidades del Agente (Lista Técnica)
 
-```bash
-cp .env.example .env
-nano .env
-```
+Marco AI puede realizar las siguientes acciones de forma autónoma mediante lenguaje natural:
 
-Dentro de `nano`, configura tus credenciales reales:
+### 📅 Gestión de Tiempo (Google Calendar)
+- **Consultar Agenda:** Listar tus próximos eventos y compromisos.
+- **Crear Eventos:** Añadir citas especificando nombre, fecha y hora de inicio/fin.
 
-- `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` (obtenidos de Google Cloud Console con APIs de Calendar y Gmail activadas)
-- `GROQ_API_KEY`
-- `SECRET_KEY` (puedes generar una rápida ejecutando `openssl rand -hex 32` en otra terminal)
-- `CLOUDFLARE_TUNNEL_TOKEN` (tu token de Cloudflared, esencial para acceso externo)
-- `FRONTEND_URL` (Debe ser tu dominio público, ej: `https://www.marcoai.com`)
+### 📧 Comunicación (Gmail)
+- **Leer Correos:** Buscar y resumir mensajes recibidos o filtrar por criterios.
+- **Enviar Emails:** Redactar y enviar correos electrónicos completos.
+- **Organización:** Crear etiquetas, listar carpetas y modificar etiquetas de mensajes existentes.
 
-_Guarda y sal con `Ctrl+O`, `Enter`, `Ctrl+X`._
+### 💰 Finanzas Personales
+- **Registro de Gastos:** Anotar gastos mensuales recurrentes y gastos puntuales.
+- **Gestión de Ingresos:** Registrar entradas de dinero para llevar el balance.
+- **Control de Suscripciones:** Guardar y monitorizar servicios (Netflix, Spotify, etc.).
+- **Balance General:** Calcular automáticamente tu presupuesto mensual restante (Ingresos - Gastos).
 
-### 3. Levantar la infraestructura con Docker Compose
+### 🧘 Lifestyle y Hábitos
+- **Gestión de Hábitos:** Añadir nuevos hábitos que desees seguir.
+- **Seguimiento Diario:** Marcar hábitos como realizados o pendientes. 
+  *(Nota: Los hábitos se reinician visualmente cada día para fomentar la constancia).*
+- **Eliminación:** Borrar hábitos que ya no desees seguir.
 
-Este comando descargará las imágenes base ARM, construirá el Backend Multi-stage instalando `sqlite-vss`, el Frontend estático con Nginx, e iniciará todos los contenedores:
+### 🍱 Alimentación y Compras
+- **Planificación de Comidas:** Añadir platos a tu plan de dieta semanal.
+- **Lista de Compra:** Añadir ítems dinámicamente según los necesites.
 
-```bash
-docker compose up -d --build
-```
+### 🎮 Ocio y Entretenimiento
+- **Radar de Ocio:** Guardar planes futuros, conciertos o eventos con categoría y fecha.
+- **Monitor de Ofertas:** Registrar ofertas de videojuegos (título, tienda, precio y descuento).
 
-### 4. Verificar que todo está corriendo
+### 🧠 Memoria y Conocimiento (RAG)
+- **Búsqueda Inteligente:** Localizar cualquier dato guardado anteriormente mediante búsqueda semántica.
+- **Notas Rápidas:** Guardar fragmentos de información general en tu memoria persistente.
+- **Limpieza de Memoria:** Borrar registros específicos o tipos de datos de forma selectiva.
 
-Puedes ver los logs de los contenedores para asegurarte de que el backend ha arrancado la DB correctamente y de que Cloudflared se ha conectado:
+---
 
-```bash
-docker compose logs -f
-```
+## 🚀 Instalación Rápida (Docker)
 
-### 5. Actualizar
+1. **Clonar e instalar:**
+   ```bash
+   git clone https://github.com/marquito3012/marcoai.git && cd marcoai
+   cp .env.example .env
+   ```
+2. **Configurar `.env`** con tus API Keys (Groq, Google OAuth).
+3. **Levantar:**
+   ```bash
+   docker compose up -d --build
+   ```
 
-Puedes actualizar el agente con los siguientes comandos después de haber hecho commit de los cambios:
-
-```bash
-git pull
-docker compose restart
-```
-
-## Arquitectura
-
-- **Base de Datos**: SQLite nativo montado en un volumen de Docker. La tabla vectorial (RAG) se maneja con la extensión `sqlite-vss` o fallback en Python con Numpy para maximizar la compatibilidad ARM.
-- **Backend API**: FastAPI (Python 3.11). Rápido, ligero y asíncrono.
-- **Frontend SPA**: Vanilla JS + CSS System (Glassmorphism), despachado por Nginx Alpine (consumo <5MB RAM).
-- **Procesamiento de Lenguaje**: Toda la inferencia se delega a Groq a través del orquestador manual de herramientas de Marco AI, dejando a la RPi3 la simple tarea de servir la web y buscar en la base de datos SQL.
-
-## Notas de Seguridad del RAG y Multi-usuario
-
-Este agente fue diseñado para un grupo cerrado limitado a **20 usuarios máximos**.
-Absolutamente todas las inserciones y búsquedas de la memoria del agente (RAG) se filtran a nivel SQL con el `user_id` asociado a la sesión de Google OAuth del usuario autenticado, asegurando cero fuga de datos entre los residentes del sistema.
+---
+*Desarrollado con ❤️ para la comunidad de código abierto.*
