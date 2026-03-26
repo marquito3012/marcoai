@@ -37,13 +37,8 @@ async def chat_completion(messages: list[dict], model: str = "llama-3.3-70b-vers
         )
         return response.choices[0].message.content
     except Exception as e:
-        error_msg = str(e).lower()
-        if any(kw in error_msg for kw in ["rate_limit", "429", "token", "quota"]):
-            print(f"⚠️ Nivel 1 (Groq) falló, rotando a Nivel 2 (Google AI Studio)...")
-            return await chat_completion_google(messages, temperature, max_tokens)
-        
-        print(f"❌ Error crítico en Nivel 1: {e}")
-        return "Lo siento, tuve un problema técnico. Intenta de nuevo."
+        print(f"⚠️ Nivel 1 (Groq) falló, rotando a Nivel 2 (Google)... Error: {e}")
+        return await chat_completion_google(messages, temperature, max_tokens)
 
 async def chat_completion_google(messages: list[dict], temperature: float = 0.7, max_tokens: int = 1000):
     """
@@ -94,13 +89,8 @@ async def chat_completion_openrouter(messages: list[dict], model: str, temperatu
         )
         return response.choices[0].message.content
     except Exception as e:
-        error_msg = str(e).lower()
-        if level == 2 and any(kw in error_msg for kw in ["rate_limit", "429", "token", "quota"]):
-            print(f"⚠️ Nivel 2 (Gemini) falló, rotando a Nivel 3 (Llama Free)...")
-            return await chat_completion_openrouter(messages, "meta-llama/llama-3-8b-instruct:free", temperature, max_tokens, level=3)
-        
-        print(f"❌ Error crítico en Nivel {level} (OpenRouter): {e}")
-        return "Ambos proveedores (Groq y OpenRouter) han agotado sus límites."
+        print(f"❌ Nivel 3 (OpenRouter Free) falló: {e}")
+        return "Lo siento, Marco está experimentando una sobrecarga mental. Por favor, inténtalo de nuevo en unos minutos."
 
 async def speech_to_text(file_bytes: bytes, filename: str):
     """
