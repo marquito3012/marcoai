@@ -24,6 +24,8 @@ app.views['lifestyle'] = {
                     border-radius: 8px;
                     border: 1px solid transparent;
                     margin-bottom: 8px;
+                    pointer-events: none;
+                    user-select: none;
                 }
                 .habito-item i { font-size: 1.5rem; color: var(--text-muted); transition: 0.2s;}
                 .habito-item.done i { color: var(--success); }
