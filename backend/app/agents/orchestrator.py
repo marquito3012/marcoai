@@ -28,6 +28,7 @@ async def process_message(user, user_message: str, history: list = None):
     messages.append({"role": "user", "content": user_message})
     
     max_loops = 3
+    executed_hashes = set()
     for _ in range(max_loops):
         # 1. Decisión de Groq
         response_text = await chat_completion(messages)
@@ -42,6 +43,11 @@ async def process_message(user, user_message: str, history: list = None):
             for match in matches:
                 try:
                     json_str = match.group(1).strip()
+                    # Bloqueamos ejecución duplicada del mismo JSON en esta sesión
+                    if json_str in executed_hashes:
+                        continue
+                    executed_hashes.add(json_str)
+                    
                     action_data = json.loads(json_str)
                     
                     # Convertir a lista si es un solo objeto para procesar uniformemente
@@ -102,19 +108,19 @@ async def process_message(user, user_message: str, history: list = None):
                             elif action == "money_add_monthly_expense":
                                 amount = float(entry.get("amount") or entry.get("cost") or 0.0)
                                 content = entry.get("content") or entry.get("name") or "Gasto mensual"
-                                await add_document(user.id, f"Gasto Mensual: {content} ({amount}€)", {"tipo": "gasto-mensual", "amount": amount})
+                                await add_document(user.id, content, {"tipo": "gasto-mensual", "amount": amount})
                                 context_result = f"Gasto mensual de {amount}€ registrado."
                             
                             elif action == "money_add_oneoff_expense":
                                 amount = float(entry.get("amount") or entry.get("cost") or 0.0)
                                 content = entry.get("content") or entry.get("name") or "Gasto puntual"
-                                await add_document(user.id, f"Gasto Puntual: {content} ({amount}€)", {"tipo": "gasto-puntual", "amount": amount})
+                                await add_document(user.id, content, {"tipo": "gasto-puntual", "amount": amount})
                                 context_result = f"Gasto puntual de {amount}€ registrado."
 
                             elif action == "money_add_income":
                                 amount = float(entry.get("amount") or entry.get("monto") or 0.0)
                                 content = entry.get("content") or "Ingreso"
-                                await add_document(user.id, f"Ingreso: {content} ({amount}€)", {"tipo": "ingreso", "amount": amount})
+                                await add_document(user.id, content, {"tipo": "ingreso", "amount": amount})
                                 context_result = f"Ingreso de {amount}€ registrado."
                             
                             elif action == "money_add_sub":
