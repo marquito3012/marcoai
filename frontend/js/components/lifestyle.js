@@ -40,17 +40,11 @@ app.views['lifestyle'] = {
             } else {
                  hl.innerHTML = habitos.map(h => `
                     <div class="list-item habito-item ${h.completado ? 'done' : ''}" 
-                         style="cursor: pointer;"
                          data-nombre="${h.nombre}">
                         <strong>${h.nombre}</strong>
                         <i class="ph-fill ${h.completado ? 'ph-check-circle' : 'ph-circle'}"></i>
                     </div>
                  `).join('');
-
-                 // Añadir listeners directamente
-                 hl.querySelectorAll('.habito-item').forEach(el => {
-                     el.onclick = () => this.toggleHabito(el);
-                 });
             }
             
             const cl = document.getElementById('comidasInfo');
@@ -79,22 +73,6 @@ app.views['lifestyle'] = {
             
         } catch (e) {
             container.innerHTML += `<p class="text-error text-center mt-16">Error cargando Lifestyle: ${e.message}. Verifica que el backend esté ejecutándose.</p>`;
-        }
-    },
-
-    async toggleHabito(element) {
-        const nombre = element.getAttribute('data-nombre');
-        console.log("🔘 CLICK: toggleHabito", nombre);
-        try {
-            const res = await API.post('/lifestyle/habitos/toggle', { nombre });
-            console.log("📥 RESPONSE: toggleHabito", res);
-            if (res.success) {
-                element.classList.toggle('done', res.completado);
-                const icon = element.querySelector('i');
-                icon.className = `ph-fill ${res.completado ? 'ph-check-circle' : 'ph-circle'}`;
-            }
-        } catch (e) {
-            console.error("Error toggling habit:", e);
         }
     }
 };
