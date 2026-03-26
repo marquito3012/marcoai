@@ -34,6 +34,7 @@ async def chat_completion(messages: list[dict], model: str = "llama-3.3-70b-vers
             model=model,
             temperature=temperature,
             max_tokens=max_tokens,
+            timeout=10.0  # Tiempo límite corto para rotar rápido
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -59,14 +60,12 @@ async def chat_completion_google(messages: list[dict], temperature: float = 0.7,
         
         last_message = msg_list[-1].get("content", "")
         
-        chat = gen_model.start_chat(history=history)
-        response = await chat.send_message_async(
-            last_message,
-            generation_config=genai.types.GenerationConfig(
-                temperature=temperature,
-                max_output_tokens=max_tokens
-            )
+        model = genai.GenerativeModel("gemini-1.5-flash") # Usamos 1.5 que es más estable en free
+        response = await model.generate_content_async(
+            str(messages),
+            generation_config={"max_output_tokens": max_tokens, "temperature": temperature}
         )
+        # Nota: genai async no soporta timeout directo fácil, pero es rápido
         return response.text
     except Exception as e:
         print(f"⚠️ Nivel 2 (Google) falló, rotando a Nivel 3 (OpenRouter)... Error: {e}")
@@ -92,7 +91,8 @@ async def chat_completion_openrouter(messages: list[dict], model: str, temperatu
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
-                extra_headers={"X-Title": "Marco AI"}
+                extra_headers={"X-Title": "Marco AI"},
+                timeout=8.0  # Muy corto para probar varios
             )
             return response.choices[0].message.content
         except Exception as e:
