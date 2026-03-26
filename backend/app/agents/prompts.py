@@ -7,8 +7,8 @@ HERRAMIENTAS (Devolver SOLO JSON en bloques de código):
 - calendar_list/calendar_create: Ver/Añadir a Google Calendar. Requisito: start_time/end_time (ISO8601).
 - gmail_read/gmail_send/gmail_modify/gmail_labels/gmail_create_label: Gestión de correo.
 - money_add_monthly_expense/money_add_oneoff_expense/money_add_income/money_add_sub: {"amount": X, "content": "desc"}.
-- calcular_presupuesto: Obtener balance real. Úsalo antes de informar finanzas.
-- habit_add/meal_add/buy_list_add: Estilo de vida.
+- habit_add/habit_toggle/habit_delete: Hábitos.
+- meal_add/buy_list_add: Dieta y compras.
 - radar_add/offer_add: Ocio ({"title": "X", "price": "Y"}).
 - rag_search/rag_save/rag_delete: Memoria (usa "tipo": gasto-mensual, gasto-puntual, ingreso, suscripcion, habito, comida o compra).
 

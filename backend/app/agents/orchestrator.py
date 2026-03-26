@@ -160,8 +160,17 @@ async def process_message(user, user_message: str, history: list = None):
                                 context_result = f"TU BALANCE ACTUAL ES: {balance}€. (Incluye ingresos, gastos mensuales, suscripciones y gastos puntuales de este mes)."
 
                             elif action == "habit_add":
-                                await add_document(user.id, f"Hábito: {entry['name']}", {"tipo": "habito", "nombre": entry["name"]})
+                                await add_document(user.id, f"Hábito: {entry['name']}", {"tipo": "habito", "nombre": entry["name"], "completado": False})
                                 context_result = f"Hábito '{entry['name']}' añadido."
+                                
+                            elif action == "habit_toggle":
+                                from app.rag.engine import toggle_habit
+                                new_state = await toggle_habit(user.id, entry["name"])
+                                context_result = f"Hábito '{entry['name']}' marcado como {'completado' if new_state else 'pendiente'}."
+
+                            elif action == "habit_delete":
+                                count = await delete_documents(user.id, "habito", entry.get("name"))
+                                context_result = f"Eliminados {count} hábitos."
                                 
                             elif action == "meal_add":
                                 await add_document(user.id, f"Comida: {entry['name']}", {"tipo": "comida", "nombre": entry["name"]})

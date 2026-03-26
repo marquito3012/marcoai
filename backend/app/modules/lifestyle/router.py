@@ -58,3 +58,14 @@ def get_habitos(current_user: User = Depends(get_current_user)):
         print("Error fetch habitos:", e)
         
     return habitos
+
+@router.post("/habitos/toggle")
+async def toggle_habito_endpoint(req: dict, current_user: User = Depends(get_current_user)):
+    """Endpoint para alternar el estado de un hábito."""
+    from app.rag.engine import toggle_habit
+    habit_name = req.get("nombre")
+    if not habit_name:
+        return {"error": "Falta el nombre del hábito"}
+    
+    new_state = await toggle_habit(current_user.id, habit_name)
+    return {"success": True, "completado": new_state}

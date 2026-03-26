@@ -194,3 +194,29 @@ async def delete_documents(user_id: int, tipo: str | None = None, query: str | N
     conn.commit()
     conn.close()
     return deleted_count
+
+async def toggle_habit(user_id: int, habit_name: int | str):
+    """Alterna el estado de completado de un hábito."""
+    conn = get_connection()
+    c = conn.cursor()
+    
+    # Buscar el hábito por nombre (o pedazo del nombre)
+    c.execute("SELECT id, metadata FROM documents WHERE user_id = ? AND (metadata LIKE ? OR metadata LIKE ?)",
+              (user_id, f'%"tipo": "habito"%', f'%"nombre": "{habit_name}"%'))
+    row = c.fetchone()
+    
+    if not row:
+        conn.close()
+        return False
+        
+    doc_id, meta_str = row
+    meta = json.loads(meta_str)
+    
+    # Alternar
+    is_done = meta.get("completado", False)
+    meta["completado"] = not is_done
+    
+    c.execute("UPDATE documents SET metadata = ? WHERE id = ?", (json.dumps(meta), doc_id))
+    conn.commit()
+    conn.close()
+    return not is_done

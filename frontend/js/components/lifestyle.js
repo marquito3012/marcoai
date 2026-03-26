@@ -39,7 +39,8 @@ app.views['lifestyle'] = {
                  hl.innerHTML = `<p class="text-muted mt-16" style="font-size: 0.9rem;">Todavía no se ha establecido ningún hábito</p>`;
             } else {
                  hl.innerHTML = habitos.map(h => `
-                    <div class="list-item habito-check ${h.completado ? 'done' : ''}" onclick="this.classList.toggle('done')">
+                    <div class="list-item habito-check ${h.completado ? 'done' : ''}" 
+                         onclick="app.views.lifestyle.toggleHabito('${h.nombre}', this)">
                         <strong>${h.nombre}</strong>
                         <i class="ph-fill ${h.completado ? 'ph-check-circle' : 'ph-circle'}"></i>
                     </div>
@@ -72,6 +73,19 @@ app.views['lifestyle'] = {
             
         } catch (e) {
             container.innerHTML += `<p class="text-error text-center mt-16">Error cargando Lifestyle: ${e.message}. Verifica que el backend esté ejecutándose.</p>`;
+        }
+    },
+
+    async toggleHabito(nombre, element) {
+        try {
+            const res = await API.post('/lifestyle/habitos/toggle', { nombre });
+            if (res.success) {
+                element.classList.toggle('done', res.completado);
+                const icon = element.querySelector('i');
+                icon.className = `ph-fill ${res.completado ? 'ph-check-circle' : 'ph-circle'}`;
+            }
+        } catch (e) {
+            console.error("Error toggling habit:", e);
         }
     }
 };
