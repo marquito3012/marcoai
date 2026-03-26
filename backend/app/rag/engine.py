@@ -200,8 +200,8 @@ async def toggle_habit(user_id: int, habit_name: int | str):
     conn = get_connection()
     c = conn.cursor()
     
-    # Buscar el hábito por nombre (o pedazo del nombre)
-    c.execute("SELECT id, metadata FROM documents WHERE user_id = ? AND (metadata LIKE ? OR metadata LIKE ?)",
+    # Buscar el hábito por tipo Y nombre
+    c.execute("SELECT id, metadata FROM documents WHERE user_id = ? AND metadata LIKE ? AND metadata LIKE ?",
               (user_id, f'%"tipo": "habito"%', f'%"nombre": "{habit_name}"%'))
     row = c.fetchone()
     

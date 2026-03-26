@@ -40,7 +40,8 @@ app.views['lifestyle'] = {
             } else {
                  hl.innerHTML = habitos.map(h => `
                     <div class="list-item habito-check ${h.completado ? 'done' : ''}" 
-                         onclick="app.views.lifestyle.toggleHabito('${h.nombre}', this)">
+                         data-nombre="${h.nombre}"
+                         onclick="app.views.lifestyle.toggleHabito(this)">
                         <strong>${h.nombre}</strong>
                         <i class="ph-fill ${h.completado ? 'ph-check-circle' : 'ph-circle'}"></i>
                     </div>
@@ -76,8 +77,9 @@ app.views['lifestyle'] = {
         }
     },
 
-    async toggleHabito(nombre, element) {
+    async toggleHabito(element) {
         try {
+            const nombre = element.getAttribute('data-nombre');
             const res = await API.post('/lifestyle/habitos/toggle', { nombre });
             if (res.success) {
                 element.classList.toggle('done', res.completado);
