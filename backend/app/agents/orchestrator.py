@@ -59,6 +59,16 @@ async def process_message(user, user_message: str, history: list = None):
                     
                     for entry in actions:
                         action = entry.get("action")
+                        # Heurística: Si falta el action pero hay un nombre, inferimos según el contexto o el texto previo
+                        if not action and "name" in entry:
+                            if "marcar" in response_text.lower() or "hecho" in response_text.lower():
+                                action = "habit_toggle"
+                            elif "borrar" in response_text.lower() or "eliminar" in response_text.lower():
+                                action = "habit_delete"
+                            else:
+                                action = "habit_add"
+                            print(f"🔮 ORCHESTRATOR: Inferred action '{action}' from data: {entry}")
+
                         print(f"🛠️ ORCHESTRATOR: Processing tool '{action}' with data: {entry}")
                         context_result = ""
                         

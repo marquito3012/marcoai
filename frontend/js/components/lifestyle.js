@@ -39,13 +39,18 @@ app.views['lifestyle'] = {
                  hl.innerHTML = `<p class="text-muted mt-16" style="font-size: 0.9rem;">Todavía no se ha establecido ningún hábito</p>`;
             } else {
                  hl.innerHTML = habitos.map(h => `
-                    <div class="list-item habito-check ${h.completado ? 'done' : ''}" 
-                         data-nombre="${h.nombre}"
-                         onclick="app.views.lifestyle.toggleHabito(this)">
+                    <div class="list-item habito-item ${h.completado ? 'done' : ''}" 
+                         style="cursor: pointer;"
+                         data-nombre="${h.nombre}">
                         <strong>${h.nombre}</strong>
                         <i class="ph-fill ${h.completado ? 'ph-check-circle' : 'ph-circle'}"></i>
                     </div>
                  `).join('');
+
+                 // Añadir listeners directamente
+                 hl.querySelectorAll('.habito-item').forEach(el => {
+                     el.onclick = () => this.toggleHabito(el);
+                 });
             }
             
             const cl = document.getElementById('comidasInfo');
