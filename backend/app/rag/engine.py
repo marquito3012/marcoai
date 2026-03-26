@@ -7,7 +7,8 @@ from app.config import settings
 from app.rag.embeddings import generate_embedding
 import os
 
-DB_PATH = settings.DATABASE_URL.replace("sqlite:///", "")
+DB_PATH = os.path.abspath(settings.DATABASE_URL.replace("sqlite:///", ""))
+print(f"📡 DB_PATH: {DB_PATH}")
 
 # Necesitamos adaptador para arrays numpy en SQLite
 def adapt_array(arr):
@@ -27,6 +28,7 @@ sqlite3.register_converter("array", convert_array)
 
 def get_connection():
     # Detectamos extensiones VSS si están instaladas por el Dockerfile
+    # print(f"🔌 CONNECTING TO: {DB_PATH}") # Descomentar para mega-debug
     conn = sqlite3.connect(DB_PATH, detect_types=sqlite3.PARSE_DECLTYPES)
     conn.enable_load_extension(True)
     try:
@@ -81,6 +83,7 @@ async def add_document(user_id: int, content: str, doc_metadata: dict = None):
     conn = get_connection()
     c = conn.cursor()
     
+    print(f"📁 DB_ACTION: add_document | user={user_id} | content='{content[:30]}...' | metadata={doc_metadata}")
     # Insertar en tabla normal
     c.execute("INSERT INTO documents (user_id, content, metadata, embedding) VALUES (?, ?, ?, ?)",
               (user_id, content, json.dumps(doc_metadata), vec_np))
@@ -157,6 +160,7 @@ async def search(user_id: int, query: str, top_k: int = 3):
 
 async def delete_documents(user_id: int, tipo: str | None = None, query: str | None = None):
     """Elimina documentos del RAG de un usuario por tipo o contenido literal."""
+    print(f"📁 DB_ACTION: delete_documents | user={user_id} | tipo={tipo} | query={query}")
     conn = get_connection()
     c = conn.cursor()
     
@@ -197,15 +201,21 @@ async def delete_documents(user_id: int, tipo: str | None = None, query: str | N
 
 async def toggle_habit(user_id: int, habit_name: int | str):
     """Alterna el estado de completado de un hábito."""
+    print(f"📁 DB_ACTION: toggle_habit | user={user_id} | name='{habit_name}'")
     conn = get_connection()
     c = conn.cursor()
     
-    # Buscar el hábito por tipo Y nombre
-    c.execute("SELECT id, metadata FROM documents WHERE user_id = ? AND metadata LIKE ? AND metadata LIKE ?",
-              (user_id, f'%"tipo": "habito"%', f'%"nombre": "{habit_name}"%'))
+    # Buscar el hábito por tipo (o type) Y nombre usando funciones JSON nativas
+    c.execute("""
+        SELECT id, metadata FROM documents 
+        WHERE user_id = ? 
+        AND (json_extract(metadata, '$.tipo') = 'habito' OR json_extract(metadata, '$.type') = 'habito')
+        AND json_extract(metadata, '$.nombre') LIKE ?
+    """, (user_id, f"%{habit_name}%"))
     row = c.fetchone()
     
     if not row:
+        print(f"⚠️ toggle_habit: No se encontró el hábito '{habit_name}' para el usuario {user_id}")
         conn.close()
         return False
         
@@ -216,7 +226,13 @@ async def toggle_habit(user_id: int, habit_name: int | str):
     is_done = meta.get("completado", False)
     meta["completado"] = not is_done
     
+    print(f"💾 DB_UPDATE: toggle_habit | doc_id={doc_id} | old_state={is_done} | new_state={meta['completado']}")
     c.execute("UPDATE documents SET metadata = ? WHERE id = ?", (json.dumps(meta), doc_id))
+    if c.rowcount == 0:
+        print(f"❌ ERROR: No se actualizó ninguna fila para doc_id={doc_id}")
+    else:
+        print(f"✅ SUCCESS: Hábito actualizado en DB. rowcount={c.rowcount}")
+    
     conn.commit()
     conn.close()
-    return not is_done
+    return meta["completado"]

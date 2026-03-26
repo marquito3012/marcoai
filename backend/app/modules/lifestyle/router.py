@@ -49,9 +49,12 @@ def get_habitos(current_user: User = Depends(get_current_user)):
         for row in rows:
             meta = json.loads(row[0])
             if meta.get("tipo") == "habito" or meta.get("type") == "habito":
+                nombre = meta.get("nombre") or meta.get("titulo", "Hábito sin título")
+                completado = meta.get("completado", False)
+                print(f"📊 HABIT_FETCH: name='{nombre}' | done={completado}")
                 habitos.append({
-                    "nombre": meta.get("nombre") or meta.get("titulo", "Hábito sin título"),
-                    "completado": meta.get("completado", False)
+                    "nombre": nombre,
+                    "completado": completado
                 })
         conn.close()
     except Exception as e:
