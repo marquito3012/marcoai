@@ -17,10 +17,16 @@ app.views['lifestyle'] = {
                 </div>
             </div>
             <style>
-                .habito-check { cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
-                .habito-check i { font-size: 1.5rem; color: var(--text-muted); transition: 0.2s;}
-                .habito-check.done i { color: var(--success); }
-                .habito-check:hover i { transform: scale(1.1); }
+                .habito-item { 
+                    display: flex; align-items: center; justify-content: space-between; 
+                    padding: 12px;
+                    background: rgba(255,255,255,0.03);
+                    border-radius: 8px;
+                    border: 1px solid transparent;
+                    margin-bottom: 8px;
+                }
+                .habito-item i { font-size: 1.5rem; color: var(--text-muted); transition: 0.2s;}
+                .habito-item.done i { color: var(--success); }
                 .fade-in { animation: fadeIn 0.5s ease backwards; }
                 .spinner { width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--accent-primary); border-radius: 50%; animation: spin 1s linear infinite; }
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -39,7 +45,7 @@ app.views['lifestyle'] = {
                  hl.innerHTML = `<p class="text-muted mt-16" style="font-size: 0.9rem;">Todavía no se ha establecido ningún hábito</p>`;
             } else {
                  hl.innerHTML = habitos.map(h => `
-                    <div class="list-item habito-item ${h.completado ? 'done' : ''}" 
+                    <div class="habito-item ${h.completado ? 'done' : ''}" 
                          data-nombre="${h.nombre}">
                         <strong>${h.nombre}</strong>
                         <i class="ph-fill ${h.completado ? 'ph-check-circle' : 'ph-circle'}"></i>
