@@ -4,12 +4,50 @@
 **Marco AI** es un Agente Personal Inteligente full-stack diseñado para ejecutarse de forma eficiente en hardware limitado, específicamente una **Raspberry Pi 3**. Actúa como un asistente multiusuario privado, integrando servicios de Google, gestión de finanzas, estilos de vida y ocio, todo orquestado por modelos de lenguaje de gran tamaño (LLM).
 
 ## 2. Arquitectura del Sistema
-El proyecto sigue una arquitectura de micro-servicios ligera contenida en Docker:
-- **Frontend SPA**: Una aplicación de página única construida con Vanilla JavaScript y CSS moderno (estilo Glassmorphism).
-- **Backend API**: Un servidor robusto basado en **FastAPI** (Python 3.11) que maneja la lógica de negocio, autenticación y comunicación con el LLM.
-- **Base de Datos**: SQLite para datos estructurados y una capa RAG (Retrieval-Augmented Generation) para memoria a largo plazo.
-- **Proxy Inverso**: Nginx sirve el frontend y actúa como puerta de enlace.
-- **Túnel**: Cloudflared permite el acceso seguro desde el exterior sin abrir puertos.
+El proyecto sigue una arquitectura de micro-servicios ligera contenida en Docker. A continuación se detalla el flujo de conexión:
+
+```mermaid
+graph TD
+    User((Usuario)) -->|HTTPS| CF[Cloudflare Tunnel]
+    CF -->|Proxy| Nginx[Nginx / Frontend]
+    Nginx -->|API Requests| FastAPI[FastAPI Backend]
+    
+    subgraph "Backend Core"
+        FastAPI --> Auth[Google OAuth 2.0]
+        FastAPI --> Orch[Orquestador de Agente]
+        Orch --> Groq[Groq / LLM Inference]
+        GrochFail[Rotación: Google / OpenRouter] -.-> Groq
+    end
+
+    subgraph "Recursos & herramientas"
+        Orch --> RAG[Motor RAG / SQLite VSS]
+        Orch --> Google[Google Calendar / Gmail]
+        Orch --> Modules[Módulos: Finanzas / Ocio / Lifestyle]
+    end
+
+    subgraph "Persistencia"
+        RAG --> DB[(SQLite Database)]
+        Modules --> DB
+        Documentos -->|Indexación| RAG
+    end
+```
+
+## 3. Proceso de Ejecución de Casos de Uso
+Cuando el usuario interactúa con Marco AI, se sigue un ciclo de razonamiento y acción basado en el patrón **ReAct (Reason + Act)**:
+
+1. **Captura del Mensaje**: El usuario envía texto o voz desde el frontend. Si es voz, se transcribe mediante **Groq Whisper**.
+2. **Identificación de Intención**: El mensaje llega al `Orquestador`. Este configura el prompt de sistema con la identidad de Marco y el contexto de la conversación.
+3. **Loop de Razonamiento (Thinking)**:
+    - Se envía el mensaje al LLM (Groq).
+    - El LLM analiza si necesita herramientas para responder (ej: "¿qué tengo mañana en el calendario?").
+    - Si es necesario, el LLM responde con un bloque de **código JSON** conteniendo la acción (ej: `action: calendar_list`).
+4. **Ejecución de Herramientas**:
+    - El Orquestador intercepta el JSON y ejecuta la función local correspondiente (Query a DB, API de Google, etc.).
+    - El resultado de la herramienta se inyecta de nuevo en el historial como un mensaje de sistema.
+5. **Generación de Respuesta Final**:
+    - El LLM procesa los resultados de las herramientas y redacta una respuesta coherente en español.
+    - Se limpia cualquier residuo técnico (JSON) para que el usuario solo vea el mensaje final.
+6. **Entrega y Voz**: La respuesta se muestra en la UI y, si está activado, se convierte a audio mediante **Edge-TTS** para que Marco "hable".
 
 ## 3. Frontend: Experiencia de Usuario (UX)
 El frontend está diseñado para ser extremadamente ligero (<5MB de RAM) sin sacrificar la estética.
