@@ -71,3 +71,9 @@ def update_event(user, event_id, summary=None, start_time=None, end_time=None, d
         
     updated_event = service.events().update(calendarId='primary', eventId=event_id, body=event).execute()
     return updated_event
+
+def delete_event(user, event_id):
+    """Elimina un evento existente en el calendario principal"""
+    service = get_calendar_service(user)
+    service.events().delete(calendarId='primary', eventId=event_id).execute()
+    return True

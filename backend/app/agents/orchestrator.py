@@ -1,6 +1,6 @@
 from app.agents.groq_client import chat_completion
 from app.agents.prompts import SYSTEM_PROMPT_ORCHESTRATOR
-from app.services.google_calendar import list_upcoming_events, create_event, update_event
+from app.services.google_calendar import list_upcoming_events, create_event, update_event, delete_event
 from app.services.google_gmail import list_unread_messages, list_messages, create_draft, send_email, list_labels, modify_message_labels, create_label
 from app.rag.engine import search, add_document, delete_documents
 import json
@@ -84,6 +84,10 @@ async def process_message(user, user_message: str, history: list = None):
                             elif action == "calendar_update":
                                 update_event(user, entry["event_id"], entry.get("summary"), entry.get("start_time"), entry.get("end_time"))
                                 context_result = f"Evento '{entry.get('event_id')}' actualizado."
+                            
+                            elif action == "calendar_delete":
+                                delete_event(user, entry["event_id"])
+                                context_result = f"Evento '{entry.get('event_id')}' eliminado."
                             
                             elif action == "gmail_read":
                                 msgs = list_messages(user, q=entry.get("query"), max_results=10)
