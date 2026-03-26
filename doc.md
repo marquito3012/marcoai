@@ -1,12 +1,17 @@
-# Marco AI - Documentación Técnica Detallada
+# 📘 Marco AI - Documentación Técnica Profunda
 
-## 1. Introducción
-**Marco AI** es un Agente Personal Inteligente full-stack diseñado para ejecutarse de forma eficiente en hardware limitado, específicamente una **Raspberry Pi 3**. Actúa como un asistente multiusuario privado, integrando servicios de Google, gestión de finanzas, estilos de vida y ocio, todo orquestado por modelos de lenguaje de gran tamaño (LLM).
+Esta documentación detalla la arquitectura, el diseño y la implementación de **Marco AI**, un Agente Personal Inteligente optimizado para eficiencia y privacidad.
 
-## 2. Arquitectura del Sistema
-El proyecto sigue una arquitectura de micro-servicios ligera contenida en Docker. A continuación se detalla el flujo de conexión:
+---
 
+## 🏗️ 1. Arquitectura del Sistema
 
+Marco AI utiliza una arquitectura de microservicios contenida en Docker, diseñada específicamente para funcionar en hardware con recursos limitados (Raspberry Pi 3, 1GB RAM).
+
+### 🌐 Red y Despliegue
+- **Cloudflare Tunnel:** Proporciona acceso HTTPS seguro sin exponer la IP pública o abrir puertos en el router local.
+- **Nginx (Frontend):** Actúa como servidor de archivos estáticos y proxy inverso para la API, consumiendo menos de 5MB de RAM.
+- **Docker Multi-stage:** Las imágenes de backend se construyen en varias etapas para minimizar el tamaño final, instalando dependencias de compilación solo cuando es necesario.
 
 ```mermaid
 graph TD
@@ -18,85 +23,84 @@ graph TD
         FastAPI --> Auth[Google OAuth 2.0]
         FastAPI --> Orch[Orquestador de Agente]
         Orch --> Groq[Groq / LLM Inference]
-        GrochFail[Rotación: Google / OpenRouter] -.-> Groq
     end
 
     subgraph "Recursos & herramientas"
         Orch --> RAG[Motor RAG / SQLite VSS]
         Orch --> Google[Google Calendar / Gmail]
-        Orch --> Modules[Módulos: Finanzas / Ocio / Lifestyle]
+        Orch --> Modules[Finanzas / Ocio / Lifestyle]
     end
 
     subgraph "Persistencia"
         RAG --> DB[(SQLite Database)]
         Modules --> DB
-        Documentos -->|Indexación| RAG
     end
 ```
 
-## 3. Proceso de Ejecución de Casos de Uso
-Cuando el usuario interactúa con Marco AI, se sigue un ciclo de razonamiento y acción basado en el patrón **ReAct (Reason + Act)**:
+---
 
-1. **Captura del Mensaje**: El usuario envía texto o voz desde el frontend. Si es voz, se transcribe mediante **Groq Whisper**.
-2. **Identificación de Intención**: El mensaje llega al `Orquestador`. Este configura el prompt de sistema con la identidad de Marco y el contexto de la conversación.
-3. **Loop de Razonamiento (Thinking)**:
-    - Se envía el mensaje al LLM (Groq).
-    - El LLM analiza si necesita herramientas para responder (ej: "¿qué tengo mañana en el calendario?").
-    - Si es necesario, el LLM responde con un bloque de **código JSON** conteniendo la acción (ej: `action: calendar_list`).
-4. **Ejecución de Herramientas**:
-    - El Orquestador intercepta el JSON y ejecuta la función local correspondiente (Query a DB, API de Google, etc.).
-    - El resultado de la herramienta se inyecta de nuevo en el historial como un mensaje de sistema.
-5. **Generación de Respuesta Final**:
-    - El LLM procesa los resultados de las herramientas y redacta una respuesta coherente en español.
-    - Se limpia cualquier residuo técnico (JSON) para que el usuario solo vea el mensaje final.
-6. **Entrega y Voz**: La respuesta se muestra en la UI y, si está activado, se convierte a audio mediante **Edge-TTS** para que Marco "hable".
+## 🧠 2. El Orquestador de Agente (`orchestrator.py`)
 
-## 3. Frontend: Experiencia de Usuario (UX)
-El frontend está diseñado para ser extremadamente ligero (<5MB de RAM) sin sacrificar la estética.
-- **Tecnologías**: HTML5, Vanilla JS, CSS3 con variables.
-- **Sistema de Diseño**: Glassmorphism (paneles translúcidos, desenfoque de fondo y gradientes vibrantes).
-- **Iconografía**: Phosphor Icons.
-- **Routing**: Sistema manual basado en `hashchange` que carga componentes dinámicamente desde `js/components/`.
-- **Integración de Voz**:
-    - **STT (Speech-to-Text)**: Grabación vía `MediaRecorder` enviada a Groq Whisper.
-    - **TTS (Text-to-Speech)**: Integración con `edge-tts` para voces naturales en español.
+El "cerebro" de Marco opera bajo un patrón **ReAct (Reason + Act)** con un bucle de ejecución asíncrono.
 
-## 4. Backend: El Corazón de Marco
-El backend está organizado de forma modular para facilitar su expansión:
-- **Módulos (`app/modules/`)**:
-    - `admin`: Gestión de dinero, presupuestos e ingresos.
-    - `tiempo`: Integración con Google Calendar y Gmail.
-    - `conocimiento`: Interfaz para la memoria (RAG).
-    - `lifestyle`: Seguimiento de hábitos, comidas y lista de compras.
-    - `entretenimiento`: Radar de ocio y ofertas de juegos.
-- **Servicios (`app/services/`)**: Adaptadores para APIs externas (Google API Client).
-- **Autenticación**: Flujo de Google OAuth 2.0 con persistencia de sesiones en JWT y base de datos.
-
-## 5. El Cerebro: Orquestador y Agentes
-Marco AI no es solo un chat; es un agente capaz de ejecutar acciones.
-- **Motor LLM (Groq)**: Utiliza Llama 3.3 70B para una inferencia ultra rápida.
-- **Estrategia de Fallback**: Si Groq falla o alcanza cuotas, el sistema rota automáticamente:
-    1. **Nivel 1**: Groq (Llama 3.3 70B).
-    2. **Nivel 2**: Google AI Studio (Gemini 2.0 Flash).
-    3. **Nivel 3**: OpenRouter (Modelos variados como Llama 3 8B Free).
-- **Tool Calling**: El orquestador (`orchestrator.py`) detecta bloques de código JSON generados por el LLM para ejecutar funciones locales (leer correos, crear eventos, guardar gastos, etc.).
-
-## 6. Sistema RAG (Memoria)
-La memoria del agente se gestiona mediante búsqueda vectorial:
-- **Vector DB**: SQLite con la extensión `sqlite-vss`.
-- **Fallback de Similitud**: Si la extensión no está disponible (ej: desarrollo local), el sistema utiliza una implementación manual de **Similitud Coseno** usando NumPy.
-- **Aislamiento**: Cada búsqueda e inserción está filtrada estrictamente por `user_id`, garantizando que la memoria de un usuario sea inaccesible para otros.
-
-## 7. Despliegue e Infraestructura
-Optimizado para el bajo consumo de una Raspberry Pi 3:
-- **Docker Multi-stage**: Reduce el tamaño de las imágenes finales eliminando dependencias de compilación.
-- **Persistencia**: Volúmenes de Docker para la base de datos SQLite.
-- **Seguridad**: Límite estricto de 20 usuarios configurado en el backend para proteger los recursos de la RPi.
-
-## 8. Seguridad y Privacidad
-- **Auth**: Únicamente mediante Google OAuth.
-- **Datos**: Todos los registros en la base de datos (notas, eventos, archivos, vectores) están vinculados a un `user_id` único obtenido tras el login.
-- **Acceso**: El uso de túneles de Cloudflare asegura una conexión cifrada de extremo a extremo sin exponer la IP pública de la Raspberry Pi.
+### 🔄 El Ciclo de Pensamiento
+1. **Captura:** El mensaje del usuario se inyecta en un `messages` array con la identidad (System Prompt).
+2. **Inferencia:** Se envía a Groq (Llama 3.3 70B) con una temperatura de `0.1` para asegurar precisión en la llamada a herramientas.
+3. **Tool Calling:** El LLM genera bloques de código JSON (ej: `{"action": "calendar_list"}`).
+4. **Intercepción y Ejecución:** El orquestador detecta el JSON mediante Regex, ejecuta la función local de Python (CRUD en DB o API externa) y añade el resultado como un mensaje de `system`.
+5. **Humanización:** Si el LLM intenta responder con JSON o si la respuesta es puramente técnica, el orquestador detecta el patrón y realiza una llamada final forzando una respuesta humana y natural.
 
 ---
-*Documentación generada automáticamente por Antigravity - 2026*
+
+## 💾 3. Sistema RAG y Memoria (`rag/engine.py`)
+
+La memoria persiste en SQLite, utilizando un enfoque híbrido para la búsqueda vectorial.
+
+### 🛡️ Aislamiento y Metadatos
+- **Seguridad Multi-usuario:** Cada consulta e inserción está filtrada estrictamente por `user_id`.
+- **Filtrado por `tipo`:** El motor soporta filtrado por metadatos (tipo de dato: `habito`, `ingreso`, `suscripcion`, `gasto-mensual`, `comida`, `compra`). Esto reduce drásticamente el ruido en la recuperación semántica.
+- **Búsqueda Vectorial:**
+    - **Primario:** Extensión `sqlite-vss` para búsqueda nativa de alta velocidad.
+    - **Fallback:** Similitud Coseno manual mediante NumPy (`vector / normalization`) para entornos de desarrollo sin extensiones compiladas.
+
+---
+
+## 🛠️ 4. Servicios e Integraciones
+
+### 📅 Google Calendar & Gmail
+- **Implementación:** Uso de `google-api-python-client` con OAuth2.
+- **Acciones Dinámicas:** CRUD completo de eventos y gestión avanzada de correos (lectura, envío y etiquetado).
+- **Consistencia de Datos:** Las respuestas de error de la API de Google son procesadas y devueltas al LLM para que pueda autocorregirse (ej: si falta una fecha).
+
+### 💰 Gestión de Finanzas y Admin
+- **Lógica Modular:** Separación de gastos mensuales (recurrentes), puntuales y suscripciones.
+- **Motor de Balance:** Cálculo automático de presupuestos restando todos los gastos detectados (según metadatos en RAG) del total de ingresos registrados.
+
+---
+
+## 🎨 5. Frontend y UX Moderno
+
+El frontend es una **Single Page Application (SPA)** minimalista construida sin frameworks pesados.
+
+- **Routing:** Basado en `hashchange` para navegación instantánea sin recargas.
+- **Glassmorphism:** Diseño premium con paneles translúcidos, desenfoque (`backdrop-filter`) y sombras suaves.
+- **Interfaz de Voz:**
+    - **STT:** Grabación nativa de navegador enviada a Groq Whisper para transcripción en milisegundos.
+    - **TTS:** Integración con Edge-TTS para generar voces naturales en español localmente.
+
+---
+
+## 🧪 6. Calidad y Pruebas Unitarias
+
+Marco AI cuenta con una infraestructura de pruebas robusta para garantizar la estabilidad.
+
+- **Entorno Aislado:** `pytest` utiliza fixtures que crean una base de datos SQLite temporal (`marcoai_test.db`) para cada sesión de pruebas.
+- **Cobertura Crítica:**
+    - Pruebas de integración del motor RAG (Añadir/Marcar/Borrar hábitos).
+    - Validación de aislamiento de datos entre usuarios.
+    - Verificación de lógica financiera y cálculo de presupuestos.
+- **Ejecución:** Automatizada mediante `run_tests.sh` que gestiona mocks de variables de entorno.
+
+---
+
+*Documentación técnica detallada - Antigravity 2026*
