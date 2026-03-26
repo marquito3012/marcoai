@@ -108,7 +108,7 @@ async def chat_completion_openrouter(messages: list[dict], model: str, temperatu
             print(f"⚠️ Modelo {current_model} falló en Nivel 3: {e}")
             continue
 
-    return "Lo siento, todos los proveedores de IA están saturados en este momento. Por favor, inténtalo de nuevo en unos minutos."
+    return "Lo siento, todos los proveedores de IA están saturados en este momento."
 
 async def speech_to_text(file_bytes: bytes, filename: str):
     """

@@ -32,6 +32,9 @@ async def process_message(user, user_message: str, history: list = None):
     for _ in range(max_loops):
         # 1. Decisión de Groq
         response_text = await chat_completion(messages)
+        if not response_text:
+            response_text = "Lo siento, no he podido procesar tu solicitud ahora mismo."
+        
         messages.append({"role": "assistant", "content": response_text})
         
         # 2. ¿Hay comandos JSON? (Detección múltiple con finditer)
