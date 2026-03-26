@@ -170,17 +170,19 @@ async def delete_documents(user_id: int, tipo: str | None = None, query: str | N
     params: list[Any] = [user_id]
     
     if tipo:
-        # Buscamos en metadata {"tipo": "..."} o {"type": "..."}
-        # Usamos dos patrones LIKE para cubrir ambos nombres de clave comunes
-        sql += " AND (metadata LIKE ? OR metadata LIKE ?)"
-        params.append(f'%"tipo": "{tipo}"%')
-        params.append(f'%"type": "{tipo}"%')
+        # Buscamos en metadata {"tipo": "..."} o {"type": "..."} usando JSON nativo
+        sql += " AND (json_extract(metadata, '$.tipo') = ? OR json_extract(metadata, '$.type') = ?)"
+        params.extend([tipo, tipo])
     
     if query:
-        # Buscamos coincidencia literal en contenido o metadatos
-        sql += " AND (content LIKE ? OR metadata LIKE ?)"
-        params.append(f'%{query}%')
-        params.append(f'%{query}%')
+        # Si es un hábito, buscamos por nombre exacto en el campo nombre de la metadata
+        if tipo == "habito":
+            sql += " AND (json_extract(metadata, '$.nombre') LIKE ? OR content LIKE ?)"
+            params.extend([f"%{query}%", f"%{query}%"])
+        else:
+            # Buscamos coincidencia literal en contenido o metadatos (fallback)
+            sql += " AND (content LIKE ? OR metadata LIKE ?)"
+            params.extend([f"%{query}%", f"%{query}%"])
         
     if not tipo and not query:
         # Si no hay filtros, borrar todo el cerebro del usuario (Peligroso, pero intencional)

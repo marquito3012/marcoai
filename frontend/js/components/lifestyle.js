@@ -78,9 +78,11 @@ app.views['lifestyle'] = {
     },
 
     async toggleHabito(element) {
+        const nombre = element.getAttribute('data-nombre');
+        console.log("🔘 CLICK: toggleHabito", nombre);
         try {
-            const nombre = element.getAttribute('data-nombre');
             const res = await API.post('/lifestyle/habitos/toggle', { nombre });
+            console.log("📥 RESPONSE: toggleHabito", res);
             if (res.success) {
                 element.classList.toggle('done', res.completado);
                 const icon = element.querySelector('i');

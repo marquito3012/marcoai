@@ -35,6 +35,7 @@ async def process_message(user, user_message: str, history: list = None):
         if not response_text:
             response_text = "Lo siento, no he podido procesar tu solicitud ahora mismo."
         
+        print(f"🤖 LLM_RESPONSE: {response_text}")
         messages.append({"role": "assistant", "content": response_text})
         
         # 2. ¿Hay comandos JSON? (Detección múltiple con finditer)
@@ -58,6 +59,7 @@ async def process_message(user, user_message: str, history: list = None):
                     
                     for entry in actions:
                         action = entry.get("action")
+                        print(f"🛠️ ORCHESTRATOR: Processing tool '{action}' with data: {entry}")
                         context_result = ""
                         
                         try:
@@ -160,16 +162,22 @@ async def process_message(user, user_message: str, history: list = None):
                                 context_result = f"TU BALANCE ACTUAL ES: {balance}€. (Incluye ingresos, gastos mensuales, suscripciones y gastos puntuales de este mes)."
 
                             elif action == "habit_add":
-                                await add_document(user.id, f"Hábito: {entry['name']}", {"tipo": "habito", "nombre": entry["name"], "completado": False})
-                                context_result = f"Hábito '{entry['name']}' añadido."
+                                name = entry.get("name") or entry.get("nombre") or "Nuevo hábito"
+                                await add_document(user.id, f"Hábito: {name}", {"tipo": "habito", "nombre": name, "completado": False})
+                                context_result = f"Hábito '{name}' añadido."
                                 
                             elif action == "habit_toggle":
                                 from app.rag.engine import toggle_habit
-                                new_state = await toggle_habit(user.id, entry["name"])
-                                context_result = f"Hábito '{entry['name']}' marcado como {'completado' if new_state else 'pendiente'}."
+                                name = entry.get("name") or entry.get("nombre")
+                                if name:
+                                    new_state = await toggle_habit(user.id, name)
+                                    context_result = f"Hábito '{name}' marcado como {'completado' if new_state else 'pendiente'}."
+                                else:
+                                    context_result = "Error: Falta el nombre del hábito para cambiar su estado."
 
                             elif action == "habit_delete":
-                                count = await delete_documents(user.id, "habito", entry.get("name"))
+                                name = entry.get("name") or entry.get("nombre")
+                                count = await delete_documents(user.id, "habito", name)
                                 context_result = f"Eliminados {count} hábitos."
                                 
                             elif action == "meal_add":
