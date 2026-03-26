@@ -201,6 +201,25 @@ async def delete_documents(user_id: int, tipo: str | None = None, query: str | N
     conn.close()
     return deleted_count
 
+async def get_habitos(user_id: int):
+    """Recupera la lista de hábitos de un usuario."""
+    habitos = []
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT id, content, metadata FROM documents WHERE user_id = ?", (user_id,))
+    rows = c.fetchall()
+    for row in rows:
+        meta = json.loads(row[2])
+        if meta.get("tipo") == "habito" or meta.get("type") == "habito":
+            nombre = meta.get("nombre") or meta.get("titulo", "Hábito sin título")
+            habitos.append({
+                "id": row[0],
+                "nombre": nombre,
+                "completado": meta.get("completado", False)
+            })
+    conn.close()
+    return habitos
+
 async def toggle_habit(user_id: int, habit_name: int | str):
     """Alterna el estado de completado de un hábito."""
     print(f"📁 DB_ACTION: toggle_habit | user={user_id} | name='{habit_name}'")

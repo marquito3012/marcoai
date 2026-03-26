@@ -38,26 +38,15 @@ def get_meal_plan(current_user: User = Depends(get_current_user)):
     }
     
 @router.get("/habitos")
-def get_habitos(current_user: User = Depends(get_current_user)):
+async def get_habitos_endpoint(current_user: User = Depends(get_current_user)):
     """Recupera hábitos del Cerebro del usuario."""
-    habitos = []
+    from app.rag.engine import get_habitos as db_get_habitos
     try:
-        conn = get_connection()
-        c = conn.cursor()
-        c.execute("SELECT metadata FROM documents WHERE user_id = ?", (current_user.id,))
-        rows = c.fetchall()
-        for row in rows:
-            meta = json.loads(row[0])
-            if meta.get("tipo") == "habito" or meta.get("type") == "habito":
-                nombre = meta.get("nombre") or meta.get("titulo", "Hábito sin título")
-                completado = meta.get("completado", False)
-                print(f"📊 HABIT_FETCH: name='{nombre}' | done={completado}")
-                habitos.append({
-                    "nombre": nombre,
-                    "completado": completado
-                })
-        conn.close()
+        habitos = await db_get_habitos(current_user.id)
+        return habitos
     except Exception as e:
+        print(f"❌ ERROR get_habitos: {e}")
+        return []
         print("Error fetch habitos:", e)
         
     return habitos

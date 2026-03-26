@@ -13,7 +13,8 @@ from datetime import datetime
 router = APIRouter(prefix="/files", tags=["files"])
 
 # Carpeta de subida (asegurarse de que existe)
-UPLOAD_DIR = "/app/data/files"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+UPLOAD_DIR = os.path.join(BASE_DIR, "data/files")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/upload")
