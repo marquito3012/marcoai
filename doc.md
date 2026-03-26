@@ -6,6 +6,8 @@
 ## 2. Arquitectura del Sistema
 El proyecto sigue una arquitectura de micro-servicios ligera contenida en Docker. A continuación se detalla el flujo de conexión:
 
+
+
 ```mermaid
 graph TD
     User((Usuario)) -->|HTTPS| CF[Cloudflare Tunnel]
