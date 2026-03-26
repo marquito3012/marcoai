@@ -160,26 +160,36 @@ async def delete_documents(user_id: int, tipo: str | None = None, query: str | N
     conn = get_connection()
     c = conn.cursor()
     
+    from typing import Any
     deleted_count = 0
+    sql = "DELETE FROM documents WHERE user_id = ?"
+    params: list[Any] = [user_id]
+    
     if tipo:
-        # Buscamos en metadata {"tipo": "..."} ya sea exacto o substring (ej: "presupuesto")
-        meta_like = f'%"{tipo}"%'
-        c.execute("DELETE FROM documents WHERE user_id = ? AND metadata LIKE ?", (user_id, meta_like))
-        deleted_count = c.rowcount
-    elif query:
-        # Buscamos coincidencia literal
-        c.execute("DELETE FROM documents WHERE user_id = ? AND (content LIKE ? OR metadata LIKE ?)", (user_id, f'%{query}%', f'%{query}%'))
-        deleted_count = c.rowcount
-    else:
-        # Borrar todo su cerebro
-        c.execute("DELETE FROM documents WHERE user_id = ?", (user_id,))
-        deleted_count = c.rowcount
+        # Buscamos en metadata {"tipo": "..."} o {"type": "..."}
+        # Usamos dos patrones LIKE para cubrir ambos nombres de clave comunes
+        sql += " AND (metadata LIKE ? OR metadata LIKE ?)"
+        params.append(f'%"tipo": "{tipo}"%')
+        params.append(f'%"type": "{tipo}"%')
+    
+    if query:
+        # Buscamos coincidencia literal en contenido o metadatos
+        sql += " AND (content LIKE ? OR metadata LIKE ?)"
+        params.append(f'%{query}%')
+        params.append(f'%{query}%')
+        
+    if not tipo and not query:
+        # Si no hay filtros, borrar todo el cerebro del usuario (Peligroso, pero intencional)
+        pass # La query base ya tiene el user_id
+        
+    c.execute(sql, tuple(params))
+    deleted_count = c.rowcount
         
     # Sincronizar VSS: Eliminar huérfanos si la tabla virtual existe
     try:
         c.execute("DELETE FROM vss_documents WHERE rowid NOT IN (SELECT id FROM documents)")
-    except:
-        pass
+    except Exception as e:
+        print(f"Error syncing VSS after delete: {e}")
         
     conn.commit()
     conn.close()

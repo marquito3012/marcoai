@@ -105,7 +105,7 @@ async def process_message(user, user_message: str, history: list = None):
                                     count += await delete_documents(user.id, "suscripcion", query)
                                 else:
                                     count = await delete_documents(user.id, tipo, query)
-                                context_result = f"Eliminados {count} registros."
+                                    context_result = f"Se han eliminado {count} registros de la memoria correctamente." if count > 0 else "No se encontraron registros que coincidan para eliminar."
                             
                             # --- Specialized Tools mapping to RAG (3-Type Schema) ---
                             elif action == "money_add_monthly_expense":

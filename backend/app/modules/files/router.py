@@ -124,11 +124,22 @@ async def delete_file(
 
     # Borrar físico
     if os.path.exists(db_file.filepath):
-        os.remove(db_file.filepath)
+        try:
+            os.remove(db_file.filepath)
+        except Exception as e:
+            print(f"Error deleting physical file: {e}")
         
+    # Borrar del RAG (si tenía trozos indexados)
+    try:
+        from app.rag.engine import delete_documents
+        # Buscamos por el ID del archivo en la metadata
+        await delete_documents(current_user.id, query=f'"file_id": {db_file.id}')
+    except Exception as e:
+        print(f"Error deleting RAG chunks for file {file_id}: {e}")
+
     db.delete(db_file)
     db.commit()
-    return {"message": "Archivo eliminado de la bóveda"}
+    return {"message": "Archivo y su contenido en memoria eliminados correctamente"}
 
 @router.get("/download/{file_id}")
 async def download_file(
