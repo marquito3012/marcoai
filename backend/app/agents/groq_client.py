@@ -50,26 +50,34 @@ async def chat_completion_google(messages: list[dict], temperature: float = 0.7,
         return await chat_completion_openrouter(messages, "meta-llama/llama-3-8b-instruct:free", temperature, max_tokens, level=3)
 
     try:
-        gen_model = genai.GenerativeModel("gemini-2.0-flash")
-        # Convertir mensajes OpenAI format a Google format
+        # Convertir mensajes (OpenAI format) a Google format (history + content)
         history = []
+        system_instruction = ""
         msg_list = list(messages)
-        for m in msg_list[:-1]:
+        
+        for m in msg_list:
+            if m.get("role") == "system":
+                system_instruction += m.get("content", "") + "\n"
+        
+        # Filtramos para el chat (solo user/model)
+        chat_msgs = [m for m in msg_list if m.get("role") in ["user", "assistant"]]
+        for m in chat_msgs[:-1]:
             role = "user" if m.get("role") == "user" else "model"
             history.append({"role": role, "parts": [m.get("content", "")]})
         
-        last_message = msg_list[-1].get("content", "")
-        
-        model = genai.GenerativeModel("gemini-1.5-flash") # Usamos 1.5 que es más estable en free
-        response = await model.generate_content_async(
-            str(messages),
-            generation_config={"max_output_tokens": max_tokens, "temperature": temperature}
+        last_message = chat_msgs[-1].get("content", "") if chat_msgs else "Hola"
+
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash", 
+            system_instruction=system_instruction.strip() or None
         )
-        # Nota: genai async no soporta timeout directo fácil, pero es rápido
+        
+        chat = model.start_chat(history=history)
+        response = await chat.send_message_async(last_message)
         return response.text
     except Exception as e:
         print(f"⚠️ Nivel 2 (Google) falló, rotando a Nivel 3 (OpenRouter)... Error: {e}")
-        return await chat_completion_openrouter(messages, "meta-llama/llama-3-8b-instruct:free", temperature, max_tokens, level=3)
+        return await chat_completion_openrouter(messages, "", temperature, max_tokens, level=3)
 
 async def chat_completion_openrouter(messages: list[dict], model: str, temperature: float, max_tokens: int, level: int):
     """
@@ -79,8 +87,10 @@ async def chat_completion_openrouter(messages: list[dict], model: str, temperatu
         return "Error: OpenRouter no configurado."
 
     models_to_try = [
+        "google/gemini-2.0-flash-lite-preview-02-05:free",
         "meta-llama/llama-3.3-70b-instruct:free",
-        "google/gemma-3-27b-it:free"
+        "mistralai/mistral-small-24b-instruct-2501:free",
+        "qwen/qwen-2.5-coder-32b-instruct:free"
     ]
     
     for current_model in models_to_try:
