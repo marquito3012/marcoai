@@ -89,7 +89,13 @@ async def process_message(user, user_message: str, history: list = None):
                                 context_result = f"Guardado (ID: {doc_id})."
 
                             elif action == "rag_delete":
-                                count = await delete_documents(user.id, entry.get("tipo"), entry.get("query"))
+                                tipo = entry.get("tipo")
+                                query = entry.get("query")
+                                if tipo == "gasto-mensual":
+                                    count = await delete_documents(user.id, "gasto-mensual", query)
+                                    count += await delete_documents(user.id, "suscripcion", query)
+                                else:
+                                    count = await delete_documents(user.id, tipo, query)
                                 context_result = f"Eliminados {count} registros."
                             
                             # --- Specialized Tools mapping to RAG (3-Type Schema) ---

@@ -93,10 +93,16 @@ def get_admin_dashboard(current_user: User = Depends(get_current_user)):
 async def clear_financial_type(tipo: str, user: any = Depends(get_current_user)):
     """Elimina todos los registros de un tipo específico de finanzas."""
     from app.rag.engine import delete_documents
-    # Validamos tipos permitidos (incluyendo plurales comunes)
+    
+    # Mapeo de categorías del Dashboard a tipos reales del RAG
+    if tipo == "gastos-mensuales":
+        # Borramos ambos tipos que componen esta sección
+        count1 = await delete_documents(user.id, tipo="gasto-mensual")
+        count2 = await delete_documents(user.id, tipo="suscripcion")
+        return {"status": "ok", "deleted_count": count1 + count2}
+    
     mapping = {
         "ingresos": "ingreso",
-        "gastos-mensuales": "gasto-mensual",
         "gastos-puntuales": "gasto-puntual",
         "suscripciones": "suscripcion"
     }
