@@ -68,7 +68,7 @@ async def chat_completion_google(messages: list[dict], temperature: float = 0.7,
         last_message = chat_msgs[-1].get("content", "") if chat_msgs else "Hola"
 
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash", 
+            model_name="gemini-3.1-flash-lite", 
             system_instruction=system_instruction.strip() or None
         )
         
