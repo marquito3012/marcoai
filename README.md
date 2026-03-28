@@ -80,18 +80,37 @@ Marco AI puede realizar las siguientes acciones de forma autónoma mediante leng
 
 ---
 
+## 📋 Prerrequisitos
+Antes de empezar, asegúrate de tener instalado:
+- [Docker](https://docs.docker.com/get-docker/) y Docker Compose.
+- [Git](https://git-scm.com/).
+- Una cuenta en [Groq](https://console.groq.com/) para obtener tu API Key gratuita.
+- Credenciales de [Google Cloud Console](https://console.cloud.google.com/) (OAuth 2.0 Client IDs) para Calendar y Gmail.
+
+---
+
 ## 🚀 Instalación Rápida (Docker)
 
-1. **Clonar e instalar:**
+1. **Clonar el repositorio:**
    ```bash
    git clone https://github.com/marquito3012/marcoai.git && cd marcoai
    cp .env.example .env
    ```
-2. **Configurar `.env`** con tus API Keys (Groq, Google OAuth).
-3. **Levantar:**
+2. **Configurar el entorno**:
+   Copia el archivo de ejemplo y añade tus API Keys (Groq, Google OAuth
+   ```bash
+   cp .env.example .env
+   ```
+3. **Levantar los servicios:**
    ```bash
    docker compose up -d --build
    ```
+4. **¡A disfrutar!🎉**
+   Abre tu navegador y entra en `http://localhost:8000` (o el puerto que hayas configurado) para empezar a interactuar con MarcoAI.
+
+## 🤝 Contribuciones
+
+¡Las contribuciones son bienvenidas! Si tienes ideas para nuevos módulos o mejoras de rendimiento, siéntete libre de abrir una Issue.
 
 ---
 *Desarrollado con ❤️ para la comunidad de código abierto.*
