@@ -36,8 +36,6 @@ services:
       resources:
         limits:
           memory: 512M
-        reservations:
-          memory: 256M
     # Health check
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
