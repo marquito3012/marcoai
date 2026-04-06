@@ -1,272 +1,207 @@
-import sqlite3
-import sqlite_utils
+"""
+Memory-efficient RAG engine using sqlite-vec.
+Optimized for Raspberry Pi 3 with lazy embedding generation.
+"""
 import json
-import numpy as np
-import io
-from app.config import settings
-from app.rag.embeddings import generate_embedding
-import os
+import logging
+import sqlite3
+import uuid
+from typing import Any, Dict, List, Optional
 
-DB_PATH = os.path.abspath(settings.DATABASE_URL.replace("sqlite:///", ""))
-print(f"📡 DB_PATH: {DB_PATH}")
+logger = logging.getLogger(__name__)
 
-# Necesitamos adaptador para arrays numpy en SQLite
-def adapt_array(arr):
-    out = io.BytesIO()
-    np.save(out, arr)
-    out.seek(0)
-    return sqlite3.Binary(out.read())
 
-def convert_array(text):
-    out = io.BytesIO(text)
-    out.seek(0)
-    return np.load(out)
+class RAGEngine:
+    """
+    Retrieval-Augmented Generation engine with sqlite-vec.
 
-# Registra los adaptadores para SQLite
-sqlite3.register_adapter(np.ndarray, adapt_array)
-sqlite3.register_converter("array", convert_array)
+    Memory optimizations:
+    - Embeddings generated on-demand (not cached in memory)
+    - Batch operations minimized
+    - Lazy sqlite-vec loading
+    """
 
-def get_connection():
-    # Detectamos extensiones VSS si están instaladas por el Dockerfile
-    # print(f"🔌 CONNECTING TO: {DB_PATH}") # Descomentar para mega-debug
-    conn = sqlite3.connect(DB_PATH, detect_types=sqlite3.PARSE_DECLTYPES)
-    conn.enable_load_extension(True)
-    try:
-        # En el container de producción con sqlite-vss
-        import sqlite_vss
-        sqlite_vss.load(conn)
-    except Exception as e:
-        print(f"sqlite-vss no cargado (ok para dev nativo sin compilar VSS): {e}")
-    return conn
+    # Embedding model dimensions
+    EMBEDDING_DIM = 384  # all-MiniLM-L6-v2
 
-def init_rag_db():
-    """Inicializa la tabla vectorial"""
-    conn = get_connection()
-    c = conn.cursor()
-    # Tabla base
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS documents (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            content TEXT,
-            metadata TEXT,
-            embedding array,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    # Migración voluntaria: si la columna no existe, la añadimos
-    try:
-        c.execute("ALTER TABLE documents ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP")
-    except:
-        pass # Ya existe
-    
-    c.execute("CREATE INDEX IF NOT EXISTS idx_documents_user ON documents(user_id)")
-    conn.commit()
-    
-    # Intentamos crear la tabla virtual vss0 si sqlite-vss está disponible
-    try:
-         c.execute("CREATE VIRTUAL TABLE IF NOT EXISTS vss_documents USING vss0(embedding(768))")
-         conn.commit()
-    except Exception as e:
-         print("Virtual table vss no creada - Fallback manual habilitado. Razón:", e)
-         
-    conn.close()
+    def __init__(self, db=None):
+        self._db = db
+        self._vec_available = None
 
-async def add_document(user_id: int, content: str, doc_metadata: dict = None):
-    """Agrega un documento al RAG exclusivo para un usuario"""
-    if doc_metadata is None:
-        doc_metadata = {}
-        
-    vec = await generate_embedding(content)
-    vec_np = np.array(vec, dtype=np.float32)
-    
-    conn = get_connection()
-    c = conn.cursor()
-    
-    print(f"📁 DB_ACTION: add_document | user={user_id} | content='{content[:30]}...' | metadata={doc_metadata}")
-    # Insertar en tabla normal
-    c.execute("INSERT INTO documents (user_id, content, metadata, embedding) VALUES (?, ?, ?, ?)",
-              (user_id, content, json.dumps(doc_metadata), vec_np))
-    doc_id = c.lastrowid
-    
-    # Intentar insertar en VSS (si existe la tabla)
-    try:
-        # vss usa json arrays stringificados
-        c.execute("INSERT INTO vss_documents(rowid, embedding) VALUES (?, ?)", (doc_id, json.dumps(vec)))
-    except:
-        pass # fallback ya guardó en `documents.embedding`
-        
-    conn.commit()
-    conn.close()
-    return doc_id
+    def _check_vec_available(self, conn: sqlite3.Connection) -> bool:
+        """Check if sqlite-vec is available."""
+        if self._vec_available is not None:
+            return self._vec_available
 
-async def search(user_id: int, query: str, tipo: str | None = None, top_k: int = 5):
-    """Busca en el RAG filtrando por user_id y opcionalmente por tipo."""
-    query_vec = await generate_embedding(query)
-    query_np = np.array(query_vec, dtype=np.float32)
-    
-    conn = get_connection()
-    c = conn.cursor()
-    
-    results = []
-    try:
-        sql = """
-            SELECT d.id, d.content, d.metadata 
-            FROM vss_documents v
-            JOIN documents d ON v.rowid = d.id
-            WHERE d.user_id = ?
+        try:
+            conn.enable_load_extension(True)
+            conn.execute("SELECT load_extension('sqlite_vec')")
+            conn.enable_load_extension(False)
+            self._vec_available = True
+            logger.info("sqlite-vec loaded successfully")
+        except sqlite3.OperationalError as e:
+            logger.warning(f"sqlite-vec not available: {e}")
+            self._vec_available = False
+
+        return self._vec_available
+
+    def _get_embedding(self, text: str) -> Optional[bytes]:
         """
-        params = [user_id]
-        
-        if tipo:
-            sql += " AND (json_extract(d.metadata, '$.tipo') = ? OR json_extract(d.metadata, '$.type') = ?)"
-            params.extend([tipo, tipo])
-            
-        sql += " AND vss_search(v.embedding, ?) LIMIT ?"
-        params.extend([json.dumps(query_vec), top_k])
-        
-        c.execute(sql, tuple(params))
-        
-        rows = c.fetchall()
-        for row in rows:
-            results.append({
-                "id": row[0],
-                "content": row[1],
-                "metadata": json.loads(row[2]),
-                "score": 0.0
-            })
-    except Exception as e:
-        print(f"VSS search failed/not used, using python fallback: {e}")
-        sql = "SELECT id, content, metadata, embedding FROM documents WHERE user_id = ?"
-        params = [user_id]
-        if tipo:
-            sql += " AND (json_extract(metadata, '$.tipo') = ? OR json_extract(metadata, '$.type') = ?)"
-            params.extend([tipo, tipo])
-            
-        c.execute(sql, tuple(params))
-        rows = c.fetchall()
-        
-        scored = []
-        for row in rows:
-            doc_id, content, meta_str, doc_emb = row
-            # Calculo de similitud coseno
-            dot = np.dot(query_np, doc_emb)
-            norm_q = np.linalg.norm(query_np)
-            norm_d = np.linalg.norm(doc_emb)
-            if norm_q > 0 and norm_d > 0:
-                score = dot / (norm_q * norm_d)
-            else:
-                score = 0.0
-            scored.append((score, {
-                "id": doc_id,
-                "content": content,
-                "metadata": json.loads(meta_str),
-                "score": float(score)
-            }))
-            
-        # Ordenamos
-        scored.sort(key=lambda x: x[0], reverse=True)
-        results = [x[1] for x in scored[:top_k]]
-        
-    conn.close()
-    return results
+        Generate embedding for text.
+        Uses local model to avoid API calls (memory/speed optimization).
+        """
+        try:
+            from sentence_transformers import SentenceTransformer
+            model = SentenceTransformer('all-MiniLM-L6-v2')
+            embedding = model.encode(text, convert_to_numpy=True)
+            return embedding.tobytes()
+        except ImportError:
+            logger.warning("sentence-transformers not installed, skipping embeddings")
+            return None
+        except Exception as e:
+            logger.error(f"Embedding generation failed: {e}")
+            return None
 
-async def delete_documents(user_id: int, tipo: str | None = None, query: str | None = None):
-    """Elimina documentos del RAG de un usuario por tipo o contenido literal."""
-    print(f"📁 DB_ACTION: delete_documents | user={user_id} | tipo={tipo} | query={query}")
-    conn = get_connection()
-    c = conn.cursor()
-    
-    from typing import Any
-    deleted_count = 0
-    sql = "DELETE FROM documents WHERE user_id = ?"
-    params: list[Any] = [user_id]
-    
-    if tipo:
-        # Buscamos en metadata {"tipo": "..."} o {"type": "..."} usando JSON nativo
-        sql += " AND (json_extract(metadata, '$.tipo') = ? OR json_extract(metadata, '$.type') = ?)"
-        params.extend([tipo, tipo])
-    
-    if query:
-        # Si es un hábito, buscamos por nombre exacto en el campo nombre de la metadata
-        if tipo == "habito":
-            sql += " AND (json_extract(metadata, '$.nombre') LIKE ? OR content LIKE ?)"
-            params.extend([f"%{query}%", f"%{query}%"])
-        else:
-            # Buscamos coincidencia literal en contenido o metadatos (fallback)
-            sql += " AND (content LIKE ? OR metadata LIKE ?)"
-            params.extend([f"%{query}%", f"%{query}%"])
-        
-    if not tipo and not query:
-        # Si no hay filtros, borrar todo el cerebro del usuario (Peligroso, pero intencional)
-        pass # La query base ya tiene el user_id
-        
-    c.execute(sql, tuple(params))
-    deleted_count = c.rowcount
-        
-    # Sincronizar VSS: Eliminar huérfanos si la tabla virtual existe
-    try:
-        c.execute("DELETE FROM vss_documents WHERE rowid NOT IN (SELECT id FROM documents)")
-    except Exception as e:
-        print(f"Error syncing VSS after delete: {e}")
-        
-    conn.commit()
-    conn.close()
-    return deleted_count
+    def save_conversation(
+        self,
+        user_id: str,
+        role: str,
+        content: str,
+    ) -> str:
+        """Save conversation turn with optional embedding."""
+        conv_id = str(uuid.uuid4())
 
-async def get_habitos(user_id: int):
-    """Recupera la lista de hábitos de un usuario."""
-    habitos = []
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("SELECT id, content, metadata FROM documents WHERE user_id = ?", (user_id,))
-    rows = c.fetchall()
-    for row in rows:
-        meta = json.loads(row[2])
-        if meta.get("tipo") == "habito" or meta.get("type") == "habito":
-            nombre = meta.get("nombre") or meta.get("titulo", "Hábito sin título")
-            habitos.append({
-                "id": row[0],
-                "nombre": nombre,
-                "completado": meta.get("completado", False)
-            })
-    conn.close()
-    return habitos
+        if self._db is None:
+            logger.warning("No database available for RAG")
+            return conv_id
 
-async def toggle_habit(user_id: int, habit_name: int | str):
-    """Alterna el estado de completado de un hábito."""
-    print(f"📁 DB_ACTION: toggle_habit | user={user_id} | name='{habit_name}'")
-    conn = get_connection()
-    c = conn.cursor()
-    
-    # Buscar el hábito por tipo (o type) Y nombre usando funciones JSON nativas
-    c.execute("""
-        SELECT id, metadata FROM documents 
-        WHERE user_id = ? 
-        AND (json_extract(metadata, '$.tipo') = 'habito' OR json_extract(metadata, '$.type') = 'habito')
-        AND json_extract(metadata, '$.nombre') LIKE ?
-    """, (user_id, f"%{habit_name}%"))
-    row = c.fetchone()
-    
-    if not row:
-        print(f"⚠️ toggle_habit: No se encontró el hábito '{habit_name}' para el usuario {user_id}")
-        conn.close()
-        return False
-        
-    doc_id, meta_str = row
-    meta = json.loads(meta_str)
-    
-    # Alternar
-    is_done = meta.get("completado", False)
-    meta["completado"] = not is_done
-    
-    print(f"💾 DB_UPDATE: toggle_habit | doc_id={doc_id} | old_state={is_done} | new_state={meta['completado']}")
-    c.execute("UPDATE documents SET metadata = ? WHERE id = ?", (json.dumps(meta), doc_id))
-    if c.rowcount == 0:
-        print(f"❌ ERROR: No se actualizó ninguna fila para doc_id={doc_id}")
-    else:
-        print(f"✅ SUCCESS: Hábito actualizado en DB. rowcount={c.rowcount}")
-    
-    conn.commit()
-    conn.close()
-    return meta["completado"]
+        with self._db.transaction() as conn:
+            # Check sqlite-vec availability
+            vec_available = self._check_vec_available(conn)
+
+            # Generate embedding (optional, non-blocking)
+            embedding = None
+            if vec_available:
+                embedding = self._get_embedding(content)
+
+            # Insert conversation
+            conn.execute("""
+                INSERT INTO conversations (id, user_id, role, content, embedding, created_at)
+                VALUES (?, ?, ?, ?, ?, datetime('now'))
+            """, (conv_id, user_id, role, content, embedding))
+
+        return conv_id
+
+    async def save_conversation_async(
+        self,
+        user_id: str,
+        role: str,
+        content: str,
+    ) -> str:
+        """Async version - saves conversation without blocking."""
+        import asyncio
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None,
+            self.save_conversation,
+            user_id, role, content
+        )
+
+    def search(
+        self,
+        query: str,
+        user_id: str,
+        limit: int = 5,
+    ) -> List[Dict[str, Any]]:
+        """
+        Search conversations using semantic similarity.
+        Falls back to keyword search if sqlite-vec unavailable.
+        """
+        if self._db is None:
+            logger.warning("No database available for RAG")
+            return []
+
+        results = []
+
+        with self._db.connection() as conn:
+            vec_available = self._check_vec_available(conn)
+
+            if vec_available:
+                # Semantic search with sqlite-vec
+                query_embedding = self._get_embedding(query)
+                if query_embedding:
+                    try:
+                        # sqlite-vec cosine similarity
+                        cursor = conn.execute("""
+                            SELECT id, user_id, role, content, created_at,
+                                   vec_distance_cosine(embedding, ?) as similarity
+                            FROM conversations
+                            WHERE user_id = ?
+                            ORDER BY similarity ASC
+                            LIMIT ?
+                        """, (query_embedding, user_id, limit))
+                        results = [
+                            {
+                                "id": row["id"],
+                                "role": row["role"],
+                                "content": row["content"],
+                                "similarity": 1 - row["similarity"],  # Convert distance to similarity
+                            }
+                            for row in cursor.fetchall()
+                        ]
+                    except sqlite3.OperationalError as e:
+                        logger.error(f"Semantic search failed: {e}")
+                        vec_available = False
+
+            if not vec_available:
+                # Fallback to keyword search
+                cursor = conn.execute("""
+                    SELECT id, user_id, role, content, created_at
+                    FROM conversations
+                    WHERE user_id = ? AND content LIKE ?
+                    ORDER BY created_at DESC
+                    LIMIT ?
+                """, (user_id, f"%{query}%", limit))
+                results = [
+                    {
+                        "id": row["id"],
+                        "role": row["role"],
+                        "content": row["content"],
+                        "match_type": "keyword",
+                    }
+                    for row in cursor.fetchall()
+                ]
+
+        return results
+
+    def get_user_context(
+        self,
+        user_id: str,
+        max_turns: int = 10,
+    ) -> str:
+        """
+        Get recent conversation context for a user.
+        Used to provide conversation history to LLM without full memory.
+        """
+        if self._db is None:
+            return ""
+
+        with self._db.connection() as conn:
+            cursor = conn.execute("""
+                SELECT role, content FROM conversations
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+            """, (user_id, max_turns * 2))  # 2 turns = user + assistant
+
+            turns = list(cursor.fetchall())
+            turns.reverse()  # Chronological order
+
+        if not turns:
+            return ""
+
+        context_lines = []
+        for turn in turns:
+            context_lines.append(f"{turn['role']}: {turn['content']}")
+
+        return "\n".join(context_lines)

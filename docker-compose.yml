@@ -1,56 +1,75 @@
+# Marco AI Docker Compose
+# Single-container deployment for Raspberry Pi 3
+# + Cloudflare Tunnel for remote access (no port forwarding needed)
+
 services:
-  backend:
+  marcoai:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: marcoai_backend
+    container_name: marcoai
     restart: unless-stopped
+    # Port 8000 is only exposed locally for development.
+    # In production via Cloudflare Tunnel, comment this out.
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
-      - ./backend/app:/app/app
-      - ./data:/app/data
-    env_file:
-      - .env
-    depends_on:
-      - db_init
+      # Persist data directory (SQLite database)
+      - marcoai_data:/app/data
+      # Optional: bind mount for development
+      # - ./backend:/app:ro
+    environment:
+      - DEBUG=false
+      - LOG_LEVEL=WARNING
+      - DATA_DIR=/app/data
+      - MAX_MEMORY_MB=512
+      - SQLITE_CACHE_SIZE=2000
+      # LLM API keys (set in .env or secrets)
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      # Google OAuth
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+    # Memory limits for Raspberry Pi 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    # Health check
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
+    # Logging (minimal for low I/O)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # Contenedor auxiliar rápido para crear la carpeta de DB con permisos
-  db_init:
-    image: alpine
-    volumes:
-      - ./data:/data
-    command: sh -c "mkdir -p /data && chown -R 1000:1000 /data"
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: marcoai_frontend
-    restart: unless-stopped
-    ports:
-      - "3000:80"
-    volumes:
-      - ./frontend:/usr/share/nginx/html:ro
-      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on:
-      - backend
-
+  # Cloudflare Tunnel — routes your public URL to marcoai:8000
+  # No open firewall ports needed. Token is read from .env
   cloudflared:
     image: cloudflare/cloudflared:latest
-    container_name: marcoai_tunnel
+    container_name: marcoai-tunnel
     restart: unless-stopped
     command: tunnel --no-autoupdate run
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
-    env_file:
-      - .env
     depends_on:
-      - frontend
+      marcoai:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
-# Eliminamos la sección de volumes nombrados para usar bind mounts locales
+volumes:
+  marcoai_data:
+    name: marcoai_data

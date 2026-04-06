@@ -1,116 +1,137 @@
-# 🤖 Marco AI - Tu Agente Personal Inteligente
+# Marco AI - Backend
 
-**Marco AI** es un asistente virtual de vanguardia diseñado para centralizar y simplificar tu vida digital. Optimizado para ejecutarse en hardware eficiente como una **Raspberry Pi 3**, Marco combina la potencia de los modelos de lenguaje más avanzados (Llama 3.3, Gemini 2.0) con herramientas locales para gestionar tu tiempo, finanzas y hábitos.
+Memory-efficient modular monolith backend for Raspberry Pi 3 (1GB RAM).
 
-![Marco AI Interface](https://github.com/user-attachments/assets/1493c3d5-f1da-4fb2-8f33-98fd9bada40d)
+## Architecture
 
-## 🌌 Visión General
-Marco no es solo un chatbot; es un **agente de acción**. Gracias a su orquestador inteligente, puede razonar sobre tus peticiones, consultar tu historial (RAG), interactuar con APIs externas y ejecutar comandos asíncronos para mantener tu mundo en orden, todo a través de una interfaz elegante y minimalista.
-
-## 🏗️ Arquitectura Técnica
-El sistema está construido bajo una arquitectura de microservicios ligera y robusta:
-
-```mermaid
-graph TD
-    User((Usuario)) -->|HTTPS| CF[Cloudflare Tunnel]
-    CF -->|Proxy| Nginx[Nginx / Frontend]
-    Nginx -->|API Requests| FastAPI[FastAPI Backend]
-    
-    subgraph "Backend Core (Python 3.11)"
-        FastAPI --> Auth[Google OAuth 2.0]
-        FastAPI --> Orch[Orquestador de Agente]
-        Orch --> Groq[Groq / LLM Inference]
-    end
-
-    subgraph "Recursos & Inteligencia"
-        Orch --> RAG[RAG Engine / Vector DB]
-        Orch --> Google[Google Calendar / Gmail]
-        Orch --> Modules[Lifestyle / Finanzas / Ocio]
-    end
-
-    subgraph "Persistencia"
-        RAG --> DB[(SQLite Database)]
-        Modules --> DB
-    end
+```
+backend/
+├── app/
+│   ├── agent/              # Single-agent ReAct orchestrator
+│   │   ├── __init__.py
+│   │   ├── orchestrator.py # Tool-calling engine with API fallback
+│   │   └── tools.py        # Tool registry and implementations
+│   ├── auth/               # Google OAuth 2.0
+│   ├── modules/            # Domain modules (modular monolith)
+│   │   ├── finance/        # Expenses, income, balance
+│   │   ├── habits/         # Binary habit tracking with streaks
+│   │   ├── food/           # Shopping list, meal planning
+│   │   ├── leisure/        # Events, game deals
+│   │   └── rag/            # Semantic memory search
+│   ├── rag/                # RAG engine with sqlite-vec
+│   ├── services/           # External API clients (Google)
+│   ├── config.py           # Memory-efficient settings
+│   ├── database.py         # SQLite manager with optimizations
+│   └── main.py             # FastAPI application
+├── data/                   # SQLite database (persisted volume)
+├── tests/                  # Unit tests
+├── requirements.txt        # Minimal dependencies
+├── Dockerfile              # Memory-optimized image
+└── .env.example            # Environment template
 ```
 
-- **Inferencia Ultra-Rápida:** Delegada a Groq para respuestas en milisegundos.
-- **Memoria de Largo Plazo (RAG):** Implementada en SQLite con búsqueda vectorial (VSS) y aislamiento total por usuario.
-- **Frontend SPA:** Sistema Glassmorphism ultra-ligero (<5MB RAM) en Vanilla JS.
+## Key Design Decisions
 
-## 🛠️ Capacidades del Agente (Lista Técnica)
+### Memory Optimizations
 
-Marco AI puede realizar las siguientes acciones de forma autónoma mediante lenguaje natural:
+1. **Singleton Pattern**: Settings, database connections, tool registry use singletons
+2. **Lazy Loading**: LLM clients, OAuth credentials loaded only when first used
+3. **Thread-local Storage**: One connection per thread, no connection pooling overhead
+4. **__slots__**: Config class uses `__slots__` to prevent dynamic attribute allocation
+5. **Minimal Middleware**: Only essential FastAPI middleware
+6. **Single Worker**: Uvicorn runs with 1 worker to minimize memory footprint
 
-### 📅 Gestión de Tiempo (Google Calendar)
-- **Consultar Agenda:** Listar tus próximos eventos y compromisos.
-- **Crear Eventos:** Añadir citas especificando nombre, fecha y hora de inicio/fin.
-- **Modificar Eventos:** Cambiar el nombre, la fecha o la hora (inicio/fin) de eventos existentes.
-- **Eliminar Eventos:** Borrar eventos del calendario por completo.
+### SQLite Optimizations
 
-### 📧 Comunicación (Gmail)
-- **Leer Correos:** Buscar y resumir mensajes recibidos o filtrar por criterios.
-- **Enviar Emails:** Redactar y enviar correos electrónicos completos.
-- **Organización:** Crear etiquetas, listar carpetas y modificar etiquetas de mensajes existentes.
+```sql
+PRAGMA journal_mode=WAL;           -- Better concurrency
+PRAGMA cache_size=-2000;           -- 2MB page cache
+PRAGMA temp_store=MEMORY;          -- Temp tables in RAM
+PRAGMA synchronous=NORMAL;         -- Balance safety/speed
+```
 
-### 💰 Finanzas Personales
-- **Registro de Gastos:** Anotar gastos mensuales recurrentes y gastos puntuales.
-- **Gestión de Ingresos:** Registrar entradas de dinero para llevar el balance.
-- **Control de Suscripciones:** Guardar y monitorizar servicios (Netflix, Spotify, etc.).
-- **Balance General:** Calcular automáticamente tu presupuesto mensual restante (Ingresos - Gastos).
+### API Fallback Chain
 
-### 🧘 Lifestyle y Hábitos
-- **Gestión de Hábitos:** Añadir nuevos hábitos que desees seguir.
-- **Seguimiento Diario:** Marcar hábitos como realizados o pendientes. 
-  *(Nota: Los hábitos se reinician visualmente cada día para fomentar la constancia).*
-- **Eliminación:** Borrar hábitos que ya no desees seguir.
+```
+Groq (primary) → OpenRouter (fallback) → Gemini (last resort)
+```
 
-### 🍱 Alimentación y Compras
-- **Planificación de Comidas:** Añadir platos a tu plan de dieta semanal.
-- **Lista de Compra:** Añadir ítems dinámicamente según los necesites.
+## Quick Start
 
-### 🎮 Ocio y Entretenimiento
-- **Radar de Ocio:** Guardar planes futuros, conciertos o eventos con categoría y fecha.
-- **Monitor de Ofertas:** Registrar ofertas de videojuegos (título, tienda, precio y descuento).
+```bash
+# 1. Copy environment template
+cp .env.example .env
 
-### 🧠 Memoria y Conocimiento (RAG)
-- **Búsqueda Inteligente:** Localizar cualquier dato guardado anteriormente mediante búsqueda semántica.
-- **Notas Rápidas:** Guardar fragmentos de información general en tu memoria persistente.
-- **Limpieza de Memoria:** Borrar registros específicos o tipos de datos de forma selectiva.
+# 2. Fill in API keys
+# - GROQ_API_KEY (required, fastest)
+# - OPENROUTER_API_KEY (optional fallback)
+# - GEMINI_API_KEY (optional fallback)
+# - Google OAuth credentials (for Calendar/Gmail)
 
----
+# 3. Run with Docker
+docker compose up -d --build
 
-## 📋 Prerrequisitos
-Antes de empezar, asegúrate de tener instalado:
-- [Docker](https://docs.docker.com/get-docker/) y Docker Compose.
-- [Git](https://git-scm.com/).
-- Una cuenta en [Groq](https://console.groq.com/) para obtener tu API Key gratuita.
-- Credenciales de [Google Cloud Console](https://console.cloud.google.com/) (OAuth 2.0 Client IDs) para Calendar y Gmail.
+# 4. Access the application
+# - API: http://localhost:8000
+# - Health: http://localhost:8000/health
+# - Chat: POST http://localhost:8000/api/chat
+```
 
----
+## API Endpoints
 
-## 🚀 Instalación Rápida (Docker)
+### Core
+- `POST /api/chat` - Main chat with tool-calling
+- `GET /health` - Health check
 
-1. **Clonar el repositorio:**
-   ```bash
-   git clone https://github.com/marquito3012/marcoai.git && cd marcoai
-   cp .env.example .env
-   ```
-2. **Configurar el entorno**:
-   Copia el archivo de ejemplo y añade tus API Keys (Groq, Google OAuth
-   ```bash
-   cp .env.example .env
-   ```
-3. **Levantar los servicios:**
-   ```bash
-   docker compose up -d --build
-   ```
-4. **¡A disfrutar!🎉**
-   Abre tu navegador y entra en `http://localhost:8000` (o el puerto que hayas configurado) para empezar a interactuar con MarcoAI.
+### Finance
+- `GET /api/finance/balance?month=YYYY-MM&user_id=X`
+- `POST /api/finance/transaction`
 
-## 🤝 Contribuciones
+### Habits
+- `POST /api/habits/track`
+- `GET /api/habits/{name}/streak`
 
-¡Las contribuciones son bienvenidas! Si tienes ideas para nuevos módulos o mejoras de rendimiento, siéntete libre de abrir una Issue.
+### Food
+- `GET /api/food/shopping`
+- `POST /api/food/shopping/add`
 
----
-*Desarrollado con ❤️ para la comunidad de código abierto.*
+### Leisure
+- `GET /api/leisure/events`
+- `GET /api/leisure/deals`
+
+### Memory
+- `GET /api/memory/search?q=query&user_id=X`
+
+## Tool-Calling Format
+
+The orchestrator uses XML-style tool calls in LLM responses:
+
+```xml
+<finance_log_transaction>{"type": "expense", "category": "Food", "amount": 25.50, "date": "2024-01-15"}</finance_log_transaction>
+```
+
+## Development
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run locally
+uvicorn app.main:app --reload --port 8000
+
+# Run tests
+pytest
+```
+
+## Raspberry Pi 3 Performance
+
+| Metric | Target |
+|--------|--------|
+| Idle Memory | < 200MB |
+| Peak Memory | < 512MB |
+| Cold Start | < 5s |
+| Tool Call Latency | < 500ms |
+
+## License
+
+MIT

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Marco AI — Your personal AI assistant dashboard for calendar, finance, and habits.">
+  <title>Marco AI</title>
+
+  <!-- Fonts: Fira Code (headings/data) + Fira Sans (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS Play CDN (no build step) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            deep:     '#0B0F19',
+            surface:  '#111827',
+            glass:    'rgba(255, 255, 255, 0.04)',
+            'glass-hover': 'rgba(255, 255, 255, 0.07)',
+            'border-g': 'rgba(255, 255, 255, 0.08)',
+            'border-g-hover': 'rgba(255, 255, 255, 0.14)',
+            'txt':    '#F1F5F9',
+            'txt-2':  '#94A3B8',
+            'txt-m':  '#64748B',
+            accent:   '#3B82F6',
+            'accent-d':'#2563EB',
+            amber:    '#F59E0B',
+            emerald:  '#10B981',
+            rose:     '#F43F5E',
+            violet:   '#8B5CF6',
+          },
+          fontFamily: {
+            mono: ['"Fira Code"', 'monospace'],
+            sans: ['"Fira Sans"', 'system-ui', 'sans-serif'],
+          },
+          borderRadius: {
+            'glass': '14px',
+          },
+        },
+      },
+    }
+  </script>
+
+  <!-- Lucide Icons (SVG icon library via CDN) -->
+  <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js" defer></script>
+
+  <!-- Custom styles (glassmorphism, animations, component-specific) -->
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="bg-deep text-txt font-sans min-h-screen overflow-x-hidden">
+
+  <!-- ========== NAVBAR ========== -->
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+    <div class="flex items-center gap-2.5">
+      <span class="logo-dot" aria-hidden="true"></span>
+      <span class="font-mono font-bold text-lg text-txt">Marco AI</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button type="button" id="btn-settings" aria-label="Settings"
+              class="p-2 rounded-lg text-txt-2 hover:text-txt hover:bg-white/5 transition-colors duration-200">
+        <i data-lucide="settings" class="w-5 h-5"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ========== DASHBOARD GRID ========== -->
+  <main class="dashboard">
+
+    <!-- LEFT COLUMN -->
+    <section class="panel-left flex flex-col gap-4">
+
+      <!-- CALENDAR CARD -->
+      <article class="card" id="card-calendar">
+        <div class="card-header">
+          <h2><i data-lucide="calendar"></i> Calendar</h2>
+        </div>
+        <div id="calendar-content">
+          <div id="event-list">
+            <div class="skeleton-block"></div>
+            <div class="skeleton-block"></div>
+          </div>
+          <div class="calendar-nav">
+            <button type="button" id="cal-prev" aria-label="Previous day"
+                    class="cal-nav-btn">
+              <i data-lucide="chevron-left"></i> Prev
+            </button>
+            <span class="font-mono text-sm text-txt" id="cal-date"></span>
+            <button type="button" id="cal-next" aria-label="Next day"
+                    class="cal-nav-btn">
+              Next <i data-lucide="chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      </article>
+
+      <!-- FINANCE CARD -->
+      <article class="card" id="card-finance">
+        <div class="card-header">
+          <h2><i data-lucide="wallet"></i> Finance</h2>
+          <span class="text-sm text-txt-m font-mono" id="finance-month"></span>
+        </div>
+        <div class="grid grid-cols-2 gap-2.5 mb-3">
+          <div class="finance-stat income">
+            <div class="label">Income</div>
+            <div class="value" id="finance-income">—</div>
+          </div>
+          <div class="finance-stat expense">
+            <div class="label">Expenses</div>
+            <div class="value" id="finance-expense">—</div>
+          </div>
+        </div>
+        <div class="finance-balance">
+          <div class="label">Balance</div>
+          <div class="value" id="finance-balance">—</div>
+        </div>
+      </article>
+
+      <!-- HABITS CARD -->
+      <article class="card" id="card-habits">
+        <div class="card-header">
+          <h2><i data-lucide="heart-pulse"></i> Habits</h2>
+          <span class="text-sm text-txt-m">Today</span>
+        </div>
+        <div id="habit-list">
+          <div class="skeleton-block"></div>
+          <div class="skeleton-block"></div>
+        </div>
+        <div class="habit-streak" id="habit-streak" style="display:none">
+          <i data-lucide="flame"></i>
+          <span id="streak-count"></span>
+        </div>
+      </article>
+
+    </section>
+
+    <!-- RIGHT COLUMN: CHAT -->
+    <section class="panel-right">
+      <article class="card chat-panel" id="card-chat">
+        <div class="card-header">
+          <h2><i data-lucide="message-circle"></i> Chat</h2>
+          <span class="text-xs text-txt-m" id="chat-status">Online</span>
+        </div>
+
+        <!-- Messages area -->
+        <div class="chat-messages" id="chat-messages" role="log" aria-live="polite">
+          <div class="chat-welcome" id="chat-welcome">
+            <i data-lucide="sparkles"></i>
+            <p>Hey! I'm <strong>Marco</strong>. Ask me anything — manage your calendar, check your budget, or track a habit.</p>
+          </div>
+        </div>
+
+        <!-- Input bar -->
+        <div class="chat-input-bar">
+          <label for="chat-input" class="sr-only">Type a message</label>
+          <input
+            type="text"
+            id="chat-input"
+            placeholder="Type a message..."
+            autocomplete="off"
+          >
+          <button type="button" id="chat-send" aria-label="Send message">
+            <i data-lucide="send-horizontal"></i>
+          </button>
+        </div>
+      </article>
+    </section>
+
+  </main>
+
+  <!-- App Script -->
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
