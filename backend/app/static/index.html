@@ -186,41 +186,43 @@
 
   <!-- ========== SETTINGS MODAL ========== -->
   <div id="modal-settings" class="modal-overlay" style="display:none">
-    <div class="modal-content card max-w-md w-full mx-4">
-      <div class="card-header border-b border-white/5 pb-3 mb-4">
-        <h2><i data-lucide="settings"></i> Settings</h2>
-        <button type="button" id="settings-close" class="p-1 hover:bg-white/10 rounded-lg transition-colors">
-          <i data-lucide="x" class="w-5 h-5"></i>
+    <article class="modal-content card max-w-sm w-full mx-4 overflow-hidden">
+      <div class="card-header border-b border-white/5 pb-4 mb-5">
+        <h2 class="flex items-center gap-2 text-white font-mono uppercase tracking-wider text-sm">
+          <i data-lucide="settings" class="w-4 h-4 text-accent"></i> Settings
+        </h2>
+        <button type="button" id="settings-close" class="p-1.5 hover:bg-white/10 rounded-lg transition-all" aria-label="Close settings">
+          <i data-lucide="x" class="w-5 h-5 text-txt-2"></i>
         </button>
       </div>
       
       <div class="space-y-6">
         <!-- Language Selection -->
-        <div class="space-y-3">
-          <label class="text-sm font-medium text-txt-2 block">Agent Language</label>
-          <div class="grid grid-cols-2 gap-2">
-            <button type="button" data-lang="en" class="lang-btn active">
+        <div class="space-y-4">
+          <label class="text-xs font-bold text-txt-m uppercase tracking-widest block">Agent Language</label>
+          <div class="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Select language">
+            <button type="button" data-lang="en" class="lang-btn" role="radio" aria-checked="false">
               <span>English</span>
-              <i data-lucide="check" class="w-4 h-4 check-icon"></i>
+              <i data-lucide="check-circle" class="w-4 h-4 check-icon text-accent"></i>
             </button>
-            <button type="button" data-lang="es" class="lang-btn">
+            <button type="button" data-lang="es" class="lang-btn" role="radio" aria-checked="false">
               <span>Español</span>
-              <i data-lucide="check" class="w-4 h-4 check-icon"></i>
+              <i data-lucide="check-circle" class="w-4 h-4 check-icon text-accent"></i>
             </button>
           </div>
-          <p class="text-xs text-txt-m">Marco will respond in the chosen language.</p>
+          <p class="text-[11px] text-txt-m leading-relaxed italic">Marco will adapt his thinking and responses to your preferred language.</p>
         </div>
       </div>
 
-      <div class="mt-8 pt-4 border-t border-white/5 flex justify-end">
-        <button type="button" id="settings-save" class="px-4 py-2 bg-accent hover:bg-accent-d text-white rounded-lg font-medium transition-all">
+      <div class="mt-8 pt-5 border-t border-white/5 flex justify-end">
+        <button type="button" id="settings-save" class="px-6 py-2.5 bg-accent hover:bg-accent-d text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-accent/20">
           Save Changes
         </button>
       </div>
-    </div>
+    </article>
   </div>
 
-  <!-- App Script (v4 cache-busted/brute-force) -->
-  <script src="/static/js/app.js?v=4"></script>
+  <!-- App Script (v10 cache-busted/pro-max) -->
+  <script src="/static/js/app.js?v=10"></script>
 </body>
 </html>
