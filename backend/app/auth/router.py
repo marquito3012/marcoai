@@ -17,6 +17,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 from ..config import get_settings
+from ..database import DatabaseManager
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -162,6 +163,19 @@ async def callback(request: Request, code: str = "", error: str = ""):
 
     response = RedirectResponse(url="/", status_code=303)
     set_session(response, session_data)
+
+    # Sync user to database (mandatory for foreign keys)
+    try:
+        db = DatabaseManager()
+        with db.transaction() as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO users (id, email, name, google_sub, last_active)
+                VALUES (?, ?, ?, ?, datetime('now'))
+            """, (session_data["sub"], session_data["email"], session_data["name"], session_data["sub"]))
+        logger.info(f"User synced: {session_data['email']}")
+    except Exception as e:
+        logger.error(f"Failed to sync user to DB: {e}")
+
     return response
 
 

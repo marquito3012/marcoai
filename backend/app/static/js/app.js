@@ -153,6 +153,13 @@ const Auth = (() => {
     if (!navUser || !user) return;
     if (user.picture) { avatar.src = user.picture; avatar.alt = user.name || 'User'; }
     if (user.name) name.textContent = user.name;
+    
+    // Sync identity (v20 sync)
+    if (user.sub) {
+      USER_ID = user.sub;
+      console.log("[Auth] Identity synced:", USER_ID);
+    }
+
     navUser.style.removeProperty('display');
     navUser.style.opacity = '0';
     navUser.style.transition = 'opacity 300ms ease';
@@ -165,7 +172,7 @@ const Auth = (() => {
    Dashboard Modules (v12 i18n)
    ============================================================ */
 const API_BASE = '/api';
-const USER_ID = localStorage.getItem('marco_user_id') || ('user-' + crypto.randomUUID().slice(0,8));
+let USER_ID = localStorage.getItem('marco_user_id') || ('user-' + crypto.randomUUID().slice(0,8));
 localStorage.setItem('marco_user_id', USER_ID);
 
 async function api(method, path, body = null) {
