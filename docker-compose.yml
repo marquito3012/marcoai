@@ -19,21 +19,6 @@ services:
       - marcoai_data:/app/data
       # Optional: bind mount for development
       # - ./backend:/app:ro
-    environment:
-      - DEBUG=false
-      - LOG_LEVEL=WARNING
-      - DATA_DIR=/app/data
-      - MAX_MEMORY_MB=512
-      - SQLITE_CACHE_SIZE=2000
-      # LLM API keys (set in .env or secrets)
-      - GROQ_API_KEY=${GROQ_API_KEY:-}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-      # Google OAuth
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
-      - SECRET_KEY=${SECRET_KEY:-}
-      - APP_URL=${APP_URL:-}
     # Health check
     healthcheck:
       test:
@@ -62,8 +47,6 @@ services:
     restart: unless-stopped
     env_file: ./backend/.env
     command: tunnel --no-autoupdate run
-    environment:
-      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       marcoai:
         condition: service_healthy
