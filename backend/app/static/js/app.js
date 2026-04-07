@@ -1,50 +1,56 @@
 /* ============================================================
-   Settings Module (Defined first for global access)
+   Settings Module (Bulletproof version)
    ============================================================ */
 const Settings = (() => {
-  let modalEl, closeBtn, saveBtn, langBtns;
   let currentLang = localStorage.getItem('marco_language') || 'en';
 
   function init() {
-    console.log("[Settings] Initializing module...");
-    modalEl = $('#modal-settings');
-    closeBtn = $('#settings-close');
-    saveBtn = $('#settings-save');
-    langBtns = $$('.lang-btn');
+    console.log("[Settings] Module initialized.");
+    
+    // Attach listener using native JS to avoid scope issues
+    const btnNav = document.getElementById('btn-settings-nav');
+    if (btnNav) {
+      btnNav.addEventListener('click', open);
+    } else {
+      console.warn("[Settings] Could not find #btn-settings-nav");
+    }
 
-    const btnSettings = $('#btn-settings-nav');
-    if (btnSettings) btnSettings.addEventListener('click', open);
+    // Set initial active state on buttons
+    const langBtns = document.querySelectorAll('.lang-btn');
+    langBtns.forEach(btn => {
+      if (btn.dataset.lang === currentLang) btn.classList.add('active');
+      else btn.classList.remove('active');
+
+      btn.addEventListener('click', (e) => {
+        langBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentLang = btn.dataset.lang;
+      });
+    });
+
+    const closeBtn = document.getElementById('settings-close');
+    const saveBtn = document.getElementById('settings-save');
     if (closeBtn) closeBtn.addEventListener('click', close);
     if (saveBtn) saveBtn.addEventListener('click', save);
-
-    if (langBtns) {
-      langBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-          langBtns.forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          currentLang = btn.dataset.lang;
-        });
-      });
-
-      // Set initial UI state
-      langBtns.forEach(btn => {
-        if (btn.dataset.lang === currentLang) btn.classList.add('active');
-        else btn.classList.remove('active');
-      });
-    }
   }
 
   function open() {
-    if (modalEl) {
-      modalEl.style.setProperty('display', 'flex', 'important');
-      modalEl.style.zIndex = '9999';
+    console.log("[Settings] open() triggered!");
+    const modal = document.getElementById('modal-settings');
+    if (modal) {
+      modal.style.display = 'flex';
+      modal.style.zIndex = '99999';
       document.body.style.overflow = 'hidden';
+      console.log("[Settings] Modal should now be visible.");
+    } else {
+      console.error("[Settings] CRITICAL: modal-settings element not found in DOM!");
     }
   }
 
   function close() {
-    if (modalEl) {
-      modalEl.style.display = 'none';
+    const modal = document.getElementById('modal-settings');
+    if (modal) {
+      modal.style.display = 'none';
       document.body.style.overflow = '';
     }
   }
@@ -52,10 +58,14 @@ const Settings = (() => {
   function save() {
     localStorage.setItem('marco_language', currentLang);
     close();
-    if (currentLang === 'es') {
-      Chat.addBubble('Configuración guardada. Ahora hablaré en español.', 'assistant');
-    } else {
-      Chat.addBubble('Settings saved. I will now speak in English.', 'assistant');
+    
+    // If Chat is fully loaded, send a message
+    if (typeof Chat !== 'undefined' && Chat.addBubble) {
+      if (currentLang === 'es') {
+        Chat.addBubble('Configuración guardada. Ahora hablaré en español.', 'assistant');
+      } else {
+        Chat.addBubble('Settings saved. I will now speak in English.', 'assistant');
+      }
     }
   }
 
