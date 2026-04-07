@@ -412,10 +412,18 @@ const Settings = (() => {
   let currentLang = localStorage.getItem('marco_language') || 'en';
 
   function init() {
+    console.log("[Settings] Initializing module...");
     modalEl = $('#modal-settings');
     closeBtn = $('#settings-close');
     saveBtn = $('#settings-save');
     langBtns = $$('.lang-btn');
+
+    console.log("[Settings] Elements found:", { 
+      modal: !!modalEl, 
+      closeBtn: !!closeBtn, 
+      saveBtn: !!saveBtn, 
+      langBtns: langBtns.length 
+    });
 
     const btnSettings = $('#btn-settings');
     if (btnSettings) btnSettings.addEventListener('click', open);
@@ -440,13 +448,19 @@ const Settings = (() => {
   }
 
   function open() {
+    console.log("[Settings] Attempting to open modal...");
     if (modalEl) {
       modalEl.style.setProperty('display', 'flex', 'important');
+      modalEl.style.zIndex = '9999'; // Force it to the top
       document.body.style.overflow = 'hidden';
+      console.log("[Settings] Modal set to flex/important");
+    } else {
+      console.error("[Settings] Cannot open: modalEl is null");
     }
   }
 
   function close() {
+    console.log("[Settings] Closing modal...");
     if (modalEl) {
       modalEl.style.display = 'none';
       document.body.style.overflow = '';
@@ -469,7 +483,8 @@ const Settings = (() => {
     return currentLang;
   }
 
-  return { init, getLanguage };
+  window.Settings = { init, getLanguage, open, close };
+  return window.Settings;
 })();
 
 /* ============================================================

@@ -73,7 +73,7 @@
           <i data-lucide="log-out" class="w-4 h-4"></i>
         </a>
       </div>
-      <button type="button" id="btn-settings" aria-label="Settings"
+      <button type="button" id="btn-settings-nav" onclick="if(window.Settings) Settings.open(); else console.error('Settings module not global');" aria-label="Settings"
               class="p-2 rounded-lg text-txt-2 hover:text-txt hover:bg-white/5 transition-colors duration-200">
         <i data-lucide="settings" class="w-5 h-5"></i>
       </button>
