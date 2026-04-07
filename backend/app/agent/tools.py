@@ -387,7 +387,7 @@ def finance_get_balance(month: str, user_id: str, db) -> Dict:
                 SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income,
                 SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense
             FROM finance_transactions
-            WHERE user_id = ? AND strftime('%Y-%m', date) = ?
+            WHERE user_id = ? AND date LIKE ? || '%'
         """, (user_id, month))
         row = cursor.fetchone()
 

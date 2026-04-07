@@ -256,7 +256,7 @@ const Calendar = (() => {
     const lang = Settings.getLanguage() === 'es' ? 'es-ES' : 'en-US';
     dateEl.textContent = cur.toLocaleDateString(lang, { weekday:'short', month:'short', day:'numeric' });
     try {
-      const d = await api('GET', `/calendar/events?date=${cur.toISOString().slice(0,10)}&user_id=${USER_ID}`);
+      const d = await api('GET', `/calendar/events?date=${cur.toISOString().slice(0,10)}&user_id=${encodeURIComponent(USER_ID)}`);
       render(d.events || []);
     } catch (_) { render([]); }
   }
@@ -281,7 +281,7 @@ const Finance = (() => {
   async function refresh() {
     const now = new Date(); const m = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`; mEl.textContent = m;
     try {
-      const d = await api('GET', `/finance/balance?month=${m}&user_id=${USER_ID}`);
+      const d = await api('GET', `/finance/balance?month=${m}&user_id=${encodeURIComponent(USER_ID)}`);
       iEl.textContent = formatCurrency(d.income); eEl.textContent = formatCurrency(d.expense); bEl.textContent = formatCurrency(d.balance);
     } catch (_) { iEl.textContent=eEl.textContent=bEl.textContent=formatCurrency(0); }
   }
@@ -293,7 +293,7 @@ const Habits = (() => {
   let listEl, sEl, sCont;
   function init() { listEl=$('#habit-list'); sEl=$('#streak-count'); sCont=$('#habit-streak'); refresh(); }
   async function refresh() {
-    try { const d = await api('GET', `/habits?user_id=${USER_ID}`); render(d.habits || []); } catch (_) { render([]); }
+    try { const d = await api('GET', `/habits?user_id=${encodeURIComponent(USER_ID)}`); render(d.habits || []); } catch (_) { render([]); }
   }
   function render(hbs) {
     listEl.innerHTML = ''; const t = Translations[Settings.getLanguage()] || Translations.en;
