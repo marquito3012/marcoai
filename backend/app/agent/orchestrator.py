@@ -90,56 +90,32 @@ IMPORTANT:
         self._available_tools = tool_registry.list_tools()
         self._tools_prompt = tool_registry.list_tools_for_prompt()
 
-    def _get_llm_client(self):
-        """Lazy LLM client initialization with API fallback."""
-        if self._llm_client is None:
-            self._llm_client = self._create_llm_client()
-        return self._llm_client
-
-    def _create_llm_client(self):
+    def _create_llm_client(self, api: str):
         """
-        Create LLM client with graceful degradation.
-        Tries APIs in order: Groq -> OpenRouter -> Gemini
+        Create a specific LLM client for the requested API.
+        Does not pre-test connection to avoid initialization overhead.
         """
-        api_order = self._settings.llm_api_order
+        try:
+            if api == "groq":
+                from groq import Groq
+                return Groq(api_key=self._settings.groq_api_key)
 
-        if not api_order:
-            raise RuntimeError("No LLM API keys configured")
+            elif api == "openrouter":
+                from openai import OpenAI
+                return OpenAI(
+                    api_key=self._settings.openrouter_api_key,
+                    base_url="https://openrouter.ai/api/v1"
+                )
 
-        last_error = None
-        for api in api_order:
-            try:
-                if api == "groq":
-                    from groq import Groq
-                    client = Groq(api_key=self._settings.groq_api_key)
-                    # Test connection
-                    client.models.list()
-                    logger.info(f"Using Groq API")
-                    return client
+            elif api == "gemini":
+                from google import genai
+                return genai.Client(api_key=self._settings.gemini_api_key)
 
-                elif api == "openrouter":
-                    from openai import OpenAI
-                    client = OpenAI(
-                        api_key=self._settings.openrouter_api_key,
-                        base_url="https://openrouter.ai/api/v1"
-                    )
-                    # Test connection
-                    client.models.list()
-                    logger.info(f"Using OpenRouter API")
-                    return client
+        except Exception as e:
+            logger.error(f"Failed to initialize {api} client: {e}")
+            return None
 
-                elif api == "gemini":
-                    from google import genai
-                    client = genai.Client(api_key=self._settings.gemini_api_key)
-                    logger.info(f"Using Gemini API")
-                    return client
-
-            except Exception as e:
-                last_error = e
-                logger.warning(f"API {api} unavailable: {e}")
-                continue
-
-        raise RuntimeError(f"All LLM APIs failed. Last error: {last_error}")
+        return None
 
     def _parse_tool_calls(self, llm_response: str) -> List[ToolCall]:
         """
@@ -213,48 +189,55 @@ IMPORTANT:
 
     def _call_llm(self, messages: List[Dict]) -> str:
         """
-        Call LLM with API fallback.
-        Uses native tool calling when available, falls back to text parsing.
+        Call LLM with API fallback and modular SDK handling.
         """
-        client = self._get_llm_client()
-
-        # Build tools schema for native tool calling
-        tools_schema = [
-            {
-                "type": "function",
-                "function": {
-                    "name": t["name"],
-                    "description": t["description"],
-                    "parameters": t["parameters"],
-                }
-            }
-            for t in self._available_tools
-        ]
-
         api_order = self._settings.llm_api_order
-        last_error = None
+        if not api_order:
+            api_order = ["groq", "openrouter", "gemini"]
 
+        last_error = None
         for api in api_order:
             try:
+                client = self._create_llm_client(api)
+                if not client:
+                    continue
+
                 if api == "groq":
+                    # Build Groq-specific schema
+                    tools_schema = self._build_openai_tools_schema()
                     response = client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=messages,
                         tools=tools_schema if tools_schema else None,
-                        temperature=0.7,
+                        temperature=0.6,
                         max_tokens=1024,
                     )
-                    return self._extract_response_text(response)
+                    return self._extract_openai_response(response)
 
                 elif api == "openrouter":
+                    tools_schema = self._build_openai_tools_schema()
                     response = client.chat.completions.create(
                         model="meta-llama/llama-3-8b-instruct",
                         messages=messages,
                         tools=tools_schema if tools_schema else None,
                         temperature=0.7,
                         max_tokens=1024,
+                        extra_headers={
+                            "HTTP-Referer": self._settings.app_url,
+                            "X-Title": "Marco AI",
+                        }
                     )
-                    return self._extract_response_text(response)
+                    return self._extract_openai_response(response)
+
+                elif api == "gemini":
+                    # Gemini uses generate_content and its own tool schema
+                    # Simplified: using text-only for now if tool conversion is complex
+                    # Actually, let's try to support it or use text parsing as fallback
+                    response = client.models.generate_content(
+                        model="gemini-1.5-flash",
+                        contents=[{"role": m["role"], "parts": [{"text": m["content"]}]} for m in messages],
+                    )
+                    return response.text
 
             except Exception as e:
                 last_error = e
@@ -262,6 +245,37 @@ IMPORTANT:
                 continue
 
         raise RuntimeError(f"All LLM APIs failed: {last_error}")
+
+    def _build_openai_tools_schema(self) -> List[Dict]:
+        """Convert registry tools to OpenAI function calling format."""
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": t.name,
+                    "description": t.description,
+                    "parameters": t.parameters,
+                }
+            }
+            for t in tool_registry._tools.values()
+        ]
+
+    def _extract_openai_response(self, response) -> str:
+        """Extract text or tool calls from OpenAI-compatible response."""
+        message = response.choices[0].message
+        
+        # Check for native tool calls
+        if hasattr(message, "tool_calls") and message.tool_calls:
+            tool_xml = []
+            for tc in message.tool_calls:
+                # Groq sometimes returns arguments as dict, sometimes string
+                args = tc.function.arguments
+                if not isinstance(args, str):
+                    args = json.dumps(args)
+                tool_xml.append(f"<{tc.function.name}>{args}</{tc.function.name}>")
+            return " ".join(tool_xml)
+
+        return message.content or ""
 
     def _extract_response_text(self, response) -> str:
         """
