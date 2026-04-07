@@ -4,7 +4,7 @@ Google Calendar integration.
 """
 from fastapi import APIRouter, Query, HTTPException, Request
 from typing import Optional
-from ...auth.router import get_session
+from app.auth.router import get_session
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
 
@@ -35,7 +35,7 @@ async def list_events(
         start_date = start_date or today
         end_date = end_date or today
 
-    from ...services.google_calendar import GoogleCalendarService
+    from app.services.google_calendar import GoogleCalendarService
 
     service = GoogleCalendarService(session.get("sub"), session)
     events = service.list_events(start_date, end_date)
@@ -56,7 +56,7 @@ async def create_event(
     if not session:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    from ...services.google_calendar import GoogleCalendarService
+    from app.services.google_calendar import GoogleCalendarService
 
     service = GoogleCalendarService(session.get("sub"), session)
     result = service.create_event(title, start_datetime, end_datetime, description, location)
@@ -73,7 +73,7 @@ async def delete_event(
     if not session:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    from ...services.google_calendar import GoogleCalendarService
+    from app.services.google_calendar import GoogleCalendarService
 
     service = GoogleCalendarService(session.get("sub"), session)
     success = service.delete_event(event_id)

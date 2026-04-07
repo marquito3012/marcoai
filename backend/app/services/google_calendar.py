@@ -25,7 +25,7 @@ class GoogleCalendarService:
         if self._service is None and self._credentials_dict:
             from google.oauth2.credentials import Credentials
             from googleapiclient.discovery import build
-            from ..config import get_settings
+            from app.config import get_settings
 
             settings = get_settings()
             
