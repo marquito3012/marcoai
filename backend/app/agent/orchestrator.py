@@ -21,7 +21,7 @@ class ToolCall:
     """Parsed tool call from LLM response."""
     name: str
     arguments: Dict[str, Any]
-    raw_text: str = ""  # Original parsed text for debugging
+    raw_text: str = ""
 
 
 @dataclass
@@ -38,7 +38,6 @@ class ReActOrchestrator:
     Single-agent ReAct (Reason + Act) orchestrator.
     """
 
-    # System prompt optimized for tool calling
     SYSTEM_PROMPT = """You are Marco AI, a friendly personal assistant.
 You have access to tools for: calendar, finance, habits, shopping, memory.
 
@@ -60,7 +59,6 @@ IMPORTANT:
 
     RESPOND NATURALLY IN {language_name}. Be concise but friendly. Always use {language_name} for your final response to the user."""
 
-    # Maximum ReAct iterations to prevent infinite loops
     MAX_ITERATIONS = 3
 
     def __init__(self, db: Optional[DatabaseManager] = None):
@@ -71,35 +69,23 @@ IMPORTANT:
         self._tools_prompt = tool_registry.list_tools_for_prompt()
 
     def _create_llm_client(self, api: str):
-        """
-        Create a specific LLM client for the requested API.
-        Aligns with specific library versions in requirements.txt.
-        """
         try:
             if api == "groq":
                 from groq import Groq
                 return Groq(api_key=self._settings.groq_api_key)
-
             elif api == "openrouter":
                 from openai import OpenAI
-                return OpenAI(
-                    api_key=self._settings.openrouter_api_key,
-                    base_url="https://openrouter.ai/api/v1"
-                )
-
+                return OpenAI(api_key=self._settings.openrouter_api_key, base_url="https://openrouter.ai/api/v1")
             elif api == "gemini":
                 import google.generativeai as genai
                 genai.configure(api_key=self._settings.gemini_api_key)
                 return genai
-
         except Exception as e:
             logger.error(f"Failed to initialize {api} client: {e}")
             return None
-
         return None
 
     def _parse_tool_calls(self, llm_response: str) -> List[ToolCall]:
-        """Parse tool calls from LLM response."""
         tool_calls = []
         pattern = r'<(\w+)>(\{[^}]*\})</\1>'
         for match in re.finditer(pattern, llm_response):
@@ -114,7 +100,6 @@ IMPORTANT:
         return tool_calls
 
     def _execute_tool(self, call: ToolCall, user_id: str) -> Dict[str, Any]:
-        """Execute a tool call."""
         try:
             result = tool_registry.execute(call.name, user_id=user_id, db=self._db, **call.arguments)
             return {"success": True, "tool": call.name, "result": result, "error": None}
@@ -126,18 +111,20 @@ IMPORTANT:
             return {"success": False, "tool": call.name, "result": None, "error": f"Internal error: {str(e)}"}
 
     def _call_llm(self, messages: List[Dict]) -> str:
-        """Call LLM with API fallback and modular SDK handling."""
         api_order = self._settings.llm_api_order
         if not api_order: api_order = ["groq", "openrouter", "gemini"]
 
-        last_error = None
+        error_log = []
         for api in api_order:
             try:
                 client = self._create_llm_client(api)
-                if not client: continue
+                if not client: 
+                    error_log.append(f"{api}: Client initialization failed")
+                    continue
 
                 if api == "groq":
-                    for model in ["llama-3.3-70b-versatile", "llama3-70b-8192"]:
+                    # Try models stable for v0.4.x SDK
+                    for model in ["llama-3.3-70b-versatile", "llama3-70b-8192", "mixtral-8x7b-32768"]:
                         try:
                             tools_schema = self._build_openai_tools_schema()
                             response = client.chat.completions.create(
@@ -147,31 +134,37 @@ IMPORTANT:
                             return self._extract_openai_response(response)
                         except Exception as e:
                             logger.warning(f"Groq model {model} failed: {e}")
-                            last_error = e
+                            error_log.append(f"Groq ({model}): {str(e)}")
                             continue
 
                 elif api == "openrouter":
                     tools_schema = self._build_openai_tools_schema()
-                    response = client.chat.completions.create(
-                        model="meta-llama/llama-3-8b-instruct", messages=messages,
-                        tools=tools_schema if tools_schema else None,
-                        temperature=0.7, max_tokens=1024,
-                        extra_headers={"HTTP-Referer": self._settings.app_url, "X-Title": "Marco AI"}
-                    )
-                    return self._extract_openai_response(response)
+                    try:
+                        response = client.chat.completions.create(
+                            model="meta-llama/llama-3-8b-instruct:free", messages=messages,
+                            tools=tools_schema if tools_schema else None,
+                            temperature=0.7, max_tokens=1024,
+                            extra_headers={"HTTP-Referer": self._settings.app_url, "X-Title": "Marco AI"}
+                        )
+                        return self._extract_openai_response(response)
+                    except Exception as e:
+                        error_log.append(f"OpenRouter: {str(e)}")
 
                 elif api == "gemini":
-                    model = client.GenerativeModel('gemini-1.5-flash')
-                    response = model.generate_content(messages[-1]["content"])
-                    return response.text
+                    try:
+                        # Use legacy gemini-pro for v0.3.x compatibility
+                        model = client.GenerativeModel('gemini-3.1-flash-lite-preview')
+                        response = model.generate_content(messages[-1]["content"])
+                        return response.text
+                    except Exception as e:
+                        error_log.append(f"Gemini (pro): {str(e)}")
 
             except Exception as e:
-                last_error = e
-                print(f"DEBUG: API {api} call failed: {e}")
-                logger.warning(f"API {api} call failed: {e}")
+                error_log.append(f"{api} (fatal): {str(e)}")
                 continue
 
-        raise RuntimeError(f"All LLM APIs failed. Final Error: {last_error}")
+        # Show ALL errors if all providers fail
+        raise RuntimeError(" | ".join(error_log))
 
     def _build_openai_tools_schema(self) -> List[Dict]:
         return [{"type": "function", "function": {"name": t.name, "description": t.description, "parameters": t.parameters}} for t in tool_registry._tools.values()]
@@ -189,7 +182,7 @@ IMPORTANT:
 
     def _build_messages(self, user_input: str, language: str = "en") -> List[Dict]:
         lang_name = "Spanish" if language == "es" else "English"
-        system_prompt = self.SYSTEM_PROMPT.format(tools=self._available_tools, language_name=lang_name)
+        system_prompt = self.SYSTEM_PROMPT.format(tools=self._tools_prompt, language_name=lang_name)
         return [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_input}]
 
     async def process(self, user_input: str, user_id: str, language: str = "en", conversation_id: Optional[str] = None) -> Dict:
@@ -206,8 +199,8 @@ IMPORTANT:
                 llm_response = await self._call_llm_async(messages)
             except Exception as e:
                 logger.error(f"LLM call failed: {e}")
-                error_msg = f"I'm having trouble connecting right now ({str(e)}). Please try again."
-                return {"conversation_id": conversation_id, "response": error_msg, "error": str(e), "tool_calls": 0, "iterations": iteration_count}
+                err_str = str(e) or "Unknown Error"
+                return {"conversation_id": conversation_id, "response": f"I'm having trouble connecting right now. [{err_str}]", "error": err_str, "tool_calls": 0, "iterations": iteration_count}
 
             tool_calls = self._parse_tool_calls(llm_response)
             if not tool_calls:
