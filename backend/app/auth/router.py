@@ -68,6 +68,8 @@ SCOPES = [
     "openid",
     "email",
     "profile",
+    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/calendar.events",
 ]
 
 
@@ -97,7 +99,7 @@ async def login(request: Request):
         "response_type": "code",
         "scope": " ".join(SCOPES),
         "access_type": "offline",
-        "prompt": "select_account",
+        "prompt": "select_account consent",
     }
     url = f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
     return RedirectResponse(url=url)
@@ -148,16 +150,18 @@ async def callback(request: Request, code: str = "", error: str = ""):
 
     userinfo = userinfo_resp.json()
 
-    # Build minimal user object (don't store raw tokens in cookie)
-    user = {
-        "id": userinfo.get("id"),
+    # Store session info including tokens for services
+    session_data = {
+        "sub": userinfo.get("id"),
         "email": userinfo.get("email"),
         "name": userinfo.get("name"),
         "picture": userinfo.get("picture"),
+        "access_token": tokens.get("access_token"),
+        "refresh_token": tokens.get("refresh_token"),
     }
 
     response = RedirectResponse(url="/", status_code=303)
-    set_session(response, user)
+    set_session(response, session_data)
     return response
 
 

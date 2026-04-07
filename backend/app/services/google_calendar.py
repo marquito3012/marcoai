@@ -15,20 +15,34 @@ class GoogleCalendarService:
     Credentials loaded only when first used.
     """
 
-    def __init__(self, user_id: str):
+    def __init__(self, user_id: str, credentials_dict: Optional[Dict[str, Any]] = None):
         self._user_id = user_id
+        self._credentials_dict = credentials_dict
         self._service = None
 
     def _get_service(self):
         """Lazy service initialization."""
-        if self._service is None:
+        if self._service is None and self._credentials_dict:
             from google.oauth2.credentials import Credentials
             from googleapiclient.discovery import build
+            from ...config import get_settings
 
-            # TODO: Implement proper OAuth token storage/retrieval
-            # For now, this is a placeholder for the service initialization
-            # Tokens should be stored in user_preferences or a dedicated tokens table
-            logger.warning("Google Calendar OAuth not fully implemented")
+            settings = get_settings()
+            
+            # Reconstruct Credentials object
+            creds = Credentials(
+                token=self._credentials_dict.get("access_token"),
+                refresh_token=self._credentials_dict.get("refresh_token"),
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=settings.google_client_id,
+                client_secret=settings.google_client_secret,
+                scopes=["https://www.googleapis.com/auth/calendar.readonly", "https://www.googleapis.com/auth/calendar.events"]
+            )
+            
+            try:
+                self._service = build('calendar', 'v3', credentials=creds)
+            except Exception as e:
+                logger.error(f"Failed to build Calendar service: {e}")
 
         return self._service
 
