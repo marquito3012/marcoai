@@ -146,8 +146,8 @@ async def chat(request: Request):
 # Root endpoint — serve the SPA (requires auth)
 @app.get("/")
 async def root(request: Request):
-    """Root endpoint — redirects to /auth/login if not authenticated."""
+    """Root endpoint — serves login.html if not authenticated, else index.html."""
     from .auth.router import get_session
     if not get_session(request):
-        return RedirectResponse(url="/auth/login")
+        return FileResponse(str(STATIC_DIR / "login.html"))
     return FileResponse(str(STATIC_DIR / "index.html"))
