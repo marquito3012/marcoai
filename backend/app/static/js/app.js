@@ -35,25 +35,26 @@ const Settings = (() => {
   }
 
   function open() {
-    console.log("[Settings] open() triggered!");
-    alert("MODAL TRIGGERED! If you see this, JS is working.");
-    document.body.style.background = "yellow"; // Nuclear visual check
     const modal = document.getElementById('modal-settings');
     if (modal) {
       modal.style.display = 'flex';
       modal.style.zIndex = '9999999';
       document.body.style.overflow = 'hidden';
-      console.log("[Settings] Modal style set to flex.");
-    } else {
-      console.error("[Settings] CRITICAL: modal-settings element not found!");
+      // Trigger a small delay to ensure CSS transitions play if any
+      requestAnimationFrame(() => {
+        modal.classList.add('is-open');
+      });
     }
   }
 
   function close() {
     const modal = document.getElementById('modal-settings');
     if (modal) {
-      modal.style.display = 'none';
-      document.body.style.overflow = '';
+      modal.classList.remove('is-open');
+      setTimeout(() => {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+      }, 300);
     }
   }
 
