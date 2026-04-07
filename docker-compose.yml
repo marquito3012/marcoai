@@ -18,14 +18,15 @@ services:
     volumes:
       # Persist data directory (SQLite database)
       - marcoai_data:/app/data
-    # Memory limits for Raspberry Pi 3
-    deploy:
-      resources:
-        limits:
-          memory: 512M
     # Health check
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
