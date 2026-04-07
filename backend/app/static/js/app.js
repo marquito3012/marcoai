@@ -1,22 +1,22 @@
 /* ============================================================
-   Settings Module (Pro Max Refinement)
+   Settings Module (Pro Max Refinement v11)
    ============================================================ */
 const Settings = (() => {
   let currentLang = localStorage.getItem('marco_language') || 'en';
 
   function init() {
-    console.log("[Settings] Module initialized.");
+    console.log("[Settings] Module v11 initialized.");
     
     const btnNav = document.getElementById('btn-settings-nav');
     if (btnNav) {
-      // Remove any existing listeners first to be safe
-      btnNav.removeEventListener('click', open);
+      // Clean start: remove any potential pre-existing handlers
+      btnNav.onclick = null; 
       btnNav.addEventListener('click', open);
     }
 
     const langBtns = document.querySelectorAll('.lang-btn');
     langBtns.forEach(btn => {
-      // Set initial state
+      // Set initial UI state from persistence
       if (btn.dataset.lang === currentLang) {
         btn.classList.add('active');
         btn.setAttribute('aria-checked', 'true');
@@ -25,7 +25,8 @@ const Settings = (() => {
         btn.setAttribute('aria-checked', 'false');
       }
 
-      btn.addEventListener('click', (e) => {
+      // Selection logic with visual feedback
+      btn.addEventListener('click', () => {
         langBtns.forEach(b => {
           b.classList.remove('active');
           b.setAttribute('aria-checked', 'false');
@@ -33,7 +34,6 @@ const Settings = (() => {
         btn.classList.add('active');
         btn.setAttribute('aria-checked', 'true');
         currentLang = btn.dataset.lang;
-        console.log("[Settings] Language selected:", currentLang);
       });
     });
 
@@ -44,13 +44,12 @@ const Settings = (() => {
   }
 
   function open() {
-    console.log("[Settings] Opening modal...");
     const modal = document.getElementById('modal-settings');
     if (modal) {
       modal.style.display = 'flex';
       modal.style.zIndex = '9999999';
       document.body.style.overflow = 'hidden';
-      // CSS handle transition via .is-open
+      // CSS handles the smooth slide/fade via .is-open
       requestAnimationFrame(() => {
         modal.classList.add('is-open');
       });
@@ -70,14 +69,14 @@ const Settings = (() => {
 
   function save() {
     localStorage.setItem('marco_language', currentLang);
-    console.log("[Settings] Saved language:", currentLang);
     close();
     
+    // Notify the user in the new language if Chat is ready
     if (typeof Chat !== 'undefined' && Chat.addBubble) {
       if (currentLang === 'es') {
-        Chat.addBubble('Configuración guardada. Ahora hablaré en español.', 'assistant');
+        Chat.addBubble('Configuración guardada. Marco hablará en español.', 'assistant');
       } else {
-        Chat.addBubble('Settings saved. I will now speak in English.', 'assistant');
+        Chat.addBubble('Settings saved. Marco will now speak in English.', 'assistant');
       }
     }
   }
@@ -129,16 +128,11 @@ const Auth = (() => {
 })();
 
 /* ============================================================
-   Config & Helpers
+   Dashboard Ecosystem (v11)
    ============================================================ */
 const API_BASE = '/api';
-const USER_ID = localStorage.getItem('marco_user_id') || generateUserId();
-
-function generateUserId() {
-  const id = 'user-' + crypto.randomUUID().slice(0, 8);
-  localStorage.setItem('marco_user_id', id);
-  return id;
-}
+const USER_ID = localStorage.getItem('marco_user_id') || ('user-' + crypto.randomUUID().slice(0,8));
+localStorage.setItem('marco_user_id', USER_ID);
 
 async function api(method, path, body = null) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
@@ -148,73 +142,46 @@ async function api(method, path, body = null) {
   return await res.json();
 }
 
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => document.querySelectorAll(sel);
-
-function el(tag, attrs = {}, children = []) {
-  const node = document.createElement(tag);
+const $ = (s) => document.querySelector(s);
+const el = (tag, attrs = {}, children = []) => {
+  const n = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
-    if (k === 'className') node.className = v;
-    else if (k === 'textContent') node.textContent = v;
-    else if (k === 'innerHTML') node.innerHTML = v;
-    else if (k.startsWith('on')) node.addEventListener(k.slice(2).toLowerCase(), v);
-    else node.setAttribute(k, v);
+    if (k === 'className') n.className = v;
+    else if (k === 'textContent') n.textContent = v;
+    else if (k === 'innerHTML') n.innerHTML = v;
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2).toLowerCase(), v);
+    else n.setAttribute(k, v);
   }
-  for (const c of children) {
-    if (typeof c === 'string') node.appendChild(document.createTextNode(c));
-    else if (c) node.appendChild(c);
-  }
-  return node;
-}
-
-function formatCurrency(amount) {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(amount || 0);
-}
-
-function formatDate(date) {
-  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-}
-
-function formatDateISO(date) { return date.toISOString().slice(0, 10); }
-function nowTime() { return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }); }
-
-const ICONS = {
-  check: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  children.forEach(c => {
+    if (typeof c === 'string') n.appendChild(document.createTextNode(c));
+    else if (c) n.appendChild(c);
+  });
+  return n;
 };
 
-function showSkeleton(container, count = 2) {
-  container.innerHTML = Array(count).fill('<div class="skeleton-block"></div>').join('');
-}
+const formatCurrency = (a) => new Intl.NumberFormat('es-ES', { style:'currency', currency:'EUR'}).format(a || 0);
 
-/* ============================================================
-   Chat Module
-   ============================================================ */
+/* --- Chat --- */
 const Chat = (() => {
   let messagesEl, inputEl, sendEl, welcomeEl;
   let isLoading = false;
 
   function init() {
-    messagesEl = $('#chat-messages');
-    inputEl = $('#chat-input');
-    sendEl = $('#chat-send');
-    welcomeEl = $('#chat-welcome');
+    messagesEl = $('#chat-messages'); inputEl = $('#chat-input');
+    sendEl = $('#chat-send'); welcomeEl = $('#chat-welcome');
 
     if (sendEl) sendEl.onclick = send;
     if (inputEl) {
-      inputEl.onkeydown = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          send();
-        }
-      };
+      inputEl.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
     }
   }
 
   function addBubble(text, role) {
     if (welcomeEl) welcomeEl.style.display = 'none';
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
     const bubble = el('div', { className: `chat-bubble ${role}` }, [
       document.createTextNode(text),
-      el('span', { className: 'bubble-time', textContent: nowTime() }),
+      el('span', { className: 'bubble-time', textContent: time }),
     ]);
     messagesEl.appendChild(bubble);
     messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -224,143 +191,100 @@ const Chat = (() => {
   async function send() {
     const message = inputEl.value.trim();
     if (!message || isLoading) return;
-    inputEl.value = '';
-    addBubble(message, 'user');
-    isLoading = true;
-    inputEl.disabled = true;
-    sendEl.disabled = true;
+    inputEl.value = ''; addBubble(message, 'user');
+    isLoading = true; inputEl.disabled = true; sendEl.disabled = true;
 
     try {
-      const data = await api('POST', '/chat', {
-        message, user_id: USER_ID, language: Settings.getLanguage(),
-      });
+      const data = await api('POST', '/chat', { message, user_id: USER_ID, language: Settings.getLanguage() });
       addBubble(data.response || 'No response.', 'assistant');
       Calendar.refresh(); Finance.refresh(); Habits.refresh();
     } catch (e) {
       addBubble(`Error: ${e.message}`, 'assistant');
     } finally {
-      isLoading = false;
-      inputEl.disabled = false;
-      sendEl.disabled = false;
-      inputEl.focus();
+      isLoading = false; inputEl.disabled = false; sendEl.disabled = false; inputEl.focus();
     }
   }
-
   return { init, addBubble };
 })();
 
-/* ============================================================
-   Calendar Module
-   ============================================================ */
+/* --- Calendar --- */
 const Calendar = (() => {
-  let currentDate = new Date();
-  let listEl, dateEl;
+  let cur = new Date();
+  let list, date;
 
   function init() {
-    listEl = $('#event-list');
-    dateEl = $('#cal-date');
-    $('#cal-prev').onclick = () => { currentDate.setDate(currentDate.getDate()-1); refresh(); };
-    $('#cal-next').onclick = () => { currentDate.setDate(currentDate.getDate()+1); refresh(); };
+    list = $('#event-list'); date = $('#cal-date');
+    $('#cal-prev').onclick = () => { cur.setDate(cur.getDate()-1); refresh(); };
+    $('#cal-next').onclick = () => { cur.setDate(cur.getDate()+1); refresh(); };
     refresh();
   }
 
   async function refresh() {
-    dateEl.textContent = formatDate(currentDate);
-    showSkeleton(listEl, 1);
+    date.textContent = cur.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    list.innerHTML = '<div class="skeleton-block"></div>';
     try {
-      const data = await api('GET', `/calendar/events?date=${formatDateISO(currentDate)}&user_id=${USER_ID}`);
-      render(data.events || []);
-    } catch (e) {
-      listEl.innerHTML = '<p class="p-4 text-center text-txt-m text-xs italic">Calendar not connected.</p>';
-    }
+      const d = await api('GET', `/calendar/events?date=${cur.toISOString().slice(0,10)}&user_id=${USER_ID}`);
+      render(d.events || []);
+    } catch (_) { list.innerHTML = '<p class="p-4 text-center text-txt-m text-xs italic">Not connected.</p>'; }
   }
 
-  function render(events) {
-    listEl.innerHTML = '';
-    if (events.length === 0) {
-      listEl.innerHTML = '<p class="p-4 text-center text-txt-m text-xs italic">No events.</p>';
-      return;
-    }
-    events.forEach((ev) => {
-      const time = ev.start ? new Date(ev.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-      listEl.appendChild(el('div', { className: 'event-item' }, [
-        el('span', { className: 'event-time', textContent: time }),
-        el('span', { className: 'event-title', textContent: ev.summary || 'Untitled' }),
+  function render(evs) {
+    list.innerHTML = '';
+    if (evs.length === 0) { list.innerHTML = '<p class="p-4 text-center text-txt-m text-xs italic">Free day!</p>'; return; }
+    evs.forEach(e => {
+      const t = e.start ? new Date(e.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+      list.appendChild(el('div', { className: 'event-item' }, [
+        el('span', { className: 'event-time', textContent: t }),
+        el('span', { className: 'event-title', textContent: e.summary || 'Untitled' }),
       ]));
     });
   }
   return { init, refresh };
 })();
 
-/* ============================================================
-   Finance Module
-   ============================================================ */
+/* --- Finance --- */
 const Finance = (() => {
-  let monthEl, incomeEl, expenseEl, balanceEl;
-  function init() {
-    monthEl = $('#finance-month'); incomeEl = $('#finance-income');
-    expenseEl = $('#finance-expense'); balanceEl = $('#finance-balance');
-    refresh();
-  }
+  let mEl, iEl, eEl, bEl;
+  function init() { mEl=$('#finance-month'); iEl=$('#finance-income'); eEl=$('#finance-expense'); bEl=$('#finance-balance'); refresh(); }
   async function refresh() {
-    const now = new Date();
-    const month = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-    monthEl.textContent = month;
+    const now = new Date(); const m = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`; mEl.textContent = m;
     try {
-      const data = await api('GET', `/finance/balance?month=${month}&user_id=${USER_ID}`);
-      incomeEl.textContent = formatCurrency(data.income);
-      expenseEl.textContent = formatCurrency(data.expense);
-      balanceEl.textContent = formatCurrency(data.balance);
-    } catch (e) {
-      incomeEl.textContent = formatCurrency(0); expenseEl.textContent = formatCurrency(0); balanceEl.textContent = formatCurrency(0);
-    }
+      const d = await api('GET', `/finance/balance?month=${m}&user_id=${USER_ID}`);
+      iEl.textContent = formatCurrency(d.income); eEl.textContent = formatCurrency(d.expense); bEl.textContent = formatCurrency(d.balance);
+    } catch (_) { iEl.textContent=eEl.textContent=bEl.textContent=formatCurrency(0); }
   }
   return { init, refresh };
 })();
 
-/* ============================================================
-   Habits Module
-   ============================================================ */
+/* --- Habits --- */
 const Habits = (() => {
-  let listEl, streakEl, streakContainer;
-  function init() {
-    listEl = $('#habit-list'); streakEl = $('#streak-count'); streakContainer = $('#habit-streak');
-    refresh();
-  }
+  let list, streak, sCont;
+  function init() { list=$('#habit-list'); streak=$('#streak-count'); sCont=$('#habit-streak'); refresh(); }
   async function refresh() {
-    showSkeleton(listEl, 1);
+    list.innerHTML = '<div class="skeleton-block"></div>';
     try {
-      const data = await api('GET', `/habits?user_id=${USER_ID}`);
-      render(data.habits || []);
-    } catch (e) {
-      listEl.innerHTML = '<p class="p-4 text-center text-txt-m text-xs italic">No habits.</p>';
-    }
+      const d = await api('GET', `/habits?user_id=${USER_ID}`); render(d.habits || []);
+    } catch (_) { list.innerHTML = ''; }
   }
-  function render(habits) {
-    listEl.innerHTML = '';
-    habits.forEach((habit) => {
-      const completed = !!habit.completed;
-      listEl.appendChild(el('div', { 
-        className: `habit-item ${completed ? 'completed' : ''}`,
-        onclick: () => toggle(habit.name)
-      }, [
-        el('div', { className: 'habit-checkbox', innerHTML: ICONS.check }),
-        el('span', { className: 'habit-name', textContent: habit.name }),
+  function render(hbs) {
+    list.innerHTML = ''; hbs.forEach(h => {
+      const c = !!h.completed;
+      list.appendChild(el('div', { className: `habit-item ${c?'completed':''}`, onclick: () => tg(h.name) }, [
+        el('div', { className: 'habit-checkbox', innerHTML: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' }),
+        el('span', { className: 'habit-name', textContent: h.name }),
       ]));
     });
-    streakContainer.style.display = habits.length > 0 ? 'flex' : 'none';
-    streakEl.textContent = `${habits.filter(h=>h.completed).length}/${habits.length} done`;
+    sCont.style.display = hbs.length > 0 ? 'flex' : 'none';
+    streak.textContent = `${hbs.filter(x=>x.completed).length}/${hbs.length} done`;
   }
-  async function toggle(name) {
-    await api('POST', '/habits/track', { habit_name: name, date: formatDateISO(new Date()), user_id: USER_ID });
+  async function tg(n) {
+    await api('POST', '/habits/track', { habit_name: n, date: new Date().toISOString().slice(0,10), user_id: USER_ID });
     refresh();
   }
   return { init, refresh };
 })();
 
-/* ============================================================
-   Boot
-   ============================================================ */
+/* --- Boot --- */
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof lucide !== 'undefined') lucide.createIcons();
   [Auth, Settings, Chat, Calendar, Finance, Habits].forEach(m => {
