@@ -203,6 +203,7 @@ const Chat = (() => {
       const data = await api('POST', '/chat', {
         message,
         user_id: USER_ID,
+        language: Settings.getLanguage(),
       });
       hideLoading();
       addBubble(data.response || 'No response received.', 'assistant');
@@ -402,6 +403,67 @@ const Habits = (() => {
 })();
 
 /* ============================================================
+   Settings Module
+   ============================================================ */
+const Settings = (() => {
+  let modalEl, closeBtn, saveBtn, langBtns;
+  let currentLang = localStorage.getItem('marco_language') || 'en';
+
+  function init() {
+    modalEl = $('#modal-settings');
+    closeBtn = $('#settings-close');
+    saveBtn = $('#settings-save');
+    langBtns = $$('.lang-btn');
+
+    $('#btn-settings').addEventListener('click', open);
+    closeBtn.addEventListener('click', close);
+    saveBtn.addEventListener('click', save);
+
+    langBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        langBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentLang = btn.dataset.lang;
+      });
+    });
+
+    // Set initial UI state
+    langBtns.forEach(btn => {
+      if (btn.dataset.lang === currentLang) btn.classList.add('active');
+      else btn.classList.remove('active');
+    });
+  }
+
+  function open() {
+    modalEl.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function close() {
+    modalEl.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  function save() {
+    localStorage.setItem('marco_language', currentLang);
+    close();
+    
+    // Add a feedback bubble in chat if it's open
+    if (currentLang === 'es') {
+      Chat.addBubble('Configuración guardada. Ahora hablaré en español.', 'assistant');
+    } else {
+      Chat.addBubble('Settings saved. I will now speak in English.', 'assistant');
+    }
+  }
+
+  function getLanguage() {
+    return currentLang;
+  }
+
+  return { init, getLanguage };
+})();
+
+/* ============================================================
    Boot
    ============================================================ */
 document.addEventListener('DOMContentLoaded', () => {
@@ -412,6 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize all modules
   Auth.init();
+  Settings.init();
   Chat.init();
   Calendar.init();
   Finance.init();

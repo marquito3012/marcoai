@@ -78,7 +78,7 @@ IMPORTANT:
 - If a tool fails, try a different approach or ask for clarification
 - Be conversational and helpful
 
-RESPOND NATURALLY IN ENGLISH. Be concise but friendly."""
+    RESPOND NATURALLY IN {language_name}. Be concise but friendly. Always use {language_name} for your final response to the user."""
 
     # Maximum ReAct iterations to prevent infinite loops
     MAX_ITERATIONS = 3
@@ -281,9 +281,13 @@ RESPOND NATURALLY IN ENGLISH. Be concise but friendly."""
         # Return text content
         return message.content or ""
 
-    def _build_messages(self, user_input: str) -> List[Dict]:
+    def _build_messages(self, user_input: str, language: str = "en") -> List[Dict]:
         """Build message list for LLM."""
-        system_prompt = self.SYSTEM_PROMPT.format(tools=self._tools_prompt)
+        lang_name = "Spanish" if language == "es" else "English"
+        system_prompt = self.SYSTEM_PROMPT.format(
+            tools=self._tools_prompt,
+            language_name=lang_name
+        )
         return [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_input},
@@ -293,6 +297,7 @@ RESPOND NATURALLY IN ENGLISH. Be concise but friendly."""
         self,
         user_input: str,
         user_id: str,
+        language: str = "en",
         conversation_id: Optional[str] = None,
     ) -> Dict:
         """
@@ -314,7 +319,7 @@ RESPOND NATURALLY IN ENGLISH. Be concise but friendly."""
         import uuid
 
         conversation_id = conversation_id or str(uuid.uuid4())
-        messages = self._build_messages(user_input)
+        messages = self._build_messages(user_input, language=language)
 
         # ReAct loop with iteration limit
         iteration_count = 0

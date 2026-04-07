@@ -103,6 +103,7 @@ async def chat(request: Request):
         body = await request.json()
         user_input = body.get("message", "")
         user_id = body.get("user_id")
+        language = body.get("language", "en")
 
         if not user_id:
             raise HTTPException(status_code=400, detail="user_id required")
@@ -116,6 +117,7 @@ async def chat(request: Request):
         response = await orchestrator.process(
             user_input=user_input,
             user_id=user_id,
+            language=language
         )
 
         return JSONResponse(content=response)
