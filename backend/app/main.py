@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -23,6 +23,7 @@ from .modules.habits.router import router as habits_router
 from .modules.food.router import router as food_router
 from .modules.leisure.router import router as leisure_router
 from .modules.rag.router import router as rag_router
+from .auth.router import router as auth_router
 
 # Configure logging for low overhead
 logging.basicConfig(
@@ -59,16 +60,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware (only what's needed)
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 
 # Include module routers
+app.include_router(auth_router)          # /auth/login, /auth/callback, /auth/me
 app.include_router(calendar_router, prefix="/api")
 app.include_router(finance_router, prefix="/api")
 app.include_router(habits_router, prefix="/api")
@@ -128,8 +130,11 @@ async def chat(request: Request):
         )
 
 
-# Root endpoint — serve the SPA
+# Root endpoint — serve the SPA (requires auth)
 @app.get("/")
-async def root():
-    """Root endpoint - serves the frontend SPA."""
+async def root(request: Request):
+    """Root endpoint — redirects to /auth/login if not authenticated."""
+    from .auth.router import get_session
+    if not get_session(request):
+        return RedirectResponse(url="/auth/login")
     return FileResponse(str(STATIC_DIR / "index.html"))

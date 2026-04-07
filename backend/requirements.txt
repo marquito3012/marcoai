@@ -28,5 +28,8 @@ pydantic-settings==2.1.0
 # HTTP client (lightweight)
 httpx==0.26.0
 
+# Session cookies (secure signed cookies for auth)
+itsdangerous==2.1.2
+
 # Note: Avoid heavy packages like langchain, llama-index
 # Keep dependencies minimal for Raspberry Pi 3

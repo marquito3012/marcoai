@@ -60,7 +60,19 @@
       <span class="logo-dot" aria-hidden="true"></span>
       <span class="font-mono font-bold text-lg text-txt">Marco AI</span>
     </div>
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-2">
+      <!-- User profile (shown when logged in) -->
+      <div id="nav-user" class="flex items-center gap-2.5" style="display:none !important">
+        <img id="nav-avatar" src="" alt="Profile picture"
+             class="w-8 h-8 rounded-full border border-white/10 object-cover">
+        <span id="nav-name" class="text-sm text-txt-2 font-sans hidden sm:block"></span>
+        <a href="/auth/logout"
+           class="p-2 rounded-lg text-txt-2 hover:text-rose hover:bg-white/5 transition-colors duration-200"
+           title="Sign out"
+           aria-label="Sign out">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+        </a>
+      </div>
       <button type="button" id="btn-settings" aria-label="Settings"
               class="p-2 rounded-lg text-txt-2 hover:text-txt hover:bg-white/5 transition-colors duration-200">
         <i data-lucide="settings" class="w-5 h-5"></i>

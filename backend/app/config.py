@@ -19,6 +19,7 @@ class Settings:
         '_google_client_id', '_google_client_secret',
         '_default_model', '_fallback_model',
         '_max_memory_mb', '_sqlite_cache_size',
+        '_secret_key', '_app_url',
     )
 
     def __init__(self):
@@ -46,6 +47,10 @@ class Settings:
         # Google OAuth
         self._google_client_id = os.getenv("GOOGLE_CLIENT_ID", "")
         self._google_client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
+
+        # Session security & public URL
+        self._secret_key = os.getenv("SECRET_KEY", "change-me-in-production-use-random-32-chars")
+        self._app_url = os.getenv("APP_URL", "http://localhost:8000")
 
         # Memory limits - CRITICAL for Raspberry Pi 3
         self._max_memory_mb = int(os.getenv("MAX_MEMORY_MB", "512"))
@@ -102,6 +107,14 @@ class Settings:
     @property
     def google_client_secret(self) -> Optional[str]:
         return self._google_client_secret
+
+    @property
+    def secret_key(self) -> str:
+        return self._secret_key
+
+    @property
+    def app_url(self) -> str:
+        return self._app_url
 
     @property
     def max_memory_mb(self) -> int:

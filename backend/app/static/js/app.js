@@ -1,14 +1,47 @@
-/**
- * Marco AI — Frontend Application
- * Pure Vanilla JS, no frameworks. Optimized for Raspberry Pi 3.
- *
- * Modules:
- *  - API: fetch wrapper with error handling
- *  - Chat: send/receive messages, loading states, auto-scroll
- *  - Calendar: event list, day navigation, real API calls
- *  - Finance: monthly balance summary from API
- *  - Habits: today's habits with completion toggle from API
- */
+/* ============================================================
+   Auth Module
+   ============================================================ */
+const Auth = (() => {
+  async function init() {
+    try {
+      const res = await fetch('/auth/me');
+      if (!res.ok) return;
+      const user = await res.json();
+      renderUser(user);
+    } catch (_) {
+      // Network error — do nothing, server-side redirect already handles unauth
+    }
+  }
+
+  function renderUser(user) {
+    const navUser = document.getElementById('nav-user');
+    const avatar = document.getElementById('nav-avatar');
+    const name = document.getElementById('nav-name');
+
+    if (!navUser || !user) return;
+
+    if (user.picture) {
+      avatar.src = user.picture;
+      avatar.alt = user.name || 'User';
+    } else {
+      avatar.style.display = 'none';
+    }
+
+    if (user.name) {
+      name.textContent = user.name;
+    } else if (user.email) {
+      name.textContent = user.email;
+    }
+
+    // Fade in
+    navUser.style.removeProperty('display');
+    navUser.style.opacity = '0';
+    navUser.style.transition = 'opacity 300ms ease';
+    requestAnimationFrame(() => { navUser.style.opacity = '1'; });
+  }
+
+  return { init };
+})();
 
 /* ============================================================
    Config
@@ -378,6 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Initialize all modules
+  Auth.init();
   Chat.init();
   Calendar.init();
   Finance.init();
