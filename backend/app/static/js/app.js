@@ -10,6 +10,7 @@ const Translations = {
     lang_desc: "Marco will adapt his thinking and responses to your preferred language.",
     welcome: "Hey! I'm <strong>Marco</strong>. Ask me anything — manage your calendar, check your budget, or track a habit.",
     settings_saved: "Settings saved. Marco will now speak in English.",
+    chat_placeholder: "Type a message...",
     no_events: "Free day! Enjoy your time.",
     no_habits: "No habits set yet. Ask Marco to add one!",
     loading: "Thinking..."
@@ -22,6 +23,7 @@ const Translations = {
     lang_desc: "Marco adaptará su razonamiento y respuestas a tu idioma preferido.",
     welcome: "¡Hola! Soy <strong>Marco</strong>. Pregúntame lo que quieras — gestiona tu calendario, revisa tu presupuesto o sigue un hábito.",
     settings_saved: "Configuración guardada. Marco hablará en español.",
+    chat_placeholder: "Escribe un mensaje...",
     no_events: "¡Día libre! Disfruta de tu tiempo.",
     no_habits: "Aún no hay hábitos. ¡Pídele a Marco que añada uno!",
     loading: "Pensando..."
@@ -73,13 +75,14 @@ const Settings = (() => {
       'label-income': 'income', 'label-expense': 'expense', 'label-balance': 'balance',
       'label-today': 'today', 'nav-prev': 'prev', 'nav-next': 'next',
       'label-settings': 'settings', 'label-agent-lang': 'agent_lang', 'label-save': 'save',
-      'label-lang-desc': 'lang_desc', 'welcome-text': 'welcome'
+      'label-lang-desc': 'lang_desc', 'welcome-text': 'welcome', 'chat-input': 'chat_placeholder'
     };
 
     for (const [id, key] of Object.entries(map)) {
       const el = document.getElementById(id);
       if (el) {
         if (key === 'welcome') el.innerHTML = t[key];
+        else if (key === 'chat_placeholder') el.placeholder = t[key];
         else el.textContent = t[key];
       }
     }
