@@ -153,13 +153,15 @@ const Chat = (() => {
     sendEl = $('#chat-send');
     welcomeEl = $('#chat-welcome');
 
-    sendEl.addEventListener('click', send);
-    inputEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        send();
-      }
-    });
+    if (sendEl) sendEl.addEventListener('click', send);
+    if (inputEl) {
+      inputEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          send();
+        }
+      });
+    }
   }
 
   function addBubble(text, role) {
@@ -415,33 +417,40 @@ const Settings = (() => {
     saveBtn = $('#settings-save');
     langBtns = $$('.lang-btn');
 
-    $('#btn-settings').addEventListener('click', open);
-    closeBtn.addEventListener('click', close);
-    saveBtn.addEventListener('click', save);
+    const btnSettings = $('#btn-settings');
+    if (btnSettings) btnSettings.addEventListener('click', open);
+    if (closeBtn) closeBtn.addEventListener('click', close);
+    if (saveBtn) saveBtn.addEventListener('click', save);
 
-    langBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        langBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentLang = btn.dataset.lang;
+    if (langBtns) {
+      langBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          langBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentLang = btn.dataset.lang;
+        });
       });
-    });
 
-    // Set initial UI state
-    langBtns.forEach(btn => {
-      if (btn.dataset.lang === currentLang) btn.classList.add('active');
-      else btn.classList.remove('active');
-    });
+      // Set initial UI state
+      langBtns.forEach(btn => {
+        if (btn.dataset.lang === currentLang) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+    }
   }
 
   function open() {
-    modalEl.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
+    if (modalEl) {
+      modalEl.style.setProperty('display', 'flex', 'important');
+      document.body.style.overflow = 'hidden';
+    }
   }
 
   function close() {
-    modalEl.style.display = 'none';
-    document.body.style.overflow = '';
+    if (modalEl) {
+      modalEl.style.display = 'none';
+      document.body.style.overflow = '';
+    }
   }
 
   function save() {
@@ -472,11 +481,21 @@ document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
   }
 
-  // Initialize all modules
-  Auth.init();
-  Settings.init();
-  Chat.init();
-  Calendar.init();
-  Finance.init();
-  Habits.init();
+  // Initialize all modules with safety wrappers
+  const modules = [
+    { name: 'Auth',     init: Auth.init },
+    { name: 'Settings', init: Settings.init },
+    { name: 'Chat',     init: Chat.init },
+    { name: 'Calendar', init: Calendar.init },
+    { name: 'Finance',  init: Finance.init },
+    { name: 'Habits',   init: Habits.init },
+  ];
+
+  modules.forEach(m => {
+    try {
+      m.init();
+    } catch (e) {
+      console.error(`[App] Failed to init module: ${m.name}`, e);
+    }
+  });
 });
