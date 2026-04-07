@@ -5,11 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Marco AI — Your personal AI assistant dashboard for calendar, finance, and habits.">
   <title>Marco AI</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+
+  <!-- Fonts: Fira Code (headings/data) + Fira Sans (body) -->
 
   <!-- Fonts: Fira Code (headings/data) + Fira Sans (body) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    // Console Sanitization (Suppress Tailwind Play CDN production warning)
+    (function() {
+      const _warn = console.warn;
+      console.warn = function(...args) {
+        if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
+        _warn.apply(console, args);
+      };
+    })();
+  </script>
 
   <!-- Tailwind CSS Play CDN (no build step) -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -215,7 +229,7 @@
     </article>
   </div>
 
-  <!-- App Script (v13 Pro-Max chat-placeholder) -->
-  <script src="/static/js/app.js?v=13"></script>
+  <!-- App Script (v14 Pro-Max console-clean) -->
+  <script src="/static/js/app.js?v=14"></script>
 </body>
 </html>

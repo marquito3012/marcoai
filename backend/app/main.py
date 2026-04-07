@@ -12,6 +12,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from .config import get_settings
 from .database import DatabaseManager, get_db
@@ -52,6 +53,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     logger.info("Shutting down...")
 
 
+# Security Headers Middleware (Fixes Google OAuth origin errors)
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
+        return response
+
+
 # Create FastAPI app with minimal middleware
 app = FastAPI(
     title="Marco AI",
@@ -59,6 +68,8 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 # CORS middleware
 app.add_middleware(
