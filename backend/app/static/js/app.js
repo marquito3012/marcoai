@@ -1,4 +1,73 @@
 /* ============================================================
+   Settings Module (Defined first for global access)
+   ============================================================ */
+const Settings = (() => {
+  let modalEl, closeBtn, saveBtn, langBtns;
+  let currentLang = localStorage.getItem('marco_language') || 'en';
+
+  function init() {
+    console.log("[Settings] Initializing module...");
+    modalEl = $('#modal-settings');
+    closeBtn = $('#settings-close');
+    saveBtn = $('#settings-save');
+    langBtns = $$('.lang-btn');
+
+    const btnSettings = $('#btn-settings-nav');
+    if (btnSettings) btnSettings.addEventListener('click', open);
+    if (closeBtn) closeBtn.addEventListener('click', close);
+    if (saveBtn) saveBtn.addEventListener('click', save);
+
+    if (langBtns) {
+      langBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          langBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentLang = btn.dataset.lang;
+        });
+      });
+
+      // Set initial UI state
+      langBtns.forEach(btn => {
+        if (btn.dataset.lang === currentLang) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+    }
+  }
+
+  function open() {
+    if (modalEl) {
+      modalEl.style.setProperty('display', 'flex', 'important');
+      modalEl.style.zIndex = '9999';
+      document.body.style.overflow = 'hidden';
+    }
+  }
+
+  function close() {
+    if (modalEl) {
+      modalEl.style.display = 'none';
+      document.body.style.overflow = '';
+    }
+  }
+
+  function save() {
+    localStorage.setItem('marco_language', currentLang);
+    close();
+    if (currentLang === 'es') {
+      Chat.addBubble('Configuración guardada. Ahora hablaré en español.', 'assistant');
+    } else {
+      Chat.addBubble('Settings saved. I will now speak in English.', 'assistant');
+    }
+  }
+
+  function getLanguage() {
+    return currentLang;
+  }
+
+  window.Settings = { init, getLanguage, open, close };
+  return window.Settings;
+})();
+
+/* ============================================================
    Auth Module
    ============================================================ */
 const Auth = (() => {
@@ -404,88 +473,6 @@ const Habits = (() => {
   return { init, refresh };
 })();
 
-/* ============================================================
-   Settings Module
-   ============================================================ */
-const Settings = (() => {
-  let modalEl, closeBtn, saveBtn, langBtns;
-  let currentLang = localStorage.getItem('marco_language') || 'en';
-
-  function init() {
-    console.log("[Settings] Initializing module...");
-    modalEl = $('#modal-settings');
-    closeBtn = $('#settings-close');
-    saveBtn = $('#settings-save');
-    langBtns = $$('.lang-btn');
-
-    console.log("[Settings] Elements found:", { 
-      modal: !!modalEl, 
-      closeBtn: !!closeBtn, 
-      saveBtn: !!saveBtn, 
-      langBtns: langBtns.length 
-    });
-
-    const btnSettings = $('#btn-settings');
-    if (btnSettings) btnSettings.addEventListener('click', open);
-    if (closeBtn) closeBtn.addEventListener('click', close);
-    if (saveBtn) saveBtn.addEventListener('click', save);
-
-    if (langBtns) {
-      langBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-          langBtns.forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          currentLang = btn.dataset.lang;
-        });
-      });
-
-      // Set initial UI state
-      langBtns.forEach(btn => {
-        if (btn.dataset.lang === currentLang) btn.classList.add('active');
-        else btn.classList.remove('active');
-      });
-    }
-  }
-
-  function open() {
-    console.log("[Settings] Attempting to open modal...");
-    if (modalEl) {
-      modalEl.style.setProperty('display', 'flex', 'important');
-      modalEl.style.zIndex = '9999'; // Force it to the top
-      document.body.style.overflow = 'hidden';
-      console.log("[Settings] Modal set to flex/important");
-    } else {
-      console.error("[Settings] Cannot open: modalEl is null");
-    }
-  }
-
-  function close() {
-    console.log("[Settings] Closing modal...");
-    if (modalEl) {
-      modalEl.style.display = 'none';
-      document.body.style.overflow = '';
-    }
-  }
-
-  function save() {
-    localStorage.setItem('marco_language', currentLang);
-    close();
-    
-    // Add a feedback bubble in chat if it's open
-    if (currentLang === 'es') {
-      Chat.addBubble('Configuración guardada. Ahora hablaré en español.', 'assistant');
-    } else {
-      Chat.addBubble('Settings saved. I will now speak in English.', 'assistant');
-    }
-  }
-
-  function getLanguage() {
-    return currentLang;
-  }
-
-  window.Settings = { init, getLanguage, open, close };
-  return window.Settings;
-})();
 
 /* ============================================================
    Boot
