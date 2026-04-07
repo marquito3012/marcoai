@@ -93,7 +93,7 @@ IMPORTANT:
     def _create_llm_client(self, api: str):
         """
         Create a specific LLM client for the requested API.
-        Does not pre-test connection to avoid initialization overhead.
+        Aligns with specific library versions in requirements.txt.
         """
         try:
             if api == "groq":
@@ -108,8 +108,9 @@ IMPORTANT:
                 )
 
             elif api == "gemini":
-                from google import genai
-                return genai.Client(api_key=self._settings.gemini_api_key)
+                import google.generativeai as genai
+                genai.configure(api_key=self._settings.gemini_api_key)
+                return genai  # Return the module for v0.3.x usage
 
         except Exception as e:
             logger.error(f"Failed to initialize {api} client: {e}")
@@ -203,16 +204,22 @@ IMPORTANT:
                     continue
 
                 if api == "groq":
-                    # Build Groq-specific schema
-                    tools_schema = self._build_openai_tools_schema()
-                    response = client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=messages,
-                        tools=tools_schema if tools_schema else None,
-                        temperature=0.6,
-                        max_tokens=1024,
-                    )
-                    return self._extract_openai_response(response)
+                    # Try primary then reliable fallback model
+                    for model in ["llama-3.3-70b-versatile", "llama3-70b-8192"]:
+                        try:
+                            tools_schema = self._build_openai_tools_schema()
+                            response = client.chat.completions.create(
+                                model=model,
+                                messages=messages,
+                                tools=tools_schema if tools_schema else None,
+                                temperature=0.6,
+                                max_tokens=1024,
+                            )
+                            return self._extract_openai_response(response)
+                        except Exception as e:
+                            logger.warning(f"Groq model {model} failed: {e}")
+                            last_error = e
+                            continue
 
                 elif api == "openrouter":
                     tools_schema = self._build_openai_tools_schema()
@@ -230,13 +237,16 @@ IMPORTANT:
                     return self._extract_openai_response(response)
 
                 elif api == "gemini":
-                    # Gemini uses generate_content and its own tool schema
-                    # Simplified: using text-only for now if tool conversion is complex
-                    # Actually, let's try to support it or use text parsing as fallback
-                    response = client.models.generate_content(
-                        model="gemini-1.5-flash",
-                        contents=[{"role": m["role"], "parts": [{"text": m["content"]}]} for m in messages],
-                    )
+                    # Correct usage for google-generativeai v0.3.x
+                    model = client.GenerativeModel('gemini-1.5-flash')
+                    # Convert messages [role: user/assistant, content: ...] 
+                    # to [role: user/model, parts: [text: ...]]
+                    history = []
+                    for m in messages[:-1]:
+                        role = "model" if m["role"] == "assistant" else "user"
+                        history.append({"role": role, "parts": [m["content"]]})
+                    
+                    response = model.generate_content(messages[-1]["content"])
                     return response.text
 
             except Exception as e:
@@ -245,7 +255,6 @@ IMPORTANT:
                 continue
 
         raise RuntimeError(f"All LLM APIs failed: {last_error}")
-
     def _build_openai_tools_schema(self) -> List[Dict]:
         """Convert registry tools to OpenAI function calling format."""
         return [
