@@ -31,6 +31,8 @@ services:
       # Google OAuth
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - SECRET_KEY=${SECRET_KEY:-}
+      - APP_URL=${APP_URL:-}
     # Health check
     healthcheck:
       test:
