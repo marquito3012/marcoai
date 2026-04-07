@@ -154,10 +154,16 @@ const Auth = (() => {
     if (user.picture) { avatar.src = user.picture; avatar.alt = user.name || 'User'; }
     if (user.name) name.textContent = user.name;
     
-    // Sync identity (v20 sync)
+    // Sync identity (v21 sync + persistence)
     if (user.sub) {
       USER_ID = user.sub;
-      console.log("[Auth] Identity synced:", USER_ID);
+      localStorage.setItem('marco_user_id', USER_ID);
+      console.log("[Auth] Identity synced & persisted:", USER_ID);
+      
+      // Force refresh of all components with correct ID
+      if (window.Finance) Finance.refresh();
+      if (window.Calendar) Calendar.refresh();
+      if (window.Habits) Habits.refresh();
     }
 
     navUser.style.removeProperty('display');
