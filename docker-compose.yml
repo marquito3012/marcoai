@@ -9,6 +9,7 @@ services:
       dockerfile: Dockerfile
     container_name: marcoai
     restart: unless-stopped
+    env_file: ./backend/.env
     # Port 8000 is only exposed locally for development.
     # In production via Cloudflare Tunnel, comment this out.
     ports:
@@ -59,6 +60,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: marcoai-tunnel
     restart: unless-stopped
+    env_file: ./backend/.env
     command: tunnel --no-autoupdate run
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
