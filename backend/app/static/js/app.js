@@ -36,14 +36,16 @@ const Settings = (() => {
 
   function open() {
     console.log("[Settings] open() triggered!");
+    alert("MODAL TRIGGERED! If you see this, JS is working.");
+    document.body.style.background = "yellow"; // Nuclear visual check
     const modal = document.getElementById('modal-settings');
     if (modal) {
       modal.style.display = 'flex';
-      modal.style.zIndex = '99999';
+      modal.style.zIndex = '9999999';
       document.body.style.overflow = 'hidden';
-      console.log("[Settings] Modal should now be visible.");
+      console.log("[Settings] Modal style set to flex.");
     } else {
-      console.error("[Settings] CRITICAL: modal-settings element not found in DOM!");
+      console.error("[Settings] CRITICAL: modal-settings element not found!");
     }
   }
 
