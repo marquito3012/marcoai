@@ -1,36 +1,57 @@
 /* ============================================================
-   Settings Module (Pro Max Refinement v11)
+   Translations Module (i18n v12)
+   ============================================================ */
+const Translations = {
+  en: {
+    calendar: "CALENDAR", finance: "FINANCE", habits: "HABITS", chat: "CHAT",
+    income: "Income", expense: "Expenses", balance: "Balance",
+    today: "Today", prev: "Prev", next: "Next", status: "Online",
+    settings: "Settings", agent_lang: "Agent Language", save: "Save Changes",
+    lang_desc: "Marco will adapt his thinking and responses to your preferred language.",
+    welcome: "Hey! I'm <strong>Marco</strong>. Ask me anything — manage your calendar, check your budget, or track a habit.",
+    settings_saved: "Settings saved. Marco will now speak in English.",
+    no_events: "Free day! Enjoy your time.",
+    no_habits: "No habits set yet. Ask Marco to add one!",
+    loading: "Thinking..."
+  },
+  es: {
+    calendar: "CALENDARIO", finance: "FINANZAS", habits: "HÁBITOS", chat: "CHAT",
+    income: "Ingresos", expense: "Gastos", balance: "Balance",
+    today: "Hoy", prev: "Ant", next: "Sig", status: "En línea",
+    settings: "Ajustes", agent_lang: "Idioma del Agente", save: "Guardar Cambios",
+    lang_desc: "Marco adaptará su razonamiento y respuestas a tu idioma preferido.",
+    welcome: "¡Hola! Soy <strong>Marco</strong>. Pregúntame lo que quieras — gestiona tu calendario, revisa tu presupuesto o sigue un hábito.",
+    settings_saved: "Configuración guardada. Marco hablará en español.",
+    no_events: "¡Día libre! Disfruta de tu tiempo.",
+    no_habits: "Aún no hay hábitos. ¡Pídele a Marco que añada uno!",
+    loading: "Pensando..."
+  }
+};
+
+/* ============================================================
+   Settings Module (Pro Max i18n v12)
    ============================================================ */
 const Settings = (() => {
   let currentLang = localStorage.getItem('marco_language') || 'en';
 
   function init() {
-    console.log("[Settings] Module v11 initialized.");
-    
+    console.log("[Settings] Module v12 (i18n) initialized.");
+    updateUI(); // Initial translation apply
+
     const btnNav = document.getElementById('btn-settings-nav');
     if (btnNav) {
-      // Clean start: remove any potential pre-existing handlers
       btnNav.onclick = null; 
       btnNav.addEventListener('click', open);
     }
 
     const langBtns = document.querySelectorAll('.lang-btn');
     langBtns.forEach(btn => {
-      // Set initial UI state from persistence
-      if (btn.dataset.lang === currentLang) {
-        btn.classList.add('active');
-        btn.setAttribute('aria-checked', 'true');
-      } else {
-        btn.classList.remove('active');
-        btn.setAttribute('aria-checked', 'false');
-      }
+      const active = btn.dataset.lang === currentLang;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-checked', active ? 'true' : 'false');
 
-      // Selection logic with visual feedback
       btn.addEventListener('click', () => {
-        langBtns.forEach(b => {
-          b.classList.remove('active');
-          b.setAttribute('aria-checked', 'false');
-        });
+        langBtns.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-checked', 'false'); });
         btn.classList.add('active');
         btn.setAttribute('aria-checked', 'true');
         currentLang = btn.dataset.lang;
@@ -43,16 +64,45 @@ const Settings = (() => {
     if (saveBtn) saveBtn.onclick = save;
   }
 
+  function updateUI() {
+    const t = Translations[currentLang] || Translations.en;
+    
+    // Header labels
+    const map = {
+      'header-calendar': 'calendar', 'header-finance': 'finance', 'header-habits': 'habits', 'header-chat': 'chat',
+      'label-income': 'income', 'label-expense': 'expense', 'label-balance': 'balance',
+      'label-today': 'today', 'nav-prev': 'prev', 'nav-next': 'next',
+      'label-settings': 'settings', 'label-agent-lang': 'agent_lang', 'label-save': 'save',
+      'label-lang-desc': 'lang_desc', 'welcome-text': 'welcome'
+    };
+
+    for (const [id, key] of Object.entries(map)) {
+      const el = document.getElementById(id);
+      if (el) {
+        if (key === 'welcome') el.innerHTML = t[key];
+        else el.textContent = t[key];
+      }
+    }
+
+    // Status label (special case)
+    const statusEl = document.getElementById('chat-status');
+    if (statusEl) {
+      const dot = '<span class="w-1.5 h-1.5 rounded-full bg-emerald"></span> ';
+      statusEl.innerHTML = dot + t.status;
+    }
+
+    // Refresh components to apply localized dates/messages
+    if (window.Calendar && Calendar.refresh) Calendar.refresh();
+    if (window.Finance && Finance.refresh) Finance.refresh();
+    if (window.Habits && Habits.refresh) Habits.refresh();
+  }
+
   function open() {
     const modal = document.getElementById('modal-settings');
     if (modal) {
       modal.style.display = 'flex';
-      modal.style.zIndex = '9999999';
+      requestAnimationFrame(() => modal.classList.add('is-open'));
       document.body.style.overflow = 'hidden';
-      // CSS handles the smooth slide/fade via .is-open
-      requestAnimationFrame(() => {
-        modal.classList.add('is-open');
-      });
     }
   }
 
@@ -60,32 +110,24 @@ const Settings = (() => {
     const modal = document.getElementById('modal-settings');
     if (modal) {
       modal.classList.remove('is-open');
-      setTimeout(() => {
-        modal.style.display = 'none';
-        document.body.style.overflow = '';
-      }, 300);
+      setTimeout(() => { modal.style.display = 'none'; document.body.style.overflow = ''; }, 300);
     }
   }
 
   function save() {
     localStorage.setItem('marco_language', currentLang);
+    updateUI();
     close();
     
-    // Notify the user in the new language if Chat is ready
     if (typeof Chat !== 'undefined' && Chat.addBubble) {
-      if (currentLang === 'es') {
-        Chat.addBubble('Configuración guardada. Marco hablará en español.', 'assistant');
-      } else {
-        Chat.addBubble('Settings saved. Marco will now speak in English.', 'assistant');
-      }
+      const t = Translations[currentLang] || Translations.en;
+      Chat.addBubble(t.settings_saved, 'assistant');
     }
   }
 
-  function getLanguage() {
-    return currentLang;
-  }
+  function getLanguage() { return currentLang; }
 
-  window.Settings = { init, getLanguage, open, close };
+  window.Settings = { init, getLanguage, open, close, updateUI };
   return window.Settings;
 })();
 
@@ -101,34 +143,23 @@ const Auth = (() => {
       renderUser(user);
     } catch (_) {}
   }
-
   function renderUser(user) {
     const navUser = document.getElementById('nav-user');
     const avatar = document.getElementById('nav-avatar');
     const name = document.getElementById('nav-name');
-
     if (!navUser || !user) return;
-    if (user.picture) {
-      avatar.src = user.picture;
-      avatar.alt = user.name || 'User';
-    } else {
-      avatar.style.display = 'none';
-    }
-
+    if (user.picture) { avatar.src = user.picture; avatar.alt = user.name || 'User'; }
     if (user.name) name.textContent = user.name;
-    else if (user.email) name.textContent = user.email;
-
     navUser.style.removeProperty('display');
     navUser.style.opacity = '0';
     navUser.style.transition = 'opacity 300ms ease';
-    requestAnimationFrame(() => { navUser.style.opacity = '1'; });
+    requestAnimationFrame(() => navUser.style.opacity = '1');
   }
-
   return { init };
 })();
 
 /* ============================================================
-   Dashboard Ecosystem (v11)
+   Dashboard Modules (v12 i18n)
    ============================================================ */
 const API_BASE = '/api';
 const USER_ID = localStorage.getItem('marco_user_id') || ('user-' + crypto.randomUUID().slice(0,8));
@@ -159,50 +190,38 @@ const el = (tag, attrs = {}, children = []) => {
   return n;
 };
 
-const formatCurrency = (a) => new Intl.NumberFormat('es-ES', { style:'currency', currency:'EUR'}).format(a || 0);
+const formatCurrency = (a) => {
+  const lang = Settings.getLanguage() === 'es' ? 'es-ES' : 'en-US';
+  return new Intl.NumberFormat(lang, { style:'currency', currency:'EUR'}).format(a || 0);
+};
 
 /* --- Chat --- */
 const Chat = (() => {
   let messagesEl, inputEl, sendEl, welcomeEl;
   let isLoading = false;
-
   function init() {
-    messagesEl = $('#chat-messages'); inputEl = $('#chat-input');
-    sendEl = $('#chat-send'); welcomeEl = $('#chat-welcome');
-
+    messagesEl = $('#chat-messages'); inputEl = $('#chat-input'); sendEl = $('#chat-send'); welcomeEl = $('#chat-welcome');
     if (sendEl) sendEl.onclick = send;
-    if (inputEl) {
-      inputEl.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
-    }
+    if (inputEl) inputEl.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
   }
-
   function addBubble(text, role) {
     if (welcomeEl) welcomeEl.style.display = 'none';
-    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-    const bubble = el('div', { className: `chat-bubble ${role}` }, [
-      document.createTextNode(text),
-      el('span', { className: 'bubble-time', textContent: time }),
+    const time = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', hour12:false });
+    const bubble = el('div', { className:`chat-bubble ${role}` }, [
+      document.createTextNode(text), el('span', { className:'bubble-time', textContent:time })
     ]);
-    messagesEl.appendChild(bubble);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-    return bubble;
+    messagesEl.appendChild(bubble); messagesEl.scrollTop = messagesEl.scrollHeight;
   }
-
   async function send() {
-    const message = inputEl.value.trim();
-    if (!message || isLoading) return;
-    inputEl.value = ''; addBubble(message, 'user');
+    const msg = inputEl.value.trim(); if (!msg || isLoading) return;
+    inputEl.value = ''; addBubble(msg, 'user');
     isLoading = true; inputEl.disabled = true; sendEl.disabled = true;
-
     try {
-      const data = await api('POST', '/chat', { message, user_id: USER_ID, language: Settings.getLanguage() });
-      addBubble(data.response || 'No response.', 'assistant');
+      const d = await api('POST', '/chat', { message:msg, user_id:USER_ID, language:Settings.getLanguage() });
+      addBubble(d.response || 'No response.', 'assistant');
       Calendar.refresh(); Finance.refresh(); Habits.refresh();
-    } catch (e) {
-      addBubble(`Error: ${e.message}`, 'assistant');
-    } finally {
-      isLoading = false; inputEl.disabled = false; sendEl.disabled = false; inputEl.focus();
-    }
+    } catch (e) { addBubble(`Error: ${e.message}`, 'assistant'); }
+    finally { isLoading = false; inputEl.disabled = false; sendEl.disabled = false; inputEl.focus(); }
   }
   return { init, addBubble };
 })();
@@ -210,32 +229,29 @@ const Chat = (() => {
 /* --- Calendar --- */
 const Calendar = (() => {
   let cur = new Date();
-  let list, date;
-
+  let listEl, dateEl;
   function init() {
-    list = $('#event-list'); date = $('#cal-date');
-    $('#cal-prev').onclick = () => { cur.setDate(cur.getDate()-1); refresh(); };
-    $('#cal-next').onclick = () => { cur.setDate(cur.getDate()+1); refresh(); };
+    listEl = $('#event-list'); dateEl = $('#cal-date');
+    if ($('#cal-prev')) $('#cal-prev').onclick = () => { cur.setDate(cur.getDate()-1); refresh(); };
+    if ($('#cal-next')) $('#cal-next').onclick = () => { cur.setDate(cur.getDate()+1); refresh(); };
     refresh();
   }
-
   async function refresh() {
-    date.textContent = cur.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-    list.innerHTML = '<div class="skeleton-block"></div>';
+    const lang = Settings.getLanguage() === 'es' ? 'es-ES' : 'en-US';
+    dateEl.textContent = cur.toLocaleDateString(lang, { weekday:'short', month:'short', day:'numeric' });
     try {
       const d = await api('GET', `/calendar/events?date=${cur.toISOString().slice(0,10)}&user_id=${USER_ID}`);
       render(d.events || []);
-    } catch (_) { list.innerHTML = '<p class="p-4 text-center text-txt-m text-xs italic">Not connected.</p>'; }
+    } catch (_) { render([]); }
   }
-
   function render(evs) {
-    list.innerHTML = '';
-    if (evs.length === 0) { list.innerHTML = '<p class="p-4 text-center text-txt-m text-xs italic">Free day!</p>'; return; }
+    listEl.innerHTML = ''; const t = Translations[Settings.getLanguage()] || Translations.en;
+    if (evs.length === 0) { listEl.innerHTML = `<p class="p-4 text-center text-txt-m text-[11px] italic">${t.no_events}</p>`; return; }
     evs.forEach(e => {
-      const t = e.start ? new Date(e.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-      list.appendChild(el('div', { className: 'event-item' }, [
-        el('span', { className: 'event-time', textContent: t }),
-        el('span', { className: 'event-title', textContent: e.summary || 'Untitled' }),
+      const tm = e.start ? new Date(e.start).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : '';
+      listEl.appendChild(el('div', { className:'event-item' }, [
+        el('span', { className:'event-time', textContent:tm }),
+        el('span', { className:'event-title', textContent:e.summary || 'Untitled' })
       ]));
     });
   }
@@ -258,27 +274,26 @@ const Finance = (() => {
 
 /* --- Habits --- */
 const Habits = (() => {
-  let list, streak, sCont;
-  function init() { list=$('#habit-list'); streak=$('#streak-count'); sCont=$('#habit-streak'); refresh(); }
+  let listEl, sEl, sCont;
+  function init() { listEl=$('#habit-list'); sEl=$('#streak-count'); sCont=$('#habit-streak'); refresh(); }
   async function refresh() {
-    list.innerHTML = '<div class="skeleton-block"></div>';
-    try {
-      const d = await api('GET', `/habits?user_id=${USER_ID}`); render(d.habits || []);
-    } catch (_) { list.innerHTML = ''; }
+    try { const d = await api('GET', `/habits?user_id=${USER_ID}`); render(d.habits || []); } catch (_) { render([]); }
   }
   function render(hbs) {
-    list.innerHTML = ''; hbs.forEach(h => {
-      const c = !!h.completed;
-      list.appendChild(el('div', { className: `habit-item ${c?'completed':''}`, onclick: () => tg(h.name) }, [
-        el('div', { className: 'habit-checkbox', innerHTML: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' }),
-        el('span', { className: 'habit-name', textContent: h.name }),
+    listEl.innerHTML = ''; const t = Translations[Settings.getLanguage()] || Translations.en;
+    if (hbs.length === 0) { listEl.innerHTML = `<p class="p-4 text-center text-txt-m text-[11px] italic">${t.no_habits}</p>`; return; }
+    hbs.forEach(h => {
+      listEl.appendChild(el('div', { className:`habit-item ${h.completed?'completed':''}`, onclick:()=>tg(h.name) }, [
+        el('div', { className:'habit-checkbox', innerHTML:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' }),
+        el('span', { className:'habit-name', textContent:h.name })
       ]));
     });
     sCont.style.display = hbs.length > 0 ? 'flex' : 'none';
-    streak.textContent = `${hbs.filter(x=>x.completed).length}/${hbs.length} done`;
+    const done = hbs.filter(x=>x.completed).length;
+    sEl.textContent = `${done}/${hbs.length} ${Settings.getLanguage()==='es'?'completados':'done'}`;
   }
   async function tg(n) {
-    await api('POST', '/habits/track', { habit_name: n, date: new Date().toISOString().slice(0,10), user_id: USER_ID });
+    await api('POST', '/habits/track', { habit_name:n, date:new Date().toISOString().slice(0,10), user_id:USER_ID });
     refresh();
   }
   return { init, refresh };
@@ -287,7 +302,5 @@ const Habits = (() => {
 /* --- Boot --- */
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof lucide !== 'undefined') lucide.createIcons();
-  [Auth, Settings, Chat, Calendar, Finance, Habits].forEach(m => {
-    try { m.init(); } catch (e) { console.error(`[App] Failed: ${m.name}`, e); }
-  });
+  [Auth, Settings, Chat, Calendar, Finance, Habits].forEach(m => { try { m.init(); } catch (e) { console.error(e); } });
 });

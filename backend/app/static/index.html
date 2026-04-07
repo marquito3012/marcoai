@@ -49,8 +49,8 @@
   <!-- Lucide Icons (SVG icon library via CDN) -->
   <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js" defer></script>
 
-  <!-- Custom styles (v11 Pro-Max cache-bust) -->
-  <link rel="stylesheet" href="/static/css/style.css?v=11">
+  <!-- Custom styles (v12 i18n + layout-fix cache-bust) -->
+  <link rel="stylesheet" href="/static/css/style.css?v=12">
 </head>
 <body class="bg-deep text-txt font-sans min-h-screen overflow-x-hidden">
 
@@ -73,7 +73,6 @@
           <i data-lucide="log-out" class="w-4 h-4"></i>
         </a>
       </div>
-      <!-- Clean settings button (no onclick, listener in app.js) -->
       <button type="button" id="btn-settings-nav" aria-label="Settings"
               class="p-2 rounded-lg text-txt-2 hover:text-txt hover:bg-white/5 transition-colors duration-200">
         <i data-lucide="settings" class="w-5 h-5"></i>
@@ -90,19 +89,19 @@
       <!-- CALENDAR CARD -->
       <article class="card" id="card-calendar">
         <div class="card-header">
-          <h2><i data-lucide="calendar"></i> Calendar</h2>
+          <h2 id="header-calendar">CALENDAR</h2>
         </div>
         <div id="calendar-content">
           <div id="event-list">
             <div class="skeleton-block"></div>
           </div>
-          <div class="calendar-nav">
-            <button type="button" id="cal-prev" aria-label="Previous day" class="cal-nav-btn">
-              <i data-lucide="chevron-left"></i> Prev
+          <div class="calendar-nav flex items-center justify-between mt-4 px-2">
+            <button type="button" id="cal-prev" aria-label="Previous day" class="cal-nav-btn text-xs flex items-center gap-1 text-txt-2 hover:text-white transition-colors">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i> <span id="nav-prev">Prev</span>
             </button>
-            <span class="font-mono text-sm text-txt" id="cal-date"></span>
-            <button type="button" id="cal-next" aria-label="Next day" class="cal-nav-btn">
-              Next <i data-lucide="chevron-right"></i>
+            <span class="font-mono text-[11px] text-txt" id="cal-date"></span>
+            <button type="button" id="cal-next" aria-label="Next day" class="cal-nav-btn text-xs flex items-center gap-1 text-txt-2 hover:text-white transition-colors">
+              <span id="nav-next">Next</span> <i data-lucide="chevron-right" class="w-4 h-4"></i>
             </button>
           </div>
         </div>
@@ -111,37 +110,37 @@
       <!-- FINANCE CARD -->
       <article class="card" id="card-finance">
         <div class="card-header">
-          <h2><i data-lucide="wallet"></i> Finance</h2>
-          <span class="text-sm text-txt-m font-mono" id="finance-month"></span>
+          <h2 id="header-finance">FINANCE</h2>
+          <span class="text-[11px] text-txt-m font-mono" id="finance-month"></span>
         </div>
-        <div class="grid grid-cols-2 gap-2.5 mb-3">
-          <div class="finance-stat income">
-            <div class="label">Income</div>
-            <div class="value" id="finance-income">—</div>
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div class="finance-stat income p-3 rounded-xl bg-white/[0.03] border border-white/5">
+            <div class="label text-[10px] text-txt-m uppercase tracking-widest mb-1" id="label-income">Income</div>
+            <div class="value font-mono text-emerald text-base font-bold" id="finance-income">—</div>
           </div>
-          <div class="finance-stat expense">
-            <div class="label">Expenses</div>
-            <div class="value" id="finance-expense">—</div>
+          <div class="finance-stat expense p-3 rounded-xl bg-white/[0.03] border border-white/5">
+            <div class="label text-[10px] text-txt-m uppercase tracking-widest mb-1" id="label-expense">Expenses</div>
+            <div class="value font-mono text-rose text-base font-bold" id="finance-expense">—</div>
           </div>
         </div>
-        <div class="finance-balance">
-          <div class="label">Balance</div>
-          <div class="value" id="finance-balance">—</div>
+        <div class="finance-balance p-3 rounded-xl bg-accent/5 border border-accent/10 flex justify-between items-center">
+          <div class="label text-[10px] text-txt-2 uppercase tracking-widest font-bold" id="label-balance">Balance</div>
+          <div class="value font-mono text-white text-lg font-bold" id="finance-balance">—</div>
         </div>
       </article>
 
       <!-- HABITS CARD -->
       <article class="card" id="card-habits">
         <div class="card-header">
-          <h2><i data-lucide="heart-pulse"></i> Habits</h2>
-          <span class="text-sm text-txt-m">Today</span>
+          <h2 id="header-habits">HABITS</h2>
+          <span class="text-[11px] text-txt-m uppercase tracking-wider" id="label-today">Today</span>
         </div>
         <div id="habit-list">
           <div class="skeleton-block"></div>
         </div>
-        <div class="habit-streak" id="habit-streak" style="display:none">
-          <i data-lucide="flame"></i>
-          <span id="streak-count"></span>
+        <div class="habit-streak mt-4 px-3 py-2 rounded-lg bg-amber/5 border border-amber/10 flex items-center gap-2" id="habit-streak" style="display:none">
+          <i data-lucide="flame" class="w-3.5 h-3.5 text-amber"></i>
+          <span id="streak-count" class="text-[11px] text-amber/90 font-bold uppercase tracking-wide"></span>
         </div>
       </article>
 
@@ -149,24 +148,28 @@
 
     <!-- RIGHT COLUMN: CHAT -->
     <section class="panel-right">
-      <article class="card chat-panel" id="card-chat">
+      <article class="card chat-panel h-full flex flex-col" id="card-chat">
         <div class="card-header">
-          <h2><i data-lucide="message-circle"></i> Chat</h2>
-          <span class="text-xs text-txt-m" id="chat-status">Online</span>
+          <h2 id="header-chat">CHAT</h2>
+          <span class="flex items-center gap-1.5 text-[10px] text-emerald font-bold uppercase tracking-widest bg-emerald/10 px-2 py-0.5 rounded-full" id="chat-status">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald"></span> Online
+          </span>
         </div>
 
-        <div class="chat-messages" id="chat-messages" role="log" aria-live="polite">
-          <div class="chat-welcome" id="chat-welcome">
-            <i data-lucide="sparkles"></i>
-            <p>Hey! I'm <strong>Marco</strong>. Ask me anything — manage your calendar, check your budget, or track a habit.</p>
+        <div class="chat-messages flex-1 overflow-y-auto mb-4 pr-1" id="chat-messages" role="log" aria-live="polite">
+          <div class="chat-welcome flex flex-col items-center justify-center h-full text-center p-6 opacity-40" id="chat-welcome">
+            <i data-lucide="sparkles" class="w-10 h-10 mb-4 text-accent"></i>
+            <p class="text-sm leading-relaxed" id="welcome-text">Hey! I'm <strong>Marco</strong>. Ask me anything — manage your calendar, check your budget, or track a habit.</p>
           </div>
         </div>
 
-        <div class="chat-input-bar">
+        <div class="chat-input-bar relative group">
           <label for="chat-input" class="sr-only">Type a message</label>
-          <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off">
-          <button type="button" id="chat-send" aria-label="Send message">
-            <i data-lucide="send-horizontal"></i>
+          <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off"
+                 class="w-full bg-white/[0.05] border border-white/5 rounded-2xl py-3.5 pl-5 pr-14 text-sm focus:outline-none focus:border-accent/40 focus:bg-white/[0.08] transition-all">
+          <button type="button" id="chat-send" aria-label="Send message"
+                  class="absolute right-2 top-1.5 p-2 bg-accent hover:bg-accent-d text-white rounded-xl transition-all shadow-lg shadow-accent/20">
+            <i data-lucide="send-horizontal" class="w-5 h-5"></i>
           </button>
         </div>
       </article>
@@ -174,11 +177,11 @@
 
   </main>
 
-  <!-- ========== SETTINGS MODAL (v11) ========== -->
+  <!-- ========== SETTINGS MODAL (v12 i18n) ========== -->
   <div id="modal-settings" class="modal-overlay" style="display:none">
     <article class="modal-content card max-w-sm w-full mx-4 overflow-hidden">
       <div class="card-header border-b border-white/5 pb-4 mb-5">
-        <h2 class="flex items-center gap-2 text-white font-mono uppercase tracking-wider text-sm">
+        <h2 class="flex items-center gap-2 text-white font-mono uppercase tracking-wider text-sm" id="label-settings">
           <i data-lucide="settings" class="w-4 h-4 text-accent"></i> Settings
         </h2>
         <button type="button" id="settings-close" class="p-1.5 hover:bg-white/10 rounded-lg transition-all" aria-label="Close settings">
@@ -189,7 +192,7 @@
       <div class="space-y-6">
         <!-- Language Selection -->
         <div class="space-y-4">
-          <label class="text-xs font-bold text-txt-m uppercase tracking-widest block">Agent Language</label>
+          <label class="text-[10px] font-bold text-txt-m uppercase tracking-widest block" id="label-agent-lang">Agent Language</label>
           <div class="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Select language">
             <button type="button" data-lang="en" class="lang-btn" role="radio" aria-checked="false">
               <span>English</span>
@@ -200,19 +203,19 @@
               <i data-lucide="check-circle" class="w-4 h-4 check-icon text-accent"></i>
             </button>
           </div>
-          <p class="text-[11px] text-txt-m leading-relaxed italic">Marco will adapt his thinking and responses to your preferred language.</p>
+          <p class="text-[11px] text-txt-m leading-relaxed italic" id="label-lang-desc">Marco will adapt his thinking and responses to your preferred language.</p>
         </div>
       </div>
 
       <div class="mt-8 pt-5 border-t border-white/5 flex justify-end">
         <button type="button" id="settings-save" class="px-6 py-2.5 bg-accent hover:bg-accent-d text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-accent/20">
-          Save Changes
+          <span id="label-save">Save Changes</span>
         </button>
       </div>
     </article>
   </div>
 
-  <!-- App Script (v11 Pro-Max cache-bust) -->
-  <script src="/static/js/app.js?v=11"></script>
+  <!-- App Script (v12 i18n cache-bust) -->
+  <script src="/static/js/app.js?v=12"></script>
 </body>
 </html>
