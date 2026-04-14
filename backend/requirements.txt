@@ -1,35 +1,33 @@
-# Marco AI Backend Requirements
-# Memory-efficient dependencies for Raspberry Pi 3 (1GB RAM)
+# ── Web Framework ────────────────────────────────────────────────────────────
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+python-multipart==0.0.20        # file upload support
 
-# Core framework
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-python-multipart==0.0.6
+# ── Auth & Security ──────────────────────────────────────────────────────────
+python-jose[cryptography]==3.4.0
+passlib[bcrypt]==1.7.4
+httpx==0.28.1                   # OAuth token exchange
+google-auth==2.40.0
+google-auth-oauthlib==1.2.1
 
-# Database
-# sqlite-vec is loaded as extension, not pip package
+# ── Database ─────────────────────────────────────────────────────────────────
+sqlalchemy==2.0.40
+alembic==1.15.2
+aiosqlite==0.21.0
 
-# LLM Clients
-groq==0.4.2
-openai==1.12.0
-google-generativeai==0.3.2
-google-api-python-client==2.118.0
-google-auth-httplib2==0.2.0
-google-auth-oauthlib==1.2.0
+# ── AI / LLM ─────────────────────────────────────────────────────────────────
+langgraph==0.4.1
+langchain-core==0.3.56
+langchain-community==0.3.23
+langchain-google-genai==2.1.4
+langchain-groq==0.3.2
+openai==1.78.0                  # used via OpenRouter base_url override
+tiktoken==0.8.0                 # 0.9.x has no wheels for Python 3.14
 
-# Embeddings (optional, for RAG)
-# sentence-transformers==2.3.1  # Uncomment if RAG semantic search needed
+# ── Environment ──────────────────────────────────────────────────────────────
+python-dotenv==1.1.0
 
-# Utilities
-python-dotenv==1.0.0
-pydantic==2.6.0
-pydantic-settings==2.1.0
-
-# HTTP client (lightweight)
-httpx==0.26.0
-
-# Session cookies (secure signed cookies for auth)
-itsdangerous==2.1.2
-
-# Note: Avoid heavy packages like langchain, llama-index
-# Keep dependencies minimal for Raspberry Pi 3
+# ── Utilities ────────────────────────────────────────────────────────────────
+pydantic==2.10.6                # last stable with pre-built wheels everywhere
+pydantic-settings==2.7.1        # compatible with pydantic 2.10.x
+tenacity==9.1.2                 # retry/fallback logic

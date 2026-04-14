@@ -1,56 +1,69 @@
-# Marco AI Docker Compose
-# Single-container deployment for Raspberry Pi 3
-# + Cloudflare Tunnel for remote access (no port forwarding needed)
-
+# ─────────────────────────────────────────────────────────────────────────────
+# MarcoAI – docker-compose.yml
+#
+# Services:
+#   backend  – FastAPI monolith (all agents + API)
+#   nginx    – Serves the React/Vite static build (ultra-light, ~5 MB RAM)
+#
+# SD-protection strategies applied:
+#   • logging driver with strict size limits
+#   • no tmpfs for DB (volume-mounted for persistence)
+#   • swap disabled on the host (to be done at OS level on RPi)
+#
+# Memory budget (RPi 3 = 1 GB RAM):
+#   backend  ≤ 400 MB
+#   nginx    ≤  32 MB
+#   OS host  ~350–400 MB free
+# ─────────────────────────────────────────────────────────────────────────────
 services:
-  marcoai:
+
+  backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: marcoai
+    container_name: marcoai_backend
     restart: unless-stopped
     env_file:
-      - ./backend/.env
-    # Port 8000 is only exposed locally for development.
-    # In production via Cloudflare Tunnel, bind to localhost for security.
-    ports:
-      - "127.0.0.1:8000:8000"
+      - .env
     volumes:
-      # Persist data directory (SQLite database)
-      - marcoai_data:/app/data
-    # Health check
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-    # Logging (minimal for low I/O)
+      # SQLite database persisted on the SD card via a named volume
+      - db_data:/app/data
+      # Private cloud files uploaded by users
+      - user_files:/app/uploads
+    ports:
+      - "8000:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 400M
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
-  # Cloudflare Tunnel — routes your public URL to marcoai:8000
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: marcoai-tunnel
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: marcoai_nginx
     restart: unless-stopped
-    env_file:
-      - ./backend/.env
-    command: tunnel --no-autoupdate run
-    environment:
-      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "80:80"
     depends_on:
-      marcoai:
+      backend:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 32M
     logging:
       driver: "json-file"
       options:
@@ -58,5 +71,5 @@ services:
         max-file: "2"
 
 volumes:
-  marcoai_data:
-    name: marcoai_data
+  db_data:
+  user_files:

@@ -1,153 +1,60 @@
 """
-Marco AI - FastAPI Application Entry Point
-Memory-efficient modular monolith for Raspberry Pi 3
+MarcoAI – FastAPI Application Entry Point
+
+Responsibilities:
+  - Boot the async SQLite database (create tables if missing).
+  - Configure CORS to allow the React frontend.
+  - Mount all API routers under /api/v1.
+  - Expose a /health endpoint so Docker can verify the container.
 """
-import logging
-import sys
 from contextlib import asynccontextmanager
-from pathlib import Path
-from typing import AsyncGenerator
 
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
+from sqlalchemy import text
 
-from .config import get_settings
-from .database import DatabaseManager, get_db
+from app.core.config import settings
+from app.db.base import Base, engine
 
-# Import module routers
-from .modules.calendar.router import router as calendar_router
-from .modules.finance.router import router as finance_router
-from .modules.habits.router import router as habits_router
-from .modules.food.router import router as food_router
-from .modules.leisure.router import router as leisure_router
-from .modules.rag.router import router as rag_router
-from .auth.router import router as auth_router
-
-# Configure logging for low overhead
-logging.basicConfig(
-    level=logging.WARNING,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    stream=sys.stderr,
-)
-logger = logging.getLogger(__name__)
+# ── Future routers will be imported and included here ─────────────────────────
+# from app.api.routes import auth, chat, finance, calendar, mail, files, habits
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator:
-    """Application lifespan manager with minimal overhead."""
-    # Startup
-    settings = get_settings()
-    logger.info(f"Starting {settings.app_name}...")
-
-    # Initialize database
-    db = DatabaseManager()
-    db.init_schema()
-    logger.info("Database initialized")
-
+async def lifespan(app: FastAPI):
+    """Startup: create DB tables. Shutdown: dispose engine."""
+    async with engine.begin() as conn:
+        # Import models so metadata is populated before create_all
+        import app.db.models as _models  # noqa: F401
+        await conn.run_sync(Base.metadata.create_all)
     yield
-
-    # Shutdown (cleanup if needed)
-    logger.info("Shutting down...")
+    await engine.dispose()
 
 
-# Security Headers Middleware (Fixes Google OAuth origin errors)
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request, call_next):
-        response = await call_next(request)
-        response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
-        return response
-
-
-# Create FastAPI app with minimal middleware
 app = FastAPI(
-    title="Marco AI",
-    description="Personal AI Assistant for Raspberry Pi",
+    title="MarcoAI – Personal AI Orchestrator",
+    description="Self-hosted, privacy-first AI assistant running on a Raspberry Pi 3.",
     version="0.1.0",
     lifespan=lifespan,
 )
 
-app.add_middleware(SecurityHeadersMiddleware)
-
-# CORS middleware
+# ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[settings.frontend_url, "http://localhost:5173"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include module routers
-app.include_router(auth_router)          # /auth/login, /auth/callback, /auth/me
-app.include_router(calendar_router, prefix="/api")
-app.include_router(finance_router, prefix="/api")
-app.include_router(habits_router, prefix="/api")
-app.include_router(food_router, prefix="/api")
-app.include_router(leisure_router, prefix="/api")
-app.include_router(rag_router, prefix="/api")
 
-# Serve static frontend assets (CSS, JS)
-STATIC_DIR = Path(__file__).parent / "static"
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-
-# Health check - minimal
-@app.get("/health")
+# ── Health check ──────────────────────────────────────────────────────────────
+@app.get("/health", tags=["Meta"])
 async def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy"}
+    return {"status": "ok", "version": app.version}
 
 
-# Chat endpoint - main interaction point
-@app.post("/api/chat")
-async def chat(request: Request):
-    """
-    Main chat endpoint with tool-calling orchestrator.
-    Memory-efficient: streams response, no history buffering.
-    """
-    from .agent.orchestrator import ReActOrchestrator
-
-    try:
-        body = await request.json()
-        user_input = body.get("message", "")
-        user_id = body.get("user_id")
-        language = body.get("language", "en")
-
-        if not user_id:
-            raise HTTPException(status_code=400, detail="user_id required")
-
-        if not user_input:
-            raise HTTPException(status_code=400, detail="message required")
-
-        # Process through orchestrator
-        db = next(get_db())
-        orchestrator = ReActOrchestrator(db=db)
-        response = await orchestrator.process(
-            user_input=user_input,
-            user_id=user_id,
-            language=language
-        )
-
-        return JSONResponse(content=response)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Chat error: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"error": "Internal server error"}
-        )
-
-
-# Root endpoint — serve the SPA (requires auth)
-@app.get("/")
-async def root(request: Request):
-    """Root endpoint — serves login.html if not authenticated, else index.html."""
-    from .auth.router import get_session
-    if not get_session(request):
-        return FileResponse(str(STATIC_DIR / "login.html"))
-    return FileResponse(str(STATIC_DIR / "index.html"))
+# ── Root ─────────────────────────────────────────────────────────────────────
+@app.get("/", tags=["Meta"])
+async def root():
+    return {"message": "MarcoAI backend is running. Use /docs for the API explorer."}

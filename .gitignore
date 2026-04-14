@@ -1,2 +1,40 @@
-.gemini/
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# Secrets (never commit)
 .env
+
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
+# Uploads & user data
+backend/uploads/
+backend/data/
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Docker
+*.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
