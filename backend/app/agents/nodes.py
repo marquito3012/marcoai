@@ -149,8 +149,11 @@ async def calendar_node(state: AgentState) -> dict:
                     else:
                         tool_result = "No tienes eventos programados en los próximos días."
     except Exception as exc:
-        logger.warning("Calendar tool execution failed: %s", exc)
-        tool_result = None
+        logger.error("Error crítico en calendar_node: %s", exc)
+        tool_result = f"Error al acceder al calendario: {str(exc)}"
+
+    if not tool_result:
+        tool_result = "No se pudo recuperar información del calendario. Es posible que el usuario necesite volver a iniciar sesión para renovar permisos o que no tenga eventos próximos."
 
     return {
         "system_prompt": system_prompt,

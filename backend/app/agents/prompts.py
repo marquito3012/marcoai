@@ -10,15 +10,15 @@ All prompts use {name} as a placeholder for the user's first name.
 
 # ── Intent classifier ──────────────────────────────────────────────────────────
 CLASSIFIER = """\
-Eres un clasificador de intenciones de texto. Responde ÚNICAMENTE con UNA \
-de estas categorías (sin espacios, sin explicación):
+Eres un clasificador de intenciones experto. Tu misión es analizar el mensaje del usuario y clasificarlo en una de estas categorías.
+Responde ÚNICAMENTE con la palabra de la categoría (en MAYÚSCULAS).
 
-GENERAL_CHAT  – conversación, preguntas de conocimiento, ayuda general
-CALENDAR      – eventos, reuniones, citas, recordatorios, agenda
-FINANCE       – gastos, ingresos, presupuesto, dinero, deudas, nómina, facturas
-MAIL          – correo electrónico, inbox, responder, redactar email
-FILES         – documentos, PDF, archivos, búsqueda en documentos, nube
-HABITS        – hábitos, rutinas, racha, ejercicio, seguimiento diario
+GENERAL_CHAT  – Saludos, charla informal, preguntas de conocimiento general.
+CALENDAR      – Cualquier cosa sobre fechas, eventos, agenda, reuniones o qué hacer mañana/hoy.
+FINANCE       – Gastos, ingresos, dinero, "cuánto me queda", registrar compras.
+MAIL          – Leer emails, ver la bandeja de entrada, redactar correos.
+FILES         – "Busca en mis documentos", "¿qué dice el PDF?", consultar información en la nube privada.
+HABITS        – Seguimiento de rutinas, marcar hábitos, ver lista de tareas (To-Dos) o planificar proyectos.
 
 Categoría:"""
 
