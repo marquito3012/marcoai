@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.api.deps import get_current_user
+from app.db.base import get_db
 from app.db.models import User
 from app.services.calendar_service import CalendarService
 
@@ -91,103 +92,71 @@ async def get_calendar_service(user: User, db) -> CalendarService:
 async def list_events(
     time_min: str | None = Query(default=None, description="ISO datetime inicio"),
     time_max: str | None = Query(default=None, description="ISO datetime fin"),
-    days_ahead: int = Query(default=7, ge=1, le=90, description="Días hacia adelante para consultar (si time_min/max no se proveen)"),
+    days_ahead: int = Query(default=7, ge=1, le=90, description="Días hacia adelante"),
     current_user: User = Depends(get_current_user),
-    db=Depends(lambda: None),
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Lista los próximos eventos del calendario principal del usuario.
-
-    - **days_ahead**: Número de días hacia adelante para consultar (1-90)
-    """
-    from app.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        service = await get_calendar_service(current_user, session)
-
-        try:
-            start_dt = None
-            end_dt = None
-            if time_min:
-                start_dt = datetime.fromisoformat(time_min.replace("Z", "+00:00"))
-            if time_max:
-                end_dt = datetime.fromisoformat(time_max.replace("Z", "+00:00"))
-
-            events = await service.list_events(
-                start_date=start_dt,
-                end_date=end_dt,
-                max_results=100
-            )
-            return {"events": events}
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-        except Exception as exc:
-            logger.exception("Error listing calendar events")
-            raise HTTPException(status_code=500, detail="Error al obtener eventos del calendario")
+    """Lista eventos del calendario."""
+    service = await get_calendar_service(current_user, db)
+    try:
+        start_dt = datetime.fromisoformat(time_min.replace("Z", "+00:00")) if time_min else None
+        end_dt = datetime.fromisoformat(time_max.replace("Z", "+00:00")) if time_max else None
+        events = await service.list_events(start_date=start_dt, end_date=end_dt, max_results=100)
+        return {"events": events}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.exception("Error listing calendar events")
+        raise HTTPException(status_code=500, detail="Error al obtener eventos")
 
 
 @router.get("/events/{event_id}", response_model=EventResponse, summary="Obtener evento por ID")
 async def get_event(
     event_id: str,
     current_user: User = Depends(get_current_user),
-    db=Depends(lambda: None),
+    db: AsyncSession = Depends(get_db),
 ):
     """Obtiene los detalles de un evento específico."""
-    from app.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        service = await get_calendar_service(current_user, session)
-
-        try:
-            event = await service.get_event(event_id)
-            if event is None:
-                raise HTTPException(status_code=404, detail="Evento no encontrado")
-            return event
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-        except HTTPException:
-            raise
-        except Exception as exc:
-            logger.exception("Error getting calendar event")
-            raise HTTPException(status_code=500, detail="Error al obtener el evento")
+    service = await get_calendar_service(current_user, db)
+    try:
+        event = await service.get_event(event_id)
+        if event is None:
+            raise HTTPException(status_code=404, detail="Evento no encontrado")
+        return event
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Error getting calendar event")
+        raise HTTPException(status_code=500, detail="Error al obtener el evento")
 
 
 @router.post("/events", response_model=EventResponse, status_code=201, summary="Crear nuevo evento")
 async def create_event(
     body: EventCreate,
     current_user: User = Depends(get_current_user),
-    db=Depends(lambda: None),
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Crea un nuevo evento en el calendario principal.
-
-    - **summary**: Título del evento
-    - **start_datetime**: Fecha/hora de inicio (ISO 8601)
-    - **end_datetime**: Fecha/hora de fin (ISO 8601)
-    - **description**: Descripción opcional
-    - **location**: Ubicación opcional
-    - **attendees**: Lista de emails de invitados (opcional)
-    """
-    from app.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        service = await get_calendar_service(current_user, session)
-
-        try:
-            start_dt = datetime.fromisoformat(body.start_datetime.replace("Z", "+00:00"))
-            end_dt = datetime.fromisoformat(body.end_datetime.replace("Z", "+00:00"))
-
-            event = await service.create_event(
-                summary=body.summary,
-                start_dt=start_dt,
-                end_dt=end_dt,
-                description=body.description,
-                location=body.location,
-                attendees=body.attendees if body.attendees else None,
-            )
-            return event
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-        except Exception as exc:
-            logger.exception("Error creating calendar event")
-            raise HTTPException(status_code=500, detail="Error al crear el evento")
+    """Crea un nuevo evento."""
+    service = await get_calendar_service(current_user, db)
+    try:
+        start_dt = datetime.fromisoformat(body.start_datetime.replace("Z", "+00:00"))
+        end_dt = datetime.fromisoformat(body.end_datetime.replace("Z", "+00:00"))
+        event = await service.create_event(
+            summary=body.summary,
+            start_dt=start_dt,
+            end_dt=end_dt,
+            description=body.description,
+            location=body.location,
+            attendees=body.attendees if body.attendees else None,
+        )
+        return event
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.exception("Error creating calendar event")
+        raise HTTPException(status_code=500, detail="Error al crear el evento")
 
 
 @router.put("/events/{event_id}", response_model=EventResponse, summary="Actualizar evento")
@@ -195,62 +164,51 @@ async def update_event(
     event_id: str,
     body: EventUpdate,
     current_user: User = Depends(get_current_user),
-    db=Depends(lambda: None),
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Actualiza un evento existente.
-
-    Solo los campos proporcionados serán actualizados.
-    """
-    from app.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        service = await get_calendar_service(current_user, session)
-
-        try:
-            start_dt = datetime.fromisoformat(body.start_datetime.replace("Z", "+00:00")) if body.start_datetime else None
-            end_dt = datetime.fromisoformat(body.end_datetime.replace("Z", "+00:00")) if body.end_datetime else None
-
-            event = await service.update_event(
-                event_id=event_id,
-                summary=body.summary,
-                start_dt=start_dt,
-                end_dt=end_dt,
-                description=body.description,
-                location=body.location,
-            )
-            return event
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-        except HTTPException:
-            raise
-        except Exception as exc:
-            logger.exception("Error updating calendar event")
-            raise HTTPException(status_code=500, detail="Error al actualizar el evento")
+    """Actualiza un evento existente."""
+    service = await get_calendar_service(current_user, db)
+    try:
+        start_dt = datetime.fromisoformat(body.start_datetime.replace("Z", "+00:00")) if body.start_datetime else None
+        end_dt = datetime.fromisoformat(body.end_datetime.replace("Z", "+00:00")) if body.end_datetime else None
+        event = await service.update_event(
+            event_id=event_id,
+            summary=body.summary,
+            start_dt=start_dt,
+            end_dt=end_dt,
+            description=body.description,
+            location=body.location,
+        )
+        return event
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Error updating calendar event")
+        raise HTTPException(status_code=500, detail="Error al actualizar el evento")
 
 
 @router.delete("/events/{event_id}", status_code=204, summary="Eliminar evento")
 async def delete_event(
     event_id: str,
     current_user: User = Depends(get_current_user),
-    db=Depends(lambda: None),
+    db: AsyncSession = Depends(get_db),
 ):
     """Elimina un evento del calendario."""
-    from app.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        service = await get_calendar_service(current_user, session)
-
-        try:
-            deleted = await service.delete_event(event_id)
-            if not deleted:
-                raise HTTPException(status_code=404, detail="Evento no encontrado")
-            return None
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-        except HTTPException:
-            raise
-        except Exception as exc:
-            logger.exception("Error deleting calendar event")
-            raise HTTPException(status_code=500, detail="Error al eliminar el evento")
+    service = await get_calendar_service(current_user, db)
+    try:
+        deleted = await service.delete_event(event_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Evento no encontrado")
+        return None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Error deleting calendar event")
+        raise HTTPException(status_code=500, detail="Error al eliminar el evento")
 
 
 @router.post("/events/{event_id}/move", response_model=EventResponse, summary="Mover evento a nueva fecha")
@@ -258,28 +216,18 @@ async def move_event(
     event_id: str,
     body: EventMove,
     current_user: User = Depends(get_current_user),
-    db=Depends(lambda: None),
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Mueve un evento a una nueva fecha/hora manteniendo su duración original.
-
-    - **new_datetime**: Nueva fecha/hora de inicio (ISO 8601)
-    """
-    from app.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        service = await get_calendar_service(current_user, session)
-
-        try:
-            new_dt = datetime.fromisoformat(body.new_datetime.replace("Z", "+00:00"))
-            event = await service.move_event(
-                event_id=event_id,
-                new_start_dt=new_dt,
-            )
-            return event
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-        except HTTPException:
-            raise
-        except Exception as exc:
-            logger.exception("Error moving calendar event")
-            raise HTTPException(status_code=500, detail="Error al mover el evento")
+    """Mueve un evento."""
+    service = await get_calendar_service(current_user, db)
+    try:
+        new_dt = datetime.fromisoformat(body.new_datetime.replace("Z", "+00:00"))
+        event = await service.move_event(event_id=event_id, new_start_dt=new_dt)
+        return event
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Error moving calendar event")
+        raise HTTPException(status_code=500, detail="Error al mover el evento")

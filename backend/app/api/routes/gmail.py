@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from app.api.deps import get_current_user
+from app.db.base import get_db
 from app.db.models import User
 from app.services.gmail_service import GmailService
 
@@ -78,12 +79,11 @@ async def list_emails(
     q: str = Query(default="", description="Query de búsqueda (opcional)"),
     max_results: int = Query(default=10, ge=1, le=50),
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Obtiene los últimos mensajes de la bandeja de entrada."""
-    from app.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        service = await get_gmail_service(current_user, session)
-        try:
+    service = await get_gmail_service(current_user, db)
+    try:
             messages = await service.list_messages(query=q, max_results=max_results)
             # Adaptamos los campos del servicio al schema
             formatted = []
@@ -96,44 +96,42 @@ async def list_emails(
                     "date": m["date"]
                 })
             return {"messages": formatted}
-        except Exception as exc:
-            logger.exception("Error listing emails")
-            raise HTTPException(status_code=500, detail="Error al obtener correos de Gmail")
+    except Exception as exc:
+        logger.exception("Error listing emails")
+        raise HTTPException(status_code=500, detail="Error al obtener correos de Gmail")
 
 
 @router.get("/messages/{message_id}", response_model=EmailDetailResponse, summary="Leer un correo")
 async def read_email(
     message_id: str,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Lee el contenido completo de un mensaje por ID."""
-    from app.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        service = await get_gmail_service(current_user, session)
-        try:
-            msg = await service.read_message(message_id)
-            return msg
-        except Exception as exc:
-            logger.exception("Error reading email")
-            raise HTTPException(status_code=500, detail="Error al leer el correo")
+    service = await get_gmail_service(current_user, db)
+    try:
+        msg = await service.read_message(message_id)
+        return msg
+    except Exception as exc:
+        logger.exception("Error reading email")
+        raise HTTPException(status_code=500, detail="Error al leer el correo")
 
 
 @router.post("/send", status_code=201, summary="Enviar correo")
 async def send_email(
     body: EmailSend,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Envía un nuevo correo electrónico."""
-    from app.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        service = await get_gmail_service(current_user, session)
-        try:
-            result = await service.send_message(
-                to=body.to,
-                subject=body.subject,
-                body=body.body
-            )
-            return result
-        except Exception as exc:
-            logger.exception("Error sending email")
-            raise HTTPException(status_code=500, detail="Error al enviar el correo")
+    service = await get_gmail_service(current_user, db)
+    try:
+        result = await service.send_message(
+            to=body.to,
+            subject=body.subject,
+            body=body.body
+        )
+        return result
+    except Exception as exc:
+        logger.exception("Error sending email")
+        raise HTTPException(status_code=500, detail="Error al enviar el correo")
