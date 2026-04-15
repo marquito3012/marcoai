@@ -446,30 +446,20 @@ async def habits_node(state: AgentState) -> dict:
             service = HabitsService(db, user_id)
             
             # Intent: Registrar que completé un hábito
-            if any(kw in message_lower for kw in ["completé", "complido", "hecho", "hice", "marcar hábito"]):
-                # Intento básico de extraer el nombre del hábito (en producción usaremos tool llamando al LLM)
-                # Ejemplo rápido si el usuario dice: "Completé mi hábito de leer 20 páginas"
-                today_str = datetime.now().strftime("%Y-%m-%d")
-                
-                # Asumiremos la extracción manual muy superficial, 
-                # e indicaremos al LLM en el prompt para que confirme.
-                tool_result = "Petición de registrar hábito detectada. Confirma qué hábito registrar."
-                
-            # Intent: Desglosar un proyecto grande
-            elif any(kw in message_lower for kw in ["desglosa", "proyecto", "romper tarea", "subtareas", "crear plan", "planifica"]):
-                
-                tool_result = await service.breakdown_project(user_message)
-
-            elif any(kw in message_lower for kw in ["tareas", "todos", "pendientes"]):
-                todos = await service.get_todos()
-                if todos:
-                    lines = ["📝 **Tus tareas pendientes:**\n"]
-                    for t in todos[:10]:
-                        status = "✅" if t.is_completed else "⭕"
-                        lines.append(f"• {status} {t.title}")
-                    tool_result = "\n".join(lines)
+            if any(kw in message_lower for kw in ["hábito", "habito", "completé", "hecho", "marcar"]):
+                # Intento básico de listar hábitos para que el sistema sepa qué hay
+                habits = await service.get_habits()
+                if habits:
+                    lines = ["🔥 **Tus hábitos actuales:**\n"]
+                    for h in habits:
+                        lines.append(f"• {h.name}")
+                    tool_result = "\n".join(lines) + "\n\n(Dime cuál quieres marcar como hecho hoy)"
                 else:
-                    tool_result = "No tienes tareas registradas."
+                    tool_result = "No tienes hábitos registrados. Pídeme 'Crear el hábito de leer' para empezar."
+            
+            else:
+                # Fallback: Redirigir a agenda si se menciona algo genérico que no sea un hábito
+                tool_result = "Gestiono tus hábitos y consistencia. Para tareas o recordatorios, pídeme que lo anote en tu Agenda."
                     
     except Exception as exc:
         logger.warning("Habits tool execution failed: %s", exc)

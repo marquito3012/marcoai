@@ -26,9 +26,6 @@ export default function HabitsPage() {
   const [data, setData] = useState({ habits: [], todos: [] })
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
-  const [breakdownInput, setBreakdownInput] = useState('')
-  const [isBreakingDown, setIsBreakingDown] = useState(false)
-  const [newTodoInput, setNewTodoInput] = useState('')
 
   const fetchAll = async () => {
     try {
@@ -60,47 +57,6 @@ export default function HabitsPage() {
       fetchAll() // Refresh both list and graph
     } catch (err) {
       console.error('Error tracking habit:', err)
-    }
-  }
-
-  const handleAddTodo = async (e) => {
-    e.preventDefault()
-    if (!newTodoInput.trim()) return
-    try {
-      await apiFetch('/habits/todos', {
-        method: 'POST',
-        body: JSON.stringify({ title: newTodoInput })
-      })
-      setNewTodoInput('')
-      fetchAll()
-    } catch (err) {
-      console.error('Error adding todo:', err)
-    }
-  }
-
-  const handleToggleTodo = async (todoId) => {
-    try {
-      await apiFetch(`/habits/todos/${todoId}/toggle`, { method: 'PUT' })
-      fetchAll()
-    } catch (err) {
-      console.error('Error toggling todo:', err)
-    }
-  }
-
-  const handleBreakdown = async () => {
-    if (!breakdownInput.trim()) return
-    setIsBreakingDown(true)
-    try {
-      await apiFetch('/habits/breakdown', {
-        method: 'POST',
-        body: JSON.stringify({ project_title: breakdownInput })
-      })
-      setBreakdownInput('')
-      fetchAll()
-    } catch (err) {
-      console.error('Error breaking down project:', err)
-    } finally {
-      setIsBreakingDown(false)
     }
   }
 
@@ -170,73 +126,12 @@ export default function HabitsPage() {
           </div>
         </div>
 
-        {/* Right Column: Todos & Breakdown */}
-        <div style={styles.rightCol}>
-          {/* Todo List Card */}
-          <div style={styles.card} className="glass-card">
-            <div style={styles.cardHeader}>
-              <ListTodo size={18} color="var(--color-primary-light)" />
-              <h3 style={styles.cardTitle}>Tareas</h3>
-            </div>
-            <div style={styles.todoContent}>
-              <form onSubmit={handleAddTodo} style={styles.todoInputBox}>
-                <input 
-                  style={styles.todoInput} 
-                  placeholder="Añadir una tarea rápida..." 
-                  value={newTodoInput}
-                  onChange={e => setNewTodoInput(e.target.value)}
-                />
-                <button type="submit" style={styles.todoAddBtn}><Plus size={18} /></button>
-              </form>
-              <div style={styles.todoList}>
-                {data.todos.map(todo => (
-                  <div 
-                    key={todo.id} 
-                    style={styles.todoItem}
-                    onClick={() => handleToggleTodo(todo.id)}
-                  >
-                     {todo.is_completed ? (
-                      <CheckCircle2 size={20} color="var(--color-primary-light)" />
-                    ) : (
-                      <Circle size={20} color="var(--color-text-faint)" />
-                    )}
-                    <span style={{ 
-                      ...styles.todoText,
-                      ...(todo.is_completed ? styles.textStrikethroughMuted : {})
-                    }}>
-                      {todo.title}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* AI Breakdown Card */}
-          <div style={{ ...styles.card, background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(0,0,0,0))' }} className="glass-card">
-            <div style={styles.cardHeader}>
-              <Sparkles size={18} color="var(--color-primary-light)" />
-              <h3 style={styles.cardTitle}>Desglosador IA</h3>
-            </div>
-            <p style={styles.cardSub}>Divide un gran proyecto en pasos accionables</p>
-            <div style={styles.breakdownBox}>
-              <input 
-                style={styles.todoInput} 
-                placeholder="Ej: 'Aprender Rust' o 'Mudanza'..." 
-                value={breakdownInput}
-                onChange={e => setBreakdownInput(e.target.value)}
-                disabled={isBreakingDown}
-              />
-              <button 
-                onClick={handleBreakdown} 
-                style={styles.breakdownBtn}
-                disabled={isBreakingDown || !breakdownInput.trim()}
-              >
-                {isBreakingDown ? <Loader2 size={16} className="spin" /> : 'Desglosar'}
-              </button>
-            </div>
           </div>
         </div>
+
+        {/* Right Column removed: Todos & Breakdown now managed via Google Calendar */}
+      </div>
+    </div>
       </div>
     </div>
   )

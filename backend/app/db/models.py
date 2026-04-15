@@ -141,21 +141,8 @@ class HabitLog(Base):
     completed_date: Mapped[str] = mapped_column(String(10)) # YYYY-MM-DD
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
-class Todo(Base):
-    __tablename__ = "todos"
-
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
-    user_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("users.id", ondelete="CASCADE"), index=True
-    )
-    title: Mapped[str] = mapped_column(String(255))
-    is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
-    parent_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("todos.id", ondelete="CASCADE"), nullable=True
-    )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
-    
     user: Mapped["User"] = relationship("User")
+
+
+# Note: Local Todo model removed in favor of Google Calendar integration.
 

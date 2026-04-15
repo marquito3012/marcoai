@@ -18,8 +18,8 @@ router = APIRouter(prefix="/habits", tags=["Hábitos"])
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
-class TodoCreate(BaseModel):
-    title: str
+# class TodoCreate(BaseModel):
+#     title: str
 
 class HabitCreate(BaseModel):
     name: str
@@ -38,7 +38,6 @@ async def get_summary(
 ) -> Any:
     service = HabitsService(db, current_user.id)
     habits = await service.get_habits()
-    todos = await service.get_todos()
     
     # Get today's completion status for habits
     import datetime
@@ -59,7 +58,7 @@ async def get_summary(
 
     return {
         "habits": habits_data,
-        "todos": todos
+        "todos": [] # Redirigido a Google Calendar
     }
 
 @router.get("/logs", summary="Obtener historial de hábitos para gráfico de contribuciones")
@@ -99,40 +98,3 @@ async def track_habit_completion(
     service = HabitsService(db, current_user.id)
     msg = await service.track_habit(habit.name, body.date)
     return {"message": msg}
-
-@router.post("/todos", summary="Crear un nuevo todo")
-async def create_todo(
-    body: TodoCreate,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    service = HabitsService(db, current_user.id)
-    todo = await service.add_todo(body.title)
-    return todo
-
-@router.put("/todos/{todo_id}/toggle", summary="Alternar estado de completado")
-async def toggle_todo(
-    todo_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    stmt = select(Todo).where(Todo.id == todo_id, Todo.user_id == current_user.id)
-    res = await db.execute(stmt)
-    todo = res.scalar_one_or_none()
-    if not todo:
-        raise HTTPException(status_code=404, detail="Tarea no encontrada")
-    
-    todo.is_completed = not todo.is_completed
-    db.add(todo)
-    await db.commit()
-    return {"is_completed": todo.is_completed}
-
-@router.post("/breakdown", summary="Romper proyecto en subtareas via LLM")
-async def breakdown_project(
-    project_title: str = Body(..., embed=True),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> Any:
-    service = HabitsService(db, current_user.id)
-    result = await service.breakdown_project(project_title)
-    return {"message": result}
