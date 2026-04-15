@@ -73,13 +73,28 @@ export default function CalendarPage() {
     try {
       setLoading(true)
       
-      // Calculate range for current month
-      const y = currentDate.getFullYear()
-      const m = currentDate.getMonth()
-      const startOfView = new Date(y, m, 1, 0, 0, 0).toISOString()
-      const endOfView = new Date(y, m + 1, 0, 23, 59, 59).toISOString()
+      let start, end;
+      if (view === 'month') {
+        const y = currentDate.getFullYear()
+        const m = currentDate.getMonth()
+        start = new Date(y, m, 1, 0, 0, 0).toISOString()
+        end = new Date(y, m + 1, 0, 23, 59, 59).toISOString()
+      } else {
+        const d = new Date(currentDate)
+        const day = d.getDay()
+        const diff = d.getDate() - day
+        const startOfWeek = new Date(d.setDate(diff))
+        startOfWeek.setHours(0, 0, 0, 0)
+        
+        const endOfWeek = new Date(startOfWeek)
+        endOfWeek.setDate(startOfWeek.getDate() + 6)
+        endOfWeek.setHours(23, 59, 59, 999)
+        
+        start = startOfWeek.toISOString()
+        end = endOfWeek.toISOString()
+      }
 
-      const data = await apiFetch(`/calendar/events?time_min=${startOfView}&time_max=${endOfView}`)
+      const data = await apiFetch(`/calendar/events?time_min=${start}&time_max=${end}`)
       setEvents(data.events || [])
     } catch (err) {
       console.error('Error fetching calendar events:', err)
@@ -97,7 +112,7 @@ export default function CalendarPage() {
 
   useEffect(() => {
     fetchEvents()
-  }, [currentDate]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentDate, view]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calendar grid computation
   const calendarGrid = useMemo(() => {
@@ -131,12 +146,24 @@ export default function CalendarPage() {
     return days
   }, [currentDate, events])
 
-  const goToPreviousMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))
+  const goToPrevious = () => {
+    if (view === 'month') {
+      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))
+    } else {
+      const d = new Date(currentDate)
+      d.setDate(d.getDate() - 7)
+      setCurrentDate(d)
+    }
   }
 
-  const goToNextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
+  const goToNext = () => {
+    if (view === 'month') {
+      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
+    } else {
+      const d = new Date(currentDate)
+      d.setDate(d.getDate() + 7)
+      setCurrentDate(d)
+    }
   }
 
   const goToToday = () => {
@@ -149,10 +176,10 @@ export default function CalendarPage() {
       <header style={styles.header}>
         <div style={styles.headerLeft}>
           <div style={styles.navGroup}>
-            <button onClick={goToPreviousMonth} style={styles.navBtn} aria-label="Mes anterior">
+            <button onClick={goToPrevious} style={styles.navBtn} aria-label="Anterior">
               <ChevronLeft size={20} />
             </button>
-            <button onClick={goToNextMonth} style={styles.navBtn} aria-label="Mes siguiente">
+            <button onClick={goToNext} style={styles.navBtn} aria-label="Siguiente">
               <ChevronRight size={20} />
             </button>
           </div>
