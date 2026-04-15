@@ -10,7 +10,7 @@ from datetime import datetime
 from sqlalchemy import select
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.models import Habit, HabitLog, Todo
+from app.db.models import Habit, HabitLog
 from app.services.llm_gateway import TaskTier, gateway
 import json
 

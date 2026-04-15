@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from app.api.deps import get_current_user
 from app.db.base import get_db
-from app.db.models import User, HabitLog, Habit, Todo
+from app.db.models import User, HabitLog, Habit
 from app.services.habits_service import HabitsService
 from sqlalchemy import select, update, delete
 
