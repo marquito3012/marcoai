@@ -42,8 +42,10 @@ _pending_states: set[str] = set()
 
 
 def _callback_uri(request: Request) -> str:
-    """Build the OAuth redirect_uri from the current request's base URL."""
-    base = str(request.base_url).rstrip("/")
+    """Build the OAuth redirect_uri using the FRONTEND_URL from settings."""
+    # We use FRONTEND_URL to ensure https and the correct domain are used
+    # even when behind a proxy/tunnel.
+    base = settings.frontend_url.rstrip("/")
     return f"{base}/api/v1/auth/google/callback"
 
 
