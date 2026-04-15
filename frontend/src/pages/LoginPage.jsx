@@ -65,7 +65,7 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div style={styles.logo} aria-label="MarcoAI">
-          M
+          <img src="/logo.png" alt="MarcoAI" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
         </div>
 
         {/* Heading */}

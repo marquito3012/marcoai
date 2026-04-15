@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.deps import get_current_user
 from app.api.routes.auth import router as auth_router
 from app.api.routes.calendar import router as calendar_router
+from app.api.routes.gmail import router as gmail_router
 from app.api.routes.chat import router as chat_router
 from app.api.routes.finance import router as finance_router
 from app.api.routes.llm import router as llm_router
@@ -96,6 +97,8 @@ api_v1.include_router(chat_router)
 api_v1.include_router(finance_router)
 # LLM Gateway test
 api_v1.include_router(llm_router)
+# Gmail
+api_v1.include_router(gmail_router)
 
 from app.api.routes.documents import router as documents_router
 from app.api.routes.habits import router as habits_router

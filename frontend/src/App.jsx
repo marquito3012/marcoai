@@ -4,6 +4,9 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import AppShell       from './components/layout/AppShell.jsx'
 import CalendarPage   from './pages/CalendarPage.jsx'
 import FinancePage    from './pages/FinancePage.jsx'
+import MailPage       from './pages/MailPage.jsx'
+import FilesPage      from './pages/FilesPage.jsx'
+import HabitsPage     from './pages/HabitsPage.jsx'
 import LoginPage      from './pages/LoginPage.jsx'
 import ChatPage       from './pages/ChatPage.jsx'
 import ComingSoonPage from './pages/ComingSoonPage.jsx'
@@ -32,12 +35,12 @@ function App() {
                 <Route path="/"         element={<Navigate to="/chat" replace />} />
                 <Route path="/chat"     element={<ChatPage />} />
 
-                {/* Module placeholders (Phases 6–10) */}
+                {/* Main functional modules */}
                 <Route path="/calendar" element={<CalendarPage />} />
                 <Route path="/finance"  element={<FinancePage />} />
-                <Route path="/mail"     element={<ComingSoonPage module="mail"     />} />
-                <Route path="/files"    element={<ComingSoonPage module="files"    />} />
-                <Route path="/habits"   element={<ComingSoonPage module="habits"   />} />
+                <Route path="/mail"     element={<MailPage />} />
+                <Route path="/files"    element={<FilesPage />} />
+                <Route path="/habits"   element={<HabitsPage />} />
               </Routes>
             </AppShell>
           </ProtectedRoute>
