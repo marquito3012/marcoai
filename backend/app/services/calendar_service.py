@@ -59,14 +59,24 @@ class CalendarService:
 
         is_expired = expires_at is None or expires_at < now
 
+        # Google auth library compares against naive UTC internally.
+        # We must provide a naive UTC object to avoid "offset-naive vs offset-aware" crashes.
+        naive_expiry = None
+        if expires_at:
+             # Ensure we start from a clean UTC state even if DB returned naive
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            # Convert to naive UTC
+            naive_expiry = expires_at.astimezone(timezone.utc).replace(tzinfo=None)
+
         return Credentials(
             token=self.user.google_calendar_token,
             refresh_token=self.user.google_calendar_refresh_token,
             token_uri="https://oauth2.googleapis.com/token",
-            client_id=None,  # No needed for refresh
+            client_id=None,
             client_secret=None,
             scopes=SCOPES,
-            expiry=expires_at.replace(tzinfo=timezone.utc) if expires_at else None,
+            expiry=naive_expiry,
         )
 
     async def _refresh_tokens(self, credentials: Credentials) -> None:
