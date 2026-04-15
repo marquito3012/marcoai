@@ -9,6 +9,7 @@ passlib[bcrypt]==1.7.4
 httpx==0.28.1                   # OAuth token exchange
 google-auth==2.40.0
 google-auth-oauthlib==1.2.1
+google-api-python-client==2.162.0
 
 # ── Database ─────────────────────────────────────────────────────────────────
 sqlalchemy==2.0.40
@@ -23,6 +24,11 @@ langchain-google-genai==2.1.4
 langchain-groq==0.3.2
 openai==1.78.0                  # used via OpenRouter base_url override
 tiktoken==0.8.0                 # 0.9.x has no wheels for Python 3.14
+langchain-text-splitters>=0.3.8
+
+# ── RAG / Vector DB (Fase 9) ─────────────────────────────────────────────────
+sqlite-vec==0.1.6
+PyMuPDF==1.25.1
 
 # ── Environment ──────────────────────────────────────────────────────────────
 python-dotenv==1.1.0

@@ -25,7 +25,38 @@ engine = create_async_engine(
 
 @event.listens_for(engine.sync_engine, "connect")
 def _set_sqlite_pragmas(dbapi_connection, _connection_record):
-    """Enable WAL mode and other optimisations on every new connection."""
+    """Enable WAL mode, other optimisations, and vector extensions on every new connection."""
+    import sqlite_vec
+    
+    # In SQLAlchemy 2.0 with aiosqlite, dbapi_connection is an AsyncAdapt wrapper.
+    # We need to find the underlying sqlite3.Connection to load the extension.
+    raw_conn = dbapi_connection
+    
+    # Aggressively unwrap to find the true sqlite3.Connection
+    # This handles both _ConnectionFairy and AsyncAdapt/aiosqlite wrappers
+    visited = set()
+    while raw_conn not in visited:
+        visited.add(raw_conn)
+        found = False
+        for attr in ["dbapi_connection", "_connection", "connection"]:
+            if hasattr(raw_conn, attr):
+                inner = getattr(raw_conn, attr)
+                if inner is not None and inner is not raw_conn:
+                    raw_conn = inner
+                    found = True
+                    break
+        if not found:
+            break
+    
+    try:
+        # Check if we finally found a real sqlite3 connection (or something that looks like it)
+        if hasattr(raw_conn, "enable_load_extension"):
+            raw_conn.enable_load_extension(True)
+            sqlite_vec.load(raw_conn)
+            raw_conn.enable_load_extension(False)
+    except Exception:
+        pass
+
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL;")
     cursor.execute("PRAGMA synchronous=NORMAL;")   # safe & faster than FULL
