@@ -51,8 +51,13 @@ class CalendarService:
         if not self.user.google_calendar_token:
             return None
 
+        # Sanitize datetime to ensure it's offset-aware for comparison
+        now = datetime.now(timezone.utc)
         expires_at = self.user.google_calendar_token_expires_at
-        is_expired = expires_at is None or expires_at < datetime.now(timezone.utc)
+        if expires_at and expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+        is_expired = expires_at is None or expires_at < now
 
         return Credentials(
             token=self.user.google_calendar_token,

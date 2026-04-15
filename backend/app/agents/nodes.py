@@ -149,8 +149,9 @@ async def calendar_node(state: AgentState) -> dict:
                     else:
                         tool_result = "No tienes eventos programados en los próximos días."
     except Exception as exc:
-        logger.error("Error crítico en calendar_node: %s", exc)
-        tool_result = f"Error al acceder al calendario: {str(exc)}"
+        logger.error("Error crítico en calendar_node: %s", exc, exc_info=True)
+        # We provide a clean, non-technical context to the LLM so it can answer helpfully
+        tool_result = "No se pudo recuperar información del calendario debido a un problema técnico interno de sincronización."
 
     if not tool_result:
         tool_result = "No se pudo recuperar información del calendario. Es posible que el usuario necesite volver a iniciar sesión para renovar permisos o que no tenga eventos próximos."
