@@ -23,6 +23,8 @@ from googleapiclient.errors import HttpError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import User
+from app.core.config import settings
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -53,20 +55,40 @@ class GmailService:
             token=self.user.google_calendar_token,
             refresh_token=self.user.google_calendar_refresh_token,
             token_uri="https://oauth2.googleapis.com/token",
-            client_id=None,
-            client_secret=None,
+            client_id=settings.google_client_id,
+            client_secret=settings.google_client_secret,
             scopes=SCOPES,
-            expiry=expires_at.replace(tzinfo=timezone.utc) if expires_at else None,
+            expiry=expires_at.replace(tzinfo=None) if expires_at else None,
         )
 
     async def _refresh_tokens(self, credentials: Credentials) -> None:
+        """Refresca los tokens usando httpx (async) y guarda en BD."""
         try:
-            credentials.refresh(httpx.Client())
-            self.user.google_calendar_token = credentials.token
-            self.user.google_calendar_token_expires_at = credentials.expiry
-            self.db.add(self.user)
-            await self.db.commit()
-            logger.info("Tokens OAuth refreshados para user=%s", self.user.id)
+            async with httpx.AsyncClient() as client:
+                resp = await client.post("https://oauth2.googleapis.com/token", data={
+                    "client_id": settings.google_client_id,
+                    "client_secret": settings.google_client_secret,
+                    "refresh_token": self.user.google_calendar_refresh_token,
+                    "grant_type": "refresh_token",
+                })
+                resp.raise_for_status()
+                data = resp.json()
+
+                # Actualizar objeto de credenciales para el proceso actual
+                credentials.token = data["access_token"]
+                if "expires_in" in data:
+                    expiry = datetime.now(timezone.utc) + timedelta(seconds=data["expires_in"])
+                    # google-auth expects naive UTC internally for its expiry check
+                    credentials.expiry = expiry.replace(tzinfo=None)
+                    self.user.google_calendar_token_expires_at = expiry
+
+                # Actualizar en BD para persistencia
+                self.user.google_calendar_token = data["access_token"]
+                self.db.add(self.user)
+                await self.db.commit()
+                await self.db.refresh(self.user)
+
+            logger.info("Tokens de Gmail refreshados exitosamente para user=%s", self.user.id)
         except Exception as exc:
             logger.error("Error al refreshar tokens: %s", exc)
             raise
