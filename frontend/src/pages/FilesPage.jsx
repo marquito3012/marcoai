@@ -19,7 +19,8 @@ import {
   AlertCircle,
   FileCode,
   Search,
-  BookOpen
+  BookOpen,
+  Activity
 } from 'lucide-react'
 import { apiFetch } from '../lib/api.js'
 
