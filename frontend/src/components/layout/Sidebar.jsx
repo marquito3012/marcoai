@@ -6,9 +6,10 @@ import {
   Cloud,
   Flame,
   Settings,
-  User,
+  LogOut,
 } from 'lucide-react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
+import { useAuth } from '../../hooks/useAuth.js'
 
 const NAV_ITEMS = [
   { to: '/chat',     icon: MessageSquare,    label: 'Chat',      id: 'nav-chat'     },
@@ -20,6 +21,8 @@ const NAV_ITEMS = [
 ]
 
 export default function Sidebar() {
+  const { user, logout } = useAuth()
+
   return (
     <aside className="sidebar" role="navigation" aria-label="Navegación principal">
       {/* Logo */}
@@ -55,24 +58,51 @@ export default function Sidebar() {
           <span>Ajustes</span>
         </NavLink>
 
-        {/* User avatar placeholder – will show Google photo after auth */}
+        {/* Logout */}
         <button
-          id="btn-user-avatar"
+          id="btn-logout"
           className="sidebar__item"
-          title="Perfil de usuario"
+          title="Cerrar sesión"
+          onClick={logout}
+        >
+          <LogOut size={18} strokeWidth={1.75} />
+          <span>Salir</span>
+        </button>
+
+        {/* User avatar – Google picture or initials fallback */}
+        <div
+          id="user-avatar"
+          title={user?.name ?? 'Usuario'}
           style={{
-            width: 40,
-            height: 40,
-            borderRadius: '50%',
-            background: 'var(--color-surface-3)',
-            display: 'flex',
-            alignItems: 'center',
+            width:          40,
+            height:         40,
+            borderRadius:   '50%',
+            overflow:       'hidden',
+            border:         '2px solid var(--color-border)',
+            flexShrink:     0,
+            display:        'flex',
+            alignItems:     'center',
             justifyContent: 'center',
+            background:     'var(--color-surface-3)',
+            fontSize:       15,
+            fontWeight:     600,
+            color:          'var(--color-primary-light)',
+            cursor:         'default',
           }}
         >
-          <User size={18} strokeWidth={1.75} />
-        </button>
+          {user?.picture_url ? (
+            <img
+              src={user.picture_url}
+              alt={user.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            (user?.name?.[0] ?? '?').toUpperCase()
+          )}
+        </div>
       </div>
     </aside>
   )
 }
+
