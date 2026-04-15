@@ -89,9 +89,11 @@ async def get_calendar_service(user: User, db) -> CalendarService:
 
 @router.get("/events", response_model=EventsListResponse, summary="Listar eventos del calendario")
 async def list_events(
-    days_ahead: int = Query(default=7, ge=1, le=90, description="Días hacia adelante para consultar"),
+    time_min: str | None = Query(default=None, description="ISO datetime inicio"),
+    time_max: str | None = Query(default=None, description="ISO datetime fin"),
+    days_ahead: int = Query(default=7, ge=1, le=90, description="Días hacia adelante para consultar (si time_min/max no se proveen)"),
     current_user: User = Depends(get_current_user),
-    db=Depends(lambda: None),  # Will be replaced by actual dep
+    db=Depends(lambda: None),
 ):
     """
     Lista los próximos eventos del calendario principal del usuario.
@@ -103,7 +105,18 @@ async def list_events(
         service = await get_calendar_service(current_user, session)
 
         try:
-            events = await service.list_events(max_results=100)
+            start_dt = None
+            end_dt = None
+            if time_min:
+                start_dt = datetime.fromisoformat(time_min.replace("Z", "+00:00"))
+            if time_max:
+                end_dt = datetime.fromisoformat(time_max.replace("Z", "+00:00"))
+
+            events = await service.list_events(
+                start_date=start_dt,
+                end_date=end_dt,
+                max_results=100
+            )
             return {"events": events}
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))

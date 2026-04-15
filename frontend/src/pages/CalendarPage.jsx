@@ -72,7 +72,14 @@ export default function CalendarPage() {
   const fetchEvents = async () => {
     try {
       setLoading(true)
-      const data = await apiFetch('/calendar/events')
+      
+      // Calculate range for current month
+      const y = currentDate.getFullYear()
+      const m = currentDate.getMonth()
+      const startOfView = new Date(y, m, 1, 0, 0, 0).toISOString()
+      const endOfView = new Date(y, m + 1, 0, 23, 59, 59).toISOString()
+
+      const data = await apiFetch(`/calendar/events?time_min=${startOfView}&time_max=${endOfView}`)
       setEvents(data.events || [])
     } catch (err) {
       console.error('Error fetching calendar events:', err)
@@ -90,7 +97,7 @@ export default function CalendarPage() {
 
   useEffect(() => {
     fetchEvents()
-  }, [])
+  }, [currentDate]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calendar grid computation
   const calendarGrid = useMemo(() => {
