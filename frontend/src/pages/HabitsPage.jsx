@@ -125,13 +125,6 @@ export default function HabitsPage() {
             </div>
           </div>
         </div>
-
-          </div>
-        </div>
-
-        {/* Right Column removed: Todos & Breakdown now managed via Google Calendar */}
-      </div>
-    </div>
       </div>
     </div>
   )
@@ -193,7 +186,7 @@ const styles = {
   habitName: { fontSize: 15, fontWeight: 500 },
   textStrikethrough: { textDecoration: 'line-through', opacity: 0.6, color: 'var(--color-success)' },
   addHabitPlaceholder: { color: 'var(--color-text-faint)', fontSize: 13, padding: '0 16px', display: 'flex', alignItems: 'center', gap: 8 },
-
+ 
   // Graph
   graphWrapper: { padding: '8px 0' },
   graphGrid: { 
