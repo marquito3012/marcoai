@@ -50,8 +50,3 @@ class HabitsService:
         self.db.add(new_log)
         await self.db.commit()
         return f"Hábito '{habit_name}' registrado para el {date_str}."
-
-        new_log = HabitLog(habit_id=habit.id, completed_date=date_str)
-        self.db.add(new_log)
-        await self.db.commit()
-        return f"Hábito '{habit_name}' registrado para el {date_str}."

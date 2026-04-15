@@ -141,8 +141,6 @@ class HabitLog(Base):
     completed_date: Mapped[str] = mapped_column(String(10)) # YYYY-MM-DD
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
-    user: Mapped["User"] = relationship("User")
-
 
 # Note: Local Todo model removed in favor of Google Calendar integration.
 
