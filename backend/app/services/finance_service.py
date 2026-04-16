@@ -139,7 +139,6 @@ class FinanceService:
             month: Filtrar por mes (1-12)
             year: Filtrar por año
         """
-        """
         query = select(Transaction).where(Transaction.user_id == self.user_id)
 
         if tx_type:
