@@ -228,6 +228,9 @@ async def create_transaction(
             "created_at": tx.created_at.isoformat(),
         }
     except Exception as exc:
+        print(f"DEBUG: Error creating transaction: {exc}")
+        import traceback
+        traceback.print_exc()
         logger.exception("Error creating transaction")
         raise HTTPException(status_code=500, detail="Error al crear la transacción")
 
