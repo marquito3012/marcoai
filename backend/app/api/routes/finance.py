@@ -65,7 +65,8 @@ class TransactionResponse(BaseModel):
     date: str
     is_fixed: bool
     recurrence: str | None
-    created_at: str
+    created_at: str | None = None
+    updated_at: str | None = None
 
 
 class TransactionsListResponse(BaseModel):
@@ -149,7 +150,8 @@ async def list_transactions(
                     "date": tx.date.isoformat(),
                     "is_fixed": tx.is_fixed,
                     "recurrence": tx.recurrence,
-                    "created_at": tx.created_at.isoformat(),
+                    "created_at": tx.created_at.isoformat() if tx.created_at else None,
+                    "updated_at": tx.updated_at.isoformat() if tx.updated_at else None,
                 }
                 for tx in transactions
             ],
@@ -183,7 +185,8 @@ async def get_transaction(
             "date": tx.date.isoformat(),
             "is_fixed": tx.is_fixed,
             "recurrence": tx.recurrence,
-            "created_at": tx.created_at.isoformat(),
+            "created_at": tx.created_at.isoformat() if tx.created_at else None,
+            "updated_at": tx.updated_at.isoformat() if tx.updated_at else None,
         }
     except HTTPException:
         raise
@@ -225,7 +228,8 @@ async def create_transaction(
             "date": tx.date.isoformat(),
             "is_fixed": tx.is_fixed,
             "recurrence": tx.recurrence,
-            "created_at": tx.created_at.isoformat(),
+            "created_at": tx.created_at.isoformat() if tx.created_at else None,
+            "updated_at": tx.updated_at.isoformat() if tx.updated_at else None,
         }
     except Exception as exc:
         logger.exception("Error creating transaction")
@@ -267,7 +271,8 @@ async def update_transaction(
             "date": tx.date.isoformat(),
             "is_fixed": tx.is_fixed,
             "recurrence": tx.recurrence,
-            "created_at": tx.created_at.isoformat(),
+            "created_at": tx.created_at.isoformat() if tx.created_at else None,
+            "updated_at": tx.updated_at.isoformat() if tx.updated_at else None,
         }
     except HTTPException:
         raise
