@@ -20,6 +20,7 @@ import {
   Calendar,
   X,
   Check,
+  Trash2,
 } from 'lucide-react'
 import { apiFetch } from '../lib/api.js'
 import {
@@ -28,11 +29,6 @@ import {
   Cell,
   ResponsiveContainer,
   Tooltip,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
 } from 'recharts'
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -135,6 +131,21 @@ export default function FinancePage() {
       setCurrentYear(currentYear + 1)
     } else {
       setCurrentMonth(currentMonth + 1)
+    }
+  }
+
+  const handleDeleteTransaction = async (txId) => {
+    if (!window.confirm('¿Estás seguro de que quieres eliminar esta transacción?')) return
+
+    try {
+      await apiFetch(`/finance/transactions/${txId}`, {
+        method: 'DELETE',
+      })
+      // Refrescar datos
+      fetchData()
+    } catch (err) {
+      console.error('Error deleting transaction:', err)
+      alert('Error al eliminar la transacción')
     }
   }
 
@@ -313,7 +324,11 @@ export default function FinancePage() {
                 <div style={styles.transactionsList}>
                   {filteredTransactions.length > 0 ? (
                     filteredTransactions.map((tx) => (
-                      <TransactionItem key={tx.id} transaction={tx} />
+                      <TransactionItem 
+                        key={tx.id} 
+                        transaction={tx} 
+                        onDelete={() => handleDeleteTransaction(tx.id)}
+                      />
                     ))
                   ) : (
                     <div style={styles.emptyState}>
@@ -366,7 +381,7 @@ function BalanceCard({ title, amount, icon: Icon, color, isBalance }) {
 //  Transaction Item component
 // ══════════════════════════════════════════════════════════════════════════════
 
-function TransactionItem({ transaction }) {
+function TransactionItem({ transaction, onDelete }) {
   const isIncome = transaction.type === 'income'
   const date = new Date(transaction.date)
 
@@ -395,6 +410,16 @@ function TransactionItem({ transaction }) {
       }}>
         {isIncome ? '+' : '-'}{formatCurrency(transaction.amount)}
       </div>
+      <button 
+        onClick={(e) => {
+          e.stopPropagation()
+          onDelete()
+        }}
+        style={styles.deleteTxBtn}
+        title="Eliminar transacción"
+      >
+        <Trash2 size={14} />
+      </button>
     </div>
   )
 }
@@ -572,16 +597,16 @@ function CreateTransactionModal({ onClose, onCreated }) {
 
 function ChevronLeft({ size, ...props }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...props}>
-      <path d="M15 18l-6-6 6-6" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="m15 18-6-6 6-6" />
     </svg>
   )
 }
 
 function ChevronRight({ size, ...props }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...props}>
-      <path d="M9 18l6-6-6-6" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="m9 18 6-6-6-6" />
     </svg>
   )
 }
@@ -840,6 +865,19 @@ const styles = {
     fontSize: 14,
     fontWeight: 600,
     whiteSpace: 'nowrap',
+  },
+  deleteTxBtn: {
+    padding: 6,
+    background: 'transparent',
+    border: 'none',
+    borderRadius: 6,
+    color: 'var(--color-text-faint)',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s ease',
+    opacity: 0.6,
   },
   modalOverlay: {
     position: 'fixed',
