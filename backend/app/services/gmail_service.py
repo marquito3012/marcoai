@@ -118,15 +118,24 @@ class GmailService:
             
             result = []
             for msg in messages:
-                # Obtener detalles del mensaje
-                msg_full = service.users().messages().get(userId="me", id=msg["id"], format="metadata", metadataHeaders=["From", "Subject", "Date"]).execute()
+                # Obtener detalles del mensaje incluyendo etiquetas
+                msg_full = service.users().messages().get(
+                    userId="me", 
+                    id=msg["id"], 
+                    format="metadata", 
+                    metadataHeaders=["From", "Subject", "Date"]
+                ).execute()
+                
                 headers = {h["name"]: h["value"] for h in msg_full.get("payload", {}).get("headers", [])}
+                label_ids = msg_full.get("labelIds", [])
+                
                 result.append({
                     "id": msg_full["id"],
                     "snippet": msg_full.get("snippet", ""),
                     "subject": headers.get("Subject", "(Sin asunto)"),
                     "from": headers.get("From", ""),
                     "date": headers.get("Date", ""),
+                    "is_unread": "UNREAD" in label_ids
                 })
             return result
         except HttpError as exc:
@@ -192,6 +201,22 @@ class GmailService:
         except HttpError as exc:
             logger.error("Error leyendo correo %s: %s", message_id, exc)
             raise
+
+    async def mark_as_read(self, message_id: str) -> bool:
+        """Elimina la etiqueta UNREAD de un mensaje."""
+        service = await self._get_service()
+        try:
+            service.users().messages().modify(
+                userId="me",
+                id=message_id,
+                body={"removeLabelIds": ["UNREAD"]}
+            ).execute()
+            logger.info("Correo %s marcado como leído en Gmail", message_id)
+            return True
+        except HttpError as exc:
+            # Si ya estaba leído o hay error, logueamos pero no rompemos el flujo
+            logger.warning("No se pudo marcar como leído %s: %s", message_id, exc)
+            return False
 
     async def send_message(self, to: str, subject: str, body: str) -> dict:
         """Envía un correo nuevo."""

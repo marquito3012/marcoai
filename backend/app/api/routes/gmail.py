@@ -33,6 +33,7 @@ class EmailResponse(BaseModel):
     snippet: str
     sender: str
     date: str
+    is_unread: bool = False
 
     class Config:
         populate_by_name = True
@@ -94,7 +95,8 @@ async def list_emails(
                     "subject": m["subject"],
                     "snippet": m["snippet"],
                     "sender": m["from"],
-                    "date": m["date"]
+                    "date": m["date"],
+                    "is_unread": m.get("is_unread", False)
                 })
             return {"messages": formatted}
     except Exception as exc:
@@ -112,6 +114,9 @@ async def read_email(
     service = await get_gmail_service(current_user, db)
     try:
         msg = await service.read_message(message_id)
+        # Mark as read in Gmail automatically when opening in UI
+        await service.mark_as_read(message_id)
+        
         # Ensure 'from' is mapped to 'sender' for schema consistency
         msg["sender"] = msg.pop("from", "(Sin remitente)")
         return msg

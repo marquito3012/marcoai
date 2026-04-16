@@ -59,6 +59,12 @@ export default function MailPage() {
     setSelectedMail(mail)
     setLoadingDetail(true)
     setMailContent(null)
+    
+    // Optimistic update: mark as read locally
+    if (mail.is_unread) {
+      setEmails(prev => prev.map(m => m.id === mail.id ? { ...m, is_unread: false } : m))
+    }
+
     try {
       const data = await apiFetch(`/gmail/messages/${mail.id}`)
       setMailContent(data)
@@ -143,10 +149,20 @@ export default function MailPage() {
                   }}
                 >
                   <div style={styles.mailItemHeader}>
-                    <span style={styles.mailSender}>{mail.sender?.split(' <')[0] || 'Desconocido'}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {mail.is_unread && <div style={styles.unreadDot} />}
+                      <span style={{
+                        ...styles.mailSender,
+                        fontWeight: mail.is_unread ? 800 : styles.mailSender.fontWeight
+                      }}>{mail.sender?.split(' <')[0] || 'Desconocido'}</span>
+                    </div>
                     <span style={styles.mailDate}>{mail.date ? new Date(mail.date).toLocaleDateString() : ''}</span>
                   </div>
-                  <div style={styles.mailSubject}>{mail.subject || '(Sin asunto)'}</div>
+                  <div style={{
+                    ...styles.mailSubject,
+                    fontWeight: mail.is_unread ? 700 : styles.mailSubject.fontWeight,
+                    color: mail.is_unread ? 'var(--color-text)' : styles.mailSubject.color
+                  }}>{mail.subject || '(Sin asunto)'}</div>
                   <div style={styles.mailSnippet}>{mail.snippet}</div>
                 </div>
               ))}
@@ -413,6 +429,12 @@ const styles = {
   mailItemActive: {
     background: 'rgba(251, 146, 60, 0.1)',
     borderLeft: '4px solid var(--color-mail)',
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: '50%',
+    background: '#3b82f6', // Bright blue for unread
   },
   mailItemHeader: {
     display: 'flex',
