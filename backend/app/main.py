@@ -42,11 +42,12 @@ async def lifespan(app: FastAPI):
             
             if "created_at" not in columns:
                 print("⚡ Migrating: Adding created_at to transactions...")
-                await conn.execute(text("ALTER TABLE transactions ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP"))
+                # SQLite workaround: add as nullable first to avoid "non-constant default" error on some versions
+                await conn.execute(text("ALTER TABLE transactions ADD COLUMN created_at DATETIME"))
             
             if "updated_at" not in columns:
                 print("⚡ Migrating: Adding updated_at to transactions...")
-                await conn.execute(text("ALTER TABLE transactions ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP"))
+                await conn.execute(text("ALTER TABLE transactions ADD COLUMN updated_at DATETIME"))
                 
         except Exception as e:
             print(f"⚠️ Migration warning: {e}")
