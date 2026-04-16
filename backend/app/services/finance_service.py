@@ -167,7 +167,7 @@ class FinanceService:
                         Transaction.date <= month_end,
                         or_(
                             Transaction.deleted_at == None,
-                            Transaction.deleted_at >= month_start
+                            Transaction.deleted_at > month_end
                         )
                     )
                 )
@@ -279,7 +279,7 @@ class FinanceService:
                     Transaction.date <= month_end,
                     or_(
                         Transaction.deleted_at == None,
-                        Transaction.deleted_at >= month_start
+                        Transaction.deleted_at > month_end
                     )
                 )
             )
@@ -346,7 +346,7 @@ class FinanceService:
                     Transaction.date <= month_end,
                     or_(
                         Transaction.deleted_at == None,
-                        Transaction.deleted_at >= month_start
+                        Transaction.deleted_at > month_end
                     )
                 )
             )
