@@ -15,13 +15,13 @@ Key features
 • All LangChain clients are lazy-initialised and cached per model string.
 
 Provider matrix
-────────────────────────────────────────────────────────────────────────
- Tier          Primary              Fallback 1           Fallback 2
- ──────────────────────────────────────────────────────────────────────
- FAST          Groq / Llama-3.1-8b  Gemini Flash 2.0     OpenRouter Llama-free
- STANDARD      Gemini Flash 2.0     Groq / Llama-3.3-70b OpenRouter Mistral-free
- INTELLIGENT   Gemini 2.5 Pro       OpenRouter Claude 3.5 Groq / Llama-3.3-70b
-────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────────────────
+ Tier          Primary                          Fallback 1              Fallback 2
+────────────────────────────────────────────────────────────────────────────────────────────
+ FAST          OpenRouter Gemma 4 (free)        Groq / Llama-3.1-8b     Gemini Flash 2.0
+ STANDARD      OpenRouter Qwen 3 Coder (free)   Groq / Llama-3.3-70b    Gemini Flash 2.0
+ INTELLIGENT   Gemini 2.5 Pro                   OpenRouter Claude 3.5   Groq / Llama-3.3-70b
+────────────────────────────────────────────────────────────────────────────────────────────
 
 Cost strategy:
  • FAST     → intent routing, metadata extraction, small-talk disambiguation
@@ -69,18 +69,18 @@ class TaskTier(str, Enum):
 _CHAINS: dict[TaskTier, list[dict[str, str]]] = {
     TaskTier.FAST: [
         # ~0 cost on free tiers, very low latency on RPi
+        {"provider": "openrouter", "model": "google/gemma-4-26b-a4b-it:free"},
         {"provider": "groq",       "model": "llama-3.1-8b-instant"},
-        {"provider": "gemini",     "model": "gemini-2.0-flash"},
-        {"provider": "openrouter", "model": "meta-llama/llama-3.1-8b-instruct:free"},
+        {"provider": "gemini",     "model": "gemini-3.1-flash-lite-preview"},
     ],
     TaskTier.STANDARD: [
-        {"provider": "gemini",     "model": "gemini-2.0-flash"},
+        {"provider": "openrouter", "model": "qwen/qwen3-coder:free"},
         {"provider": "groq",       "model": "llama-3.3-70b-versatile"},
-        {"provider": "openrouter", "model": "mistralai/mistral-7b-instruct:free"},
+        {"provider": "gemini",     "model": "gemini-3.1-flash-lite-preview"},
     ],
     TaskTier.INTELLIGENT: [
-        {"provider": "gemini",     "model": "gemini-2.5-pro"},
-        {"provider": "openrouter", "model": "anthropic/claude-3.5-haiku"},
+        {"provider": "gemini",     "model": "gemini-3.1-flash-lite-preview"},
+        {"provider": "openrouter", "model": "qwen/qwen3-next-80b-a3b-instruct:free"},
         {"provider": "groq",       "model": "llama-3.3-70b-versatile"},
     ],
 }

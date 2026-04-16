@@ -88,6 +88,7 @@ class Transaction(Base):
     date: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     is_fixed: Mapped[bool] = mapped_column(Boolean, default=False)  # Recurring transaction
     recurrence: Mapped[str | None] = mapped_column(String(32), nullable=True)  # "monthly", "weekly", etc.
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
     user: Mapped["User"] = relationship("User")

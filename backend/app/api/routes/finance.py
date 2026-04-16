@@ -103,7 +103,7 @@ class YearlySummaryResponse(BaseModel):
 #  Helper
 # ══════════════════════════════════════════════════════════════════════════════
 
-async def get_finance_service(user: User, db) -> FinanceService:
+async def get_finance_service(db: AsyncSession, user: User) -> FinanceService:
     """Obtiene el servicio de finanzas para el usuario actual."""
     return FinanceService(db, user.id)
 
@@ -121,127 +121,113 @@ async def list_transactions(
     month: int | None = None,
     year: int | None = None,
     current_user: User = Depends(get_current_user),
-    db=Depends(lambda: None),
+    db: AsyncSession = Depends(get_db),
 ):
     """Lista transacciones del usuario con filtros opcionales."""
-    from app.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        service = await get_finance_service(current_user, session)
+    service = await get_finance_service(db, current_user)
 
-        try:
-            transactions = await service.list_transactions(
-                limit=limit,
-                offset=offset,
-                tx_type=tx_type,
-                category=category,
-                month=month,
-                year=year,
-            )
+    try:
+        transactions = await service.list_transactions(
+            limit=limit,
+            offset=offset,
+            tx_type=tx_type,
+            category=category,
+            month=month,
+            year=year,
+        )
 
-            return {
-                "transactions": [
-                    {
-                        "id": tx.id,
-                        "type": tx.type,
-                        "amount": tx.amount,
-                        "category": tx.category,
-                        "description": tx.description,
-                        "date": tx.date.isoformat(),
-                        "is_fixed": tx.is_fixed,
-                        "recurrence": tx.recurrence,
-                        "created_at": tx.created_at.isoformat(),
-                    }
-                    for tx in transactions
-                ],
-                "total": len(transactions),
-            }
-        except Exception as exc:
-            logger.exception("Error listing transactions")
-            raise HTTPException(status_code=500, detail="Error al obtener transacciones")
+        return {
+            "transactions": [
+                {
+                    "id": tx.id,
+                    "type": tx.type,
+                    "amount": tx.amount,
+                    "category": tx.category,
+                    "description": tx.description,
+                    "date": tx.date.isoformat(),
+                    "is_fixed": tx.is_fixed,
+                    "recurrence": tx.recurrence,
+                    "created_at": tx.created_at.isoformat(),
+                }
+                for tx in transactions
+            ],
+            "total": len(transactions),
+        }
+    except Exception as exc:
+        logger.exception("Error listing transactions")
+        raise HTTPException(status_code=500, detail="Error al obtener transacciones")
 
 
 @router.get("/transactions/{tx_id}", response_model=TransactionResponse, summary="Obtener transacción por ID")
 async def get_transaction(
     tx_id: str,
     current_user: User = Depends(get_current_user),
-    db=Depends(lambda: None),
+    db: AsyncSession = Depends(get_db),
 ):
     """Obtiene los detalles de una transacción específica."""
-    from app.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        service = await get_finance_service(current_user, session)
+    service = await get_finance_service(db, current_user)
 
-        try:
-            tx = await service.get_transaction(tx_id)
-            if not tx:
-                raise HTTPException(status_code=404, detail="Transacción no encontrada")
+    try:
+        tx = await service.get_transaction(tx_id)
+        if not tx:
+            raise HTTPException(status_code=404, detail="Transacción no encontrada")
 
-            return {
-                "id": tx.id,
-                "type": tx.type,
-                "amount": tx.amount,
-                "category": tx.category,
-                "description": tx.description,
-                "date": tx.date.isoformat(),
-                "is_fixed": tx.is_fixed,
-                "recurrence": tx.recurrence,
-                "created_at": tx.created_at.isoformat(),
-            }
-        except HTTPException:
-            raise
-        except Exception as exc:
-            logger.exception("Error getting transaction")
-            raise HTTPException(status_code=500, detail="Error al obtener la transacción")
+        return {
+            "id": tx.id,
+            "type": tx.type,
+            "amount": tx.amount,
+            "category": tx.category,
+            "description": tx.description,
+            "date": tx.date.isoformat(),
+            "is_fixed": tx.is_fixed,
+            "recurrence": tx.recurrence,
+            "created_at": tx.created_at.isoformat(),
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Error getting transaction")
+        raise HTTPException(status_code=500, detail="Error al obtener la transacción")
 
 
 @router.post("/transactions", response_model=TransactionResponse, status_code=201, summary="Crear transacción")
 async def create_transaction(
     body: TransactionCreate,
     current_user: User = Depends(get_current_user),
-    db=Depends(lambda: None),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Crea una nueva transacción (ingreso o gasto).
-
-    - **type**: "income" o "expense"
-    - **amount**: Cantidad (siempre positiva)
-    - **category**: Categoría (alimentacion, transporte, ocio, etc.)
-    - **description**: Descripción detallada
-    - **date**: Fecha opcional (default: ahora)
-    - **is_fixed**: Si es transacción fija/recurrente
-    - **recurrence**: Frecuencia ("monthly", "weekly")
     """
-    from app.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        service = await get_finance_service(current_user, session)
+    service = await get_finance_service(db, current_user)
 
-        try:
-            date = datetime.fromisoformat(body.date.replace("Z", "+00:00")) if body.date else None
+    try:
+        date_val = datetime.fromisoformat(body.date.replace("Z", "+00:00")) if body.date else None
 
-            tx = await service.create_transaction(
-                tx_type=body.type,
-                amount=body.amount,
-                category=body.category,
-                description=body.description,
-                date=date,
-                is_fixed=body.is_fixed,
-                recurrence=body.recurrence,
-            )
+        tx = await service.create_transaction(
+            tx_type=body.type,
+            amount=body.amount,
+            category=body.category,
+            description=body.description,
+            date=date_val,
+            is_fixed=body.is_fixed,
+            recurrence=body.recurrence,
+        )
 
-            return {
-                "id": tx.id,
-                "type": tx.type,
-                "amount": tx.amount,
-                "category": tx.category,
-                "description": tx.description,
-                "date": tx.date.isoformat(),
-                "is_fixed": tx.is_fixed,
-                "recurrence": tx.recurrence,
-                "created_at": tx.created_at.isoformat(),
-            }
-        except Exception as exc:
-            logger.exception("Error creating transaction")
-            raise HTTPException(status_code=500, detail="Error al crear la transacción")
+        return {
+            "id": tx.id,
+            "type": tx.type,
+            "amount": tx.amount,
+            "category": tx.category,
+            "description": tx.description,
+            "date": tx.date.isoformat(),
+            "is_fixed": tx.is_fixed,
+            "recurrence": tx.recurrence,
+            "created_at": tx.created_at.isoformat(),
+        }
+    except Exception as exc:
+        logger.exception("Error creating transaction")
+        raise HTTPException(status_code=500, detail="Error al crear la transacción")
 
 
 @router.put("/transactions/{tx_id}", response_model=TransactionResponse, summary="Actualizar transacción")
@@ -249,68 +235,64 @@ async def update_transaction(
     tx_id: str,
     body: TransactionUpdate,
     current_user: User = Depends(get_current_user),
-    db=Depends(lambda: None),
+    db: AsyncSession = Depends(get_db),
 ):
     """Actualiza una transacción existente."""
-    from app.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        service = await get_finance_service(current_user, session)
+    service = await get_finance_service(db, current_user)
 
-        try:
-            date = datetime.fromisoformat(body.date.replace("Z", "+00:00")) if body.date else None
+    try:
+        date_val = datetime.fromisoformat(body.date.replace("Z", "+00:00")) if body.date else None
 
-            tx = await service.update_transaction(
-                transaction_id=tx_id,
-                amount=body.amount,
-                category=body.category,
-                description=body.description,
-                date=date,
-                is_fixed=body.is_fixed,
-                recurrence=body.recurrence,
-            )
+        tx = await service.update_transaction(
+            transaction_id=tx_id,
+            amount=body.amount,
+            category=body.category,
+            description=body.description,
+            date=date_val,
+            is_fixed=body.is_fixed,
+            recurrence=body.recurrence,
+        )
 
-            if not tx:
-                raise HTTPException(status_code=404, detail="Transacción no encontrada")
+        if not tx:
+            raise HTTPException(status_code=404, detail="Transacción no encontrada")
 
-            return {
-                "id": tx.id,
-                "type": tx.type,
-                "amount": tx.amount,
-                "category": tx.category,
-                "description": tx.description,
-                "date": tx.date.isoformat(),
-                "is_fixed": tx.is_fixed,
-                "recurrence": tx.recurrence,
-                "created_at": tx.created_at.isoformat(),
-            }
-        except HTTPException:
-            raise
-        except Exception as exc:
-            logger.exception("Error updating transaction")
-            raise HTTPException(status_code=500, detail="Error al actualizar la transacción")
+        return {
+            "id": tx.id,
+            "type": tx.type,
+            "amount": tx.amount,
+            "category": tx.category,
+            "description": tx.description,
+            "date": tx.date.isoformat(),
+            "is_fixed": tx.is_fixed,
+            "recurrence": tx.recurrence,
+            "created_at": tx.created_at.isoformat(),
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Error updating transaction")
+        raise HTTPException(status_code=500, detail="Error al actualizar la transacción")
 
 
 @router.delete("/transactions/{tx_id}", status_code=204, summary="Eliminar transacción")
 async def delete_transaction(
     tx_id: str,
     current_user: User = Depends(get_current_user),
-    db=Depends(lambda: None),
+    db: AsyncSession = Depends(get_db),
 ):
     """Elimina una transacción."""
-    from app.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        service = await get_finance_service(current_user, session)
+    service = await get_finance_service(db, current_user)
 
-        try:
-            deleted = await service.delete_transaction(tx_id)
-            if not deleted:
-                raise HTTPException(status_code=404, detail="Transacción no encontrada")
-            return None
-        except HTTPException:
-            raise
-        except Exception as exc:
-            logger.exception("Error deleting transaction")
-            raise HTTPException(status_code=500, detail="Error al eliminar la transacción")
+    try:
+        deleted = await service.delete_transaction(tx_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Transacción no encontrada")
+        return None
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Error deleting transaction")
+        raise HTTPException(status_code=500, detail="Error al eliminar la transacción")
 
 
 @router.get("/balance", response_model=BalanceResponse, summary="Obtener balance mensual")
@@ -318,42 +300,36 @@ async def get_balance(
     month: int | None = None,
     year: int | None = None,
     current_user: User = Depends(get_current_user),
-    db=Depends(lambda: None),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Obtiene el balance mensual (ingresos - gastos).
-
-    Si no se especifica, devuelve el balance del mes actual.
     """
-    from app.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        service = await get_finance_service(current_user, session)
+    service = await get_finance_service(db, current_user)
 
-        try:
-            balance = await service.get_monthly_balance(month, year)
-            return balance
-        except Exception as exc:
-            logger.exception("Error getting balance")
-            raise HTTPException(status_code=500, detail="Error al obtener el balance")
+    try:
+        balance = await service.get_monthly_balance(month, year)
+        return balance
+    except Exception as exc:
+        logger.exception("Error getting balance")
+        raise HTTPException(status_code=500, detail="Error al obtener el balance")
 
 
 @router.get("/summary", response_model=YearlySummaryResponse, summary="Resumen anual")
 async def get_summary(
     year: int | None = None,
     current_user: User = Depends(get_current_user),
-    db=Depends(lambda: None),
+    db: AsyncSession = Depends(get_db),
 ):
     """Obtiene resumen financiero anual completo."""
-    from app.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        service = await get_finance_service(current_user, session)
+    service = await get_finance_service(db, current_user)
 
-        try:
-            summary = await service.get_yearly_summary(year)
-            return summary
-        except Exception as exc:
-            logger.exception("Error getting yearly summary")
-            raise HTTPException(status_code=500, detail="Error al obtener el resumen anual")
+    try:
+        summary = await service.get_yearly_summary(year)
+        return summary
+    except Exception as exc:
+        logger.exception("Error getting yearly summary")
+        raise HTTPException(status_code=500, detail="Error al obtener el resumen anual")
 
 
 @router.get("/categories", response_model=CategoriesSummaryResponse, summary="Gastos por categoría")
@@ -361,55 +337,51 @@ async def get_categories(
     month: int | None = None,
     year: int | None = None,
     current_user: User = Depends(get_current_user),
-    db=Depends(lambda: None),
+    db: AsyncSession = Depends(get_db),
 ):
     """Obtiene gastos desglosados por categoría."""
-    from app.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        service = await get_finance_service(current_user, session)
+    service = await get_finance_service(db, current_user)
 
-        try:
-            categories = await service.get_expenses_by_category(month, year)
-            total = sum(c["total"] for c in categories)
+    try:
+        categories_data = await service.get_expenses_by_category(month, year)
+        total = sum(c["total"] for c in categories_data)
 
-            return {
-                "categories": categories,
-                "total": round(total, 2),
-            }
-        except Exception as exc:
-            logger.exception("Error getting categories")
-            raise HTTPException(status_code=500, detail="Error al obtener categorías")
+        return {
+            "categories": categories_data,
+            "total": round(total, 2),
+        }
+    except Exception as exc:
+        logger.exception("Error getting categories")
+        raise HTTPException(status_code=500, detail="Error al obtener categorías")
 
 
 @router.get("/fixed", summary="Transacciones fijas")
 async def get_fixed(
     current_user: User = Depends(get_current_user),
-    db=Depends(lambda: None),
+    db: AsyncSession = Depends(get_db),
 ):
     """Obtiene lista de transacciones fijas/recurrentes."""
-    from app.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        service = await get_finance_service(current_user, session)
+    service = await get_finance_service(db, current_user)
 
-        try:
-            transactions = await service.get_fixed_transactions()
+    try:
+        transactions = await service.get_fixed_transactions()
 
-            return {
-                "transactions": [
-                    {
-                        "id": tx.id,
-                        "type": tx.type,
-                        "amount": tx.amount,
-                        "category": tx.category,
-                        "description": tx.description,
-                        "recurrence": tx.recurrence,
-                        "date": tx.date.isoformat(),
-                    }
-                    for tx in transactions
-                ],
-                "total_expenses": sum(tx.amount for tx in transactions if tx.type == "expense"),
-                "total_income": sum(tx.amount for tx in transactions if tx.type == "income"),
-            }
-        except Exception as exc:
-            logger.exception("Error getting fixed transactions")
-            raise HTTPException(status_code=500, detail="Error al obtener transacciones fijas")
+        return {
+            "transactions": [
+                {
+                    "id": tx.id,
+                    "type": tx.type,
+                    "amount": tx.amount,
+                    "category": tx.category,
+                    "description": tx.description,
+                    "recurrence": tx.recurrence,
+                    "date": tx.date.isoformat(),
+                }
+                for tx in transactions
+            ],
+            "total_expenses": sum(tx.amount for tx in transactions if tx.type == "expense"),
+            "total_income": sum(tx.amount for tx in transactions if tx.type == "income"),
+        }
+    except Exception as exc:
+        logger.exception("Error getting fixed transactions")
+        raise HTTPException(status_code=500, detail="Error al obtener transacciones fijas")
