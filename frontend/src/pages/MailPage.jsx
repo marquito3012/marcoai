@@ -33,15 +33,18 @@ export default function MailPage() {
   const [mailContent, setMailContent] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [showCompose, setShowCompose] = useState(false)
+  const [error, setError] = useState(null)
 
   // Fetch email list
   const fetchEmails = async (query = '') => {
     try {
       setLoading(true)
+      setError(null)
       const data = await apiFetch(`/gmail/list?q=${encodeURIComponent(query)}&max_results=15`)
       setEmails(data.messages || [])
     } catch (err) {
       console.error('Error fetching emails:', err)
+      setError(err.message || 'Error al conectar con Gmail')
     } finally {
       setLoading(false)
     }
@@ -55,11 +58,13 @@ export default function MailPage() {
   const handleSelectMail = async (mail) => {
     setSelectedMail(mail)
     setLoadingDetail(true)
+    setMailContent(null)
     try {
       const data = await apiFetch(`/gmail/messages/${mail.id}`)
       setMailContent(data)
     } catch (err) {
       console.error('Error fetching mail detail:', err)
+      setError('Error al cargar el detalle del correo')
     } finally {
       setLoadingDetail(false)
     }
@@ -112,6 +117,15 @@ export default function MailPage() {
               <RefreshCw size={32} className="spin" color="var(--color-primary)" />
               <p>Cargando bandeja de entrada...</p>
             </div>
+          ) : error && emails.length === 0 ? (
+            <div style={styles.emptyState}>
+              <RefreshCw size={48} color="var(--color-error)" />
+              <p style={{ color: 'var(--color-error)', textAlign: 'center', padding: '0 20px' }}>
+                {error}
+                <br />
+                <button onClick={() => fetchEmails(searchQuery)} style={styles.retryBtn}>Reintentar</button>
+              </p>
+            </div>
           ) : emails.length === 0 ? (
             <div style={styles.emptyState}>
               <Mail size={48} color="var(--color-text-faint)" />
@@ -129,10 +143,10 @@ export default function MailPage() {
                   }}
                 >
                   <div style={styles.mailItemHeader}>
-                    <span style={styles.mailSender}>{mail.sender.split(' <')[0]}</span>
-                    <span style={styles.mailDate}>{new Date(mail.date).toLocaleDateString()}</span>
+                    <span style={styles.mailSender}>{mail.sender?.split(' <')[0] || 'Desconocido'}</span>
+                    <span style={styles.mailDate}>{mail.date ? new Date(mail.date).toLocaleDateString() : ''}</span>
                   </div>
-                  <div style={styles.mailSubject}>{mail.subject}</div>
+                  <div style={styles.mailSubject}>{mail.subject || '(Sin asunto)'}</div>
                   <div style={styles.mailSnippet}>{mail.snippet}</div>
                 </div>
               ))}
@@ -180,9 +194,9 @@ export default function MailPage() {
                   </div>
                   <div style={styles.divider} />
                   <div style={styles.mailContent}>
-                    {mailContent.body.split('\n').map((line, i) => (
+                    {mailContent.body?.split('\n').map((line, i) => (
                       <p key={i} style={{ margin: '0 0 1em' }}>{line}</p>
-                    ))}
+                    )) || <p>No se pudo cargar el contenido del mensaje.</p>}
                   </div>
                 </div>
               ) : null}
@@ -334,6 +348,16 @@ const styles = {
     fontWeight: 600,
     cursor: 'pointer',
     boxShadow: '0 4px 12px rgba(251, 146, 60, 0.3)',
+  },
+  retryBtn: {
+    marginTop: 12,
+    background: 'var(--color-primary)',
+    color: 'white',
+    border: 'none',
+    borderRadius: 'var(--radius-sm)',
+    padding: '6px 14px',
+    fontSize: 13,
+    cursor: 'pointer',
   },
   iconBtn: {
     background: 'var(--color-surface-2)',

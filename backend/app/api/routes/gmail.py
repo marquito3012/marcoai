@@ -31,7 +31,7 @@ class EmailResponse(BaseModel):
     id: str
     subject: str
     snippet: str
-    sender: str = Field(alias="from")
+    sender: str
     date: str
 
     class Config:
@@ -41,7 +41,7 @@ class EmailResponse(BaseModel):
 class EmailDetailResponse(BaseModel):
     id: str
     subject: str
-    sender: str = Field(alias="from")
+    sender: str
     date: str
     body: str
 
@@ -92,7 +92,7 @@ async def list_emails(
                     "id": m["id"],
                     "subject": m["subject"],
                     "snippet": m["snippet"],
-                    "from": m["from"],
+                    "sender": m["from"],
                     "date": m["date"]
                 })
             return {"messages": formatted}
@@ -111,6 +111,8 @@ async def read_email(
     service = await get_gmail_service(current_user, db)
     try:
         msg = await service.read_message(message_id)
+        # Ensure 'from' is mapped to 'sender' for schema consistency
+        msg["sender"] = msg.pop("from", "(Sin remitente)")
         return msg
     except Exception as exc:
         logger.exception("Error reading email")
