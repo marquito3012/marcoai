@@ -33,6 +33,23 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         import app.db.models as _models  # noqa: F401
         await conn.run_sync(Base.metadata.create_all)
+        
+        # Manual migration for finance module (Fase 7 stability)
+        try:
+            # Check columns in transactions
+            result = await conn.execute(text("PRAGMA table_info(transactions)"))
+            columns = [row[1] for row in result.fetchall()]
+            
+            if "created_at" not in columns:
+                print("⚡ Migrating: Adding created_at to transactions...")
+                await conn.execute(text("ALTER TABLE transactions ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP"))
+            
+            if "updated_at" not in columns:
+                print("⚡ Migrating: Adding updated_at to transactions...")
+                await conn.execute(text("ALTER TABLE transactions ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP"))
+                
+        except Exception as e:
+            print(f"⚠️ Migration warning: {e}")
     
     # 2. Robustly create SQLite-vec virtual tables using a sync connection
     # This bypasses aiosqlite/sqlalchemy wrapper issues for extension loading.
