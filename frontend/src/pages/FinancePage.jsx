@@ -563,7 +563,7 @@ function CreateTransactionModal({ onClose, onCreated }) {
                 style={styles.checkbox}
               />
               <span style={{ fontSize: 14, color: 'var(--color-text)' }}>
-                Transacción fija/recurrente
+                Mensual
               </span>
             </label>
           </div>
