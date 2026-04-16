@@ -39,7 +39,7 @@ async def _get_calendar_service(db: AsyncSession, user: User) -> CalendarService
 async def list_calendar_events(
     db: AsyncSession,
     user: User,
-    days_ahead: int = 7,
+    days_ahead: int = 30,
 ) -> str:
     """
     Lista los próximos eventos del calendario del usuario.
@@ -52,10 +52,13 @@ async def list_calendar_events(
     """
     try:
         service = await _get_calendar_service(db, user)
-        events = await service.list_events(max_results=50)
+        events = await service.list_events(
+            end_date=datetime.now(timezone.utc) + timedelta(days=days_ahead),
+            max_results=50
+        )
 
         if not events:
-            return "No tienes eventos programados en los próximos días."
+            return f"No tienes eventos programados en los próximos {days_ahead} días."
 
         lines = ["📅 **Próximos eventos:**\n"]
         for event in events:

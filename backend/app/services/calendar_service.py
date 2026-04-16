@@ -143,9 +143,9 @@ class CalendarService:
         service = await self._get_service()
 
         if start_date is None:
-            start_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0)
+            start_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         if end_date is None:
-            end_date = start_date + timedelta(days=7)
+            end_date = start_date + timedelta(days=30)
 
         try:
             events_result = (

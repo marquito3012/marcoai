@@ -133,7 +133,10 @@ async def calendar_node(state: AgentState) -> dict:
                 if any(kw in user_message.lower() for kw in ["ver", "lista", "próxim", "agenda", "evento", "reunión", "reunion"]):
                     from app.services.calendar_service import CalendarService
                     service = CalendarService(db, user)
-                    events = await service.list_events(max_results=10)
+                    events = await service.list_events(
+                        end_date=datetime.now(timezone.utc) + timedelta(days=30),
+                        max_results=10
+                    )
 
                     if events:
                         lines = ["📅 **Próximos eventos:**\n"]
@@ -147,7 +150,7 @@ async def calendar_node(state: AgentState) -> dict:
                             lines.append(f"• **{summary}** – {date_str}")
                         tool_result = "\n".join(lines)
                     else:
-                        tool_result = "No tienes eventos programados en los próximos días."
+                        tool_result = "No tienes eventos programados en los próximos 30 días."
     except Exception as exc:
         logger.error("Error crítico en calendar_node: %s", exc, exc_info=True)
         # We provide a clean, non-technical context to the LLM so it can answer helpfully
