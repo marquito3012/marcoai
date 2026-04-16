@@ -194,9 +194,18 @@ export default function MailPage() {
                   </div>
                   <div style={styles.divider} />
                   <div style={styles.mailContent}>
-                    {mailContent.body?.split('\n').map((line, i) => (
-                      <p key={i} style={{ margin: '0 0 1em' }}>{line}</p>
-                    )) || <p>No se pudo cargar el contenido del mensaje.</p>}
+                    {mailContent.is_html ? (
+                      <iframe 
+                        title="Email Content"
+                        srcDoc={mailContent.body}
+                        style={styles.mailIframe}
+                        sandbox="allow-popups allow-popups-to-escape-sandbox"
+                      />
+                    ) : (
+                      mailContent.body?.split('\n').map((line, i) => (
+                        <p key={i} style={{ margin: '0 0 1em' }}>{line}</p>
+                      )) || <p>No se pudo cargar el contenido del mensaje.</p>
+                    )}
                   </div>
                 </div>
               ) : null}
@@ -509,6 +518,13 @@ const styles = {
     lineHeight: 1.8,
     color: 'var(--color-text)',
     fontFamily: 'var(--font-sans)',
+  },
+  mailIframe: {
+    width: '100%',
+    height: '600px',
+    border: 'none',
+    background: 'white',
+    borderRadius: 'var(--radius-md)',
   },
   // Modal styles
   modalOverlay: {

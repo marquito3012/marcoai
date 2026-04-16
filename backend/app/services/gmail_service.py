@@ -134,28 +134,50 @@ class GmailService:
             raise
 
     async def read_message(self, message_id: str) -> dict:
-        """Lee el contenido completo de un mensaje."""
+        """Lee el contenido completo de un mensaje buscando la mejor parte (HTML > Plain)."""
         service = await self._get_service()
         try:
             msg = service.users().messages().get(userId="me", id=message_id, format="full").execute()
             
-            # Simple text extraction
-            body = "No se pudo extraer el texto."
             payload = msg.get("payload", {})
-            parts = payload.get("parts", [])
             
-            # Buscando plain text
-            for part in parts:
-                if part.get("mimeType") == "text/plain":
-                    data = part.get("body", {}).get("data")
-                    if data:
-                        body = base64.urlsafe_b64decode(data).decode('utf-8')
-                        break
+            def find_part(parts, mime_type):
+                """Búsqueda recursiva de una parte por tipo MIME."""
+                for part in parts:
+                    if part.get("mimeType") == mime_type:
+                        return part
+                    if "parts" in part:
+                        found = find_part(part["parts"], mime_type)
+                        if found:
+                            return found
+                return None
+
+            # Buscamos HTML primero, luego texto plano
+            html_part = None
+            text_part = None
             
-            # Si no hay parts (correo muy simple o sin charset variable)
-            if not parts and payload.get("body", {}).get("data"):
+            if "parts" in payload:
+                html_part = find_part(payload["parts"], "text/html")
+                text_part = find_part(payload["parts"], "text/plain")
+            elif payload.get("mimeType") == "text/html":
+                html_part = payload
+            elif payload.get("mimeType") == "text/plain":
+                text_part = payload
+
+            body = ""
+            is_html = False
+            
+            best_part = html_part or text_part
+            if best_part:
+                data = best_part.get("body", {}).get("data")
+                if data:
+                    body = base64.urlsafe_b64decode(data).decode('utf-8')
+                    is_html = (best_part.get("mimeType") == "text/html")
+            elif payload.get("body", {}).get("data"):
+                # Fallback para correos extremadamente simples
                 data = payload.get("body").get("data")
                 body = base64.urlsafe_b64decode(data).decode('utf-8')
+                is_html = (payload.get("mimeType") == "text/html")
 
             headers = {h["name"]: h["value"] for h in payload.get("headers", [])}
             
@@ -164,7 +186,8 @@ class GmailService:
                 "subject": headers.get("Subject", "(Sin asunto)"),
                 "from": headers.get("From", ""),
                 "date": headers.get("Date", ""),
-                "body": body
+                "body": body,
+                "is_html": is_html
             }
         except HttpError as exc:
             logger.error("Error leyendo correo %s: %s", message_id, exc)

@@ -44,6 +44,7 @@ class EmailDetailResponse(BaseModel):
     sender: str
     date: str
     body: str
+    is_html: bool = False
 
     class Config:
         populate_by_name = True
