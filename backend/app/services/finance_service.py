@@ -17,8 +17,9 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, select, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+import calendar
 
 from app.db.models import Transaction
 
@@ -138,16 +139,44 @@ class FinanceService:
             month: Filtrar por mes (1-12)
             year: Filtrar por año
         """
+        """
         query = select(Transaction).where(Transaction.user_id == self.user_id)
 
         if tx_type:
             query = query.where(Transaction.type == tx_type)
         if category:
             query = query.where(Transaction.category == category)
-        if month:
-            query = query.where(func.strftime("%m", Transaction.date) == f"{month:02d}")
-        if year:
+        
+        if month and year:
+            # logic for specific month/year
+            month_start = datetime(year, month, 1, tzinfo=timezone.utc)
+            _, last_day = calendar.monthrange(year, month)
+            month_end = datetime(year, month, last_day, 23, 59, 59, tzinfo=timezone.utc)
+
+            # Condition:
+            # 1. Non-fixed: must be in this month
+            # 2. Fixed: must have started before or during this month AND not deleted before this month
+            query = query.where(
+                or_(
+                    and_(
+                        Transaction.is_fixed == False,
+                        Transaction.date >= month_start,
+                        Transaction.date <= month_end
+                    ),
+                    and_(
+                        Transaction.is_fixed == True,
+                        Transaction.date <= month_end,
+                        or_(
+                            Transaction.deleted_at == None,
+                            Transaction.deleted_at >= month_start
+                        )
+                    )
+                )
+            )
+        elif year:
             query = query.where(func.strftime("%Y", Transaction.date) == str(year))
+        elif month:
+            query = query.where(func.strftime("%m", Transaction.date) == f"{month:02d}")
 
         query = query.order_by(Transaction.date.desc()).limit(limit).offset(offset)
 
@@ -188,15 +217,22 @@ class FinanceService:
         return transaction
 
     async def delete_transaction(self, transaction_id: str) -> bool:
-        """Elimina una transacción."""
+        """Elimina una transacción (soft-delete si es fija)."""
         transaction = await self.get_transaction(transaction_id)
         if not transaction:
             return False
 
-        await self.db.delete(transaction)
-        await self.db.commit()
-
-        logger.info("Transacción eliminada: %s", transaction_id)
+        if transaction.is_fixed:
+            # Si es fija, solo marcamos fecha de fin (soft-delete)
+            transaction.deleted_at = datetime.now(timezone.utc)
+            await self.db.commit()
+            logger.info("Transacción fija desactivada (soft-delete): %s", transaction_id)
+        else:
+            # Si es puntual, borrado físico (o también soft-delete, pero el usuario pidió que desaparezca)
+            await self.db.delete(transaction)
+            await self.db.commit()
+            logger.info("Transacción puntual eliminada físicamente: %s", transaction_id)
+            
         return True
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -222,14 +258,32 @@ class FinanceService:
         month = month or now.month
         year = year or now.year
 
+        # logic for specific month/year
+        month_start = datetime(year, month, 1, tzinfo=timezone.utc)
+        _, last_day = calendar.monthrange(year, month)
+        month_end = datetime(year, month, last_day, 23, 59, 59, tzinfo=timezone.utc)
+
         # Consulta agregada
         query = select(
             Transaction.type,
             func.sum(Transaction.amount).label("total"),
         ).where(
             Transaction.user_id == self.user_id,
-            func.strftime("%Y", Transaction.date) == str(year),
-            func.strftime("%m", Transaction.date) == f"{month:02d}",
+            or_(
+                and_(
+                    Transaction.is_fixed == False,
+                    Transaction.date >= month_start,
+                    Transaction.date <= month_end
+                ),
+                and_(
+                    Transaction.is_fixed == True,
+                    Transaction.date <= month_end,
+                    or_(
+                        Transaction.deleted_at == None,
+                        Transaction.deleted_at >= month_start
+                    )
+                )
+            )
         ).group_by(Transaction.type)
 
         result = await self.db.execute(query)
@@ -271,6 +325,10 @@ class FinanceService:
         month = month or now.month
         year = year or now.year
 
+        month_start = datetime(year, month, 1, tzinfo=timezone.utc)
+        _, last_day = calendar.monthrange(year, month)
+        month_end = datetime(year, month, last_day, 23, 59, 59, tzinfo=timezone.utc)
+
         query = select(
             Transaction.category,
             func.sum(Transaction.amount).label("total"),
@@ -278,8 +336,21 @@ class FinanceService:
         ).where(
             Transaction.user_id == self.user_id,
             Transaction.type == "expense",
-            func.strftime("%Y", Transaction.date) == str(year),
-            func.strftime("%m", Transaction.date) == f"{month:02d}",
+            or_(
+                and_(
+                    Transaction.is_fixed == False,
+                    Transaction.date >= month_start,
+                    Transaction.date <= month_end
+                ),
+                and_(
+                    Transaction.is_fixed == True,
+                    Transaction.date <= month_end,
+                    or_(
+                        Transaction.deleted_at == None,
+                        Transaction.deleted_at >= month_start
+                    )
+                )
+            )
         ).group_by(Transaction.category).order_by(func.sum(Transaction.amount).desc())
 
         result = await self.db.execute(query)

@@ -49,6 +49,10 @@ async def lifespan(app: FastAPI):
                 print("⚡ Migrating: Adding updated_at to transactions...")
                 await conn.execute(text("ALTER TABLE transactions ADD COLUMN updated_at DATETIME"))
                 
+            if "deleted_at" not in columns:
+                print("⚡ Migrating: Adding deleted_at to transactions...")
+                await conn.execute(text("ALTER TABLE transactions ADD COLUMN deleted_at DATETIME"))
+                
         except Exception as e:
             print(f"⚠️ Migration warning: {e}")
     
