@@ -39,10 +39,11 @@ class DocumentService:
     def __init__(self, db: AsyncSession, user_id: str):
         self.db = db
         self.user_id = user_id
-        # We will use Gemini embeddings (embedding-001 is stable and compatible)
+        # We will use Gemini embeddings (text-embedding-004 is current standard)
         self.embeddings_model = GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001", 
-            google_api_key=settings.google_api_key
+            model="models/text-embedding-004", 
+            google_api_key=settings.google_api_key,
+            task_type="retrieval_document"
         )
         self._vec_loaded = False
 
@@ -56,6 +57,8 @@ class DocumentService:
             # In SQLAlchemy 2.0+ async, we can access the driver connection
             raw_conn = await conn.engine.raw_connection()
             # aiosqlite connection is at ._connection
+            # CRITICAL: We must enable loading before calling it
+            await raw_conn._connection.enable_load_extension(True)
             await raw_conn._connection.load_extension(sqlite_vec.loadable_path())
         except Exception as e:
             logger.warning(f"Failed to load sqlite_vec extension dynamically: {e}")
