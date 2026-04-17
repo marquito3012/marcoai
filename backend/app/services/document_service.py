@@ -160,7 +160,9 @@ class DocumentService:
         """Realiza la búsqueda de los N chunks más similares en base al Query."""
         await self._ensure_vec_loaded()
         # Embed query
+        logger.info("Generando embedding para la consulta: %s", query)
         query_embedding = await asyncio.to_thread(self.embeddings_model.embed_query, query)
+        logger.info("Embedding de consulta generado. Dimensiones: %d", len(query_embedding))
         import json
         
         # We need to filter by user's documents. To do this, we join with documents table.
