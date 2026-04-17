@@ -39,9 +39,9 @@ class DocumentService:
     def __init__(self, db: AsyncSession, user_id: str):
         self.db = db
         self.user_id = user_id
-        # We will use Gemini embeddings (text-embedding-004 creates 768 dims, exactly what we declared)
+        # We will use Gemini embeddings (embedding-001 is stable and compatible)
         self.embeddings_model = GoogleGenerativeAIEmbeddings(
-            model="models/text-embedding-004", 
+            model="models/embedding-001", 
             google_api_key=settings.google_api_key
         )
         self._vec_loaded = False
@@ -50,16 +50,15 @@ class DocumentService:
         if self._vec_loaded:
             return
         import sqlite_vec
-        # aiosqlite connection supports inner load_extension
-        conn = await self.db.connection()
-        raw_aiosqlite_conn = conn.engine.raw_connection()
-        # aiosqlite conn exposes load_extension:
-        # Actually sqlalchemy's raw_connection() might return an AsyncAdapt_aiosqlite_connection wrapper.
         try:
-            await raw_aiosqlite_conn._connection.load_extension(sqlite_vec.loadable_path())
+            # We get the underlying aiosqlite connection from the AsyncSession
+            conn = await self.db.connection()
+            # In SQLAlchemy 2.0+ async, we can access the driver connection
+            raw_conn = await conn.engine.raw_connection()
+            # aiosqlite connection is at ._connection
+            await raw_conn._connection.load_extension(sqlite_vec.loadable_path())
         except Exception as e:
             logger.warning(f"Failed to load sqlite_vec extension dynamically: {e}")
-            pass
         self._vec_loaded = True
         
     async def ingest_file(self, file: UploadFile) -> Document:
