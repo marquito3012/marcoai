@@ -27,7 +27,7 @@ export default function Sidebar() {
     <aside className="sidebar" role="navigation" aria-label="Navegación principal">
       {/* Logo */}
       <div className="sidebar__logo" title="MarcoAI">
-        <img src="/logo.png" alt="MarcoAI" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
+        <img src="/logo.png?v=2" alt="MarcoAI" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
       </div>
 
       <nav className="sidebar__nav">
