@@ -125,9 +125,10 @@ api_v1.include_router(gmail_router)
 from app.api.routes.documents import router as documents_router
 from app.api.routes.habits import router as habits_router
 
-app.include_router(api_v1)
 api_v1.include_router(documents_router)
 api_v1.include_router(habits_router)
+
+app.include_router(api_v1)
 
 # ── Health & root ──────────────────────────────────────────────────────────────
 @app.get("/health", tags=["Meta"])
