@@ -72,7 +72,7 @@ async def lifespan(app: FastAPI):
             s_conn.execute('''
                 CREATE VIRTUAL TABLE IF NOT EXISTS vec_document_chunks USING vec0(
                     chunk_id INTEGER PRIMARY KEY,
-                    embedding float[768],
+                    embedding float[3072],
                     document_id TEXT,
                     chunk_index INTEGER,
                     content TEXT

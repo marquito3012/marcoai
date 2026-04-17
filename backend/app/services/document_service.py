@@ -41,7 +41,7 @@ class DocumentService:
         self.user_id = user_id
         # We will use Gemini embeddings (text-embedding-004 is current standard)
         self.embeddings_model = GoogleGenerativeAIEmbeddings(
-            model="models/text-embedding-004", 
+            model="models/gemini-embedding-001", 
             google_api_key=settings.google_api_key,
             task_type="retrieval_document"
         )
