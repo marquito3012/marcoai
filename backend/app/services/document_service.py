@@ -125,6 +125,7 @@ class DocumentService:
             # Insert vectors in batch
             for idx, chunk in enumerate(chunks):
                 # Request embedding
+                logger.info("Vectorizando chunk %d/%d con modelo: %s", idx + 1, len(chunks), self.embeddings_model.model)
                 embedding = await asyncio.to_thread(self.embeddings_model.embed_query, chunk)
 
                 # sqlite-vec expects raw python list of floats (already provided by embed_query)
