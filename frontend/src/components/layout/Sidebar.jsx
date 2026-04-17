@@ -41,7 +41,7 @@ export default function Sidebar() {
             }
             title={label}
           >
-            <Icon strokeWidth={1.75} />
+            <Icon strokeWidth={1.25} />
             <span>{label}</span>
           </NavLink>
         ))}
@@ -56,7 +56,7 @@ export default function Sidebar() {
           }
           title="Ajustes"
         >
-          <Settings strokeWidth={1.75} />
+          <Settings strokeWidth={1.25} />
           <span>Ajustes</span>
         </NavLink>
 
@@ -67,7 +67,7 @@ export default function Sidebar() {
           title="Cerrar sesión"
           onClick={logout}
         >
-          <LogOut size={18} strokeWidth={1.75} />
+          <LogOut size={18} strokeWidth={1.25} />
           <span>Salir</span>
         </button>
 
@@ -80,7 +80,7 @@ export default function Sidebar() {
             height:         40,
             borderRadius:   '50%',
             overflow:       'hidden',
-            border:         '2px solid var(--color-border)',
+            border:         '1px solid var(--color-primary)',
             flexShrink:     0,
             display:        'flex',
             alignItems:     'center',
@@ -88,7 +88,7 @@ export default function Sidebar() {
             background:     'var(--color-surface-3)',
             fontSize:       15,
             fontWeight:     600,
-            color:          'var(--color-primary-light)',
+            color:          'var(--color-primary)',
             cursor:         'default',
           }}
         >

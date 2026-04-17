@@ -67,8 +67,8 @@ function Avatar({ isUser, userInitial, pictureUrl }) {
     )
   }
   return (
-    <div style={{ ...styles.avatar, background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))', flexShrink: 0 }}>
-      <Sparkles size={14} color="white" strokeWidth={2} />
+    <div style={{ ...styles.avatar, background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))', flexShrink: 0 }}>
+      <Sparkles size={14} color="#000" strokeWidth={2.5} />
     </div>
   )
 }
@@ -106,15 +106,16 @@ export default function MessageBubble({ message, userInitial, userPictureUrl }) 
               ? '18px 18px 4px 18px'
               : '18px 18px 18px 4px',
             background: isUser
-              ? 'var(--color-primary)'
+              ? 'rgba(212, 175, 55, 0.95)'
               : 'var(--color-surface-2)',
             border: isUser
-              ? 'none'
-              : '1px solid var(--color-border-subtle)',
+              ? '1px solid var(--color-primary-light)'
+              : '1px solid var(--color-border)',
             fontSize:   14,
             lineHeight: 1.65,
-            color:      isUser ? 'white' : 'var(--color-text)',
+            color:      isUser ? '#000' : 'var(--color-text)',
             wordBreak:  'break-word',
+            boxShadow:  isUser ? '0 4px 12px rgba(212, 175, 55, 0.15)' : 'none',
           }}
         >
           {isUser ? (

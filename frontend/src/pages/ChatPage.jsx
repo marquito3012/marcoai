@@ -185,11 +185,12 @@ const styles = {
     marginBottom: 2,
   },
   headerTitle: {
-    fontSize:   20,
+    fontSize:   24,
     fontFamily: 'var(--font-display)',
     fontWeight: 700,
-    color:      'var(--color-text)',
+    color:      'var(--color-primary)',
     margin:     0,
+    letterSpacing: '-0.01em',
   },
   headerSub: {
     fontSize: 13,
@@ -261,5 +262,6 @@ const styles = {
     cursor:       'pointer',
     flexShrink:   0,
     transition:   'all 150ms ease',
+    boxShadow:    '0 0 12px rgba(212, 175, 55, 0.2)',
   },
 }

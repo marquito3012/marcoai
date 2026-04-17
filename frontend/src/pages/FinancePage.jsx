@@ -168,7 +168,7 @@ export default function FinancePage() {
             </button>
           </div>
           <h1 style={styles.title}>
-            {MONTHS[currentMonth - 1]} {currentYear}
+            {MONTHS[currentMonth - 1]} <span style={{ color: 'var(--color-primary)', fontWeight: 300 }}>{currentYear}</span>
           </h1>
         </div>
 
@@ -226,19 +226,19 @@ export default function FinancePage() {
                 title="Ingresos"
                 amount={balance?.income || 0}
                 icon={TrendingUp}
-                color="var(--color-success)"
+                color="#8B9A6C"
               />
               <BalanceCard
                 title="Gastos"
                 amount={balance?.expenses || 0}
                 icon={TrendingDown}
-                color="var(--color-error)"
+                color="#C46F51"
               />
               <BalanceCard
                 title="Balance"
                 amount={balance?.balance || 0}
                 icon={Euro}
-                color={balance?.balance >= 0 ? 'var(--color-success)' : 'var(--color-error)'}
+                color={balance?.balance >= 0 ? 'var(--color-primary)' : '#C46F51'}
                 isBalance
               />
             </div>

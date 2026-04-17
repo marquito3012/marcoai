@@ -339,9 +339,12 @@ const styles = {
     gap: 12,
   },
   title: {
-    fontSize: 24,
-    color: 'var(--color-text)',
-    margin: 0,
+    fontSize:   28,
+    fontFamily: 'var(--font-display)',
+    fontWeight: 700,
+    color:      'var(--color-primary)',
+    margin:     0,
+    letterSpacing: '-0.01em',
   },
   searchWrapper: {
     display: 'flex',
@@ -362,17 +365,17 @@ const styles = {
     width: '100%',
   },
   composeBtn: {
-    background: 'var(--color-mail)',
-    color: 'white',
+    background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))',
+    color: '#000',
     border: 'none',
     borderRadius: 'var(--radius-md)',
     padding: '10px 18px',
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    fontWeight: 600,
+    fontWeight: 700,
     cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(251, 146, 60, 0.3)',
+    boxShadow: '0 4px 15px rgba(212, 175, 55, 0.2)',
   },
   retryBtn: {
     marginTop: 12,
@@ -427,8 +430,8 @@ const styles = {
     transition: 'background 0.2s',
   },
   mailItemActive: {
-    background: 'rgba(251, 146, 60, 0.1)',
-    borderLeft: '4px solid var(--color-mail)',
+    background: 'rgba(212, 175, 55, 0.05)',
+    boxShadow: 'inset 4px 0 0 var(--color-primary)',
   },
   unreadDot: {
     width: 8,
@@ -514,9 +517,12 @@ const styles = {
     justifyContent: 'center',
   },
   detailSubject: {
-    fontSize: 22,
-    margin: '0 0 8px',
+    fontSize: 28,
+    fontFamily: 'var(--font-display)',
+    fontWeight: 700,
+    margin: '0 0 12px',
     color: 'var(--color-text)',
+    lineHeight: 1.2,
   },
   detailMeta: {
     display: 'flex',

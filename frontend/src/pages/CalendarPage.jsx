@@ -184,7 +184,7 @@ export default function CalendarPage() {
             </button>
           </div>
           <h1 style={styles.title}>
-            {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
+            {MONTHS[currentDate.getMonth()]} <span style={{ color: 'var(--color-primary)', fontWeight: 300 }}>{currentDate.getFullYear()}</span>
           </h1>
           <button onClick={goToToday} style={styles.todayBtn}>
             Hoy
@@ -686,13 +686,14 @@ const styles = {
     justifyContent: 'center',
   },
   title: {
-    fontSize: 20,
+    fontSize: 24,
     fontFamily: 'var(--font-display)',
-    fontWeight: 600,
+    fontWeight: 700,
     color: 'var(--color-text)',
     margin: 0,
     minWidth: 200,
     textAlign: 'center',
+    letterSpacing: '-0.01em',
   },
   todayBtn: {
     padding: '6px 14px',
@@ -721,7 +722,8 @@ const styles = {
   },
   viewBtnActive: {
     background: 'var(--color-primary)',
-    color: 'white',
+    color: '#000',
+    fontWeight: 700,
   },
   syncBtn: {
     display: 'flex',
@@ -742,12 +744,13 @@ const styles = {
     gap: 6,
     padding: '8px 14px',
     fontSize: 13,
-    fontWeight: 600,
-    background: 'var(--color-primary)',
+    fontWeight: 700,
+    background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))',
     border: 'none',
-    borderRadius: 8,
-    color: 'white',
+    borderRadius: 'var(--radius-md)',
+    color: '#000',
     cursor: 'pointer',
+    boxShadow: '0 4px 15px rgba(212, 175, 55, 0.2)',
   },
   content: {
     flex: 1,
