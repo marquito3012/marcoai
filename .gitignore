@@ -38,3 +38,5 @@ frontend/.vite/
 .idea/
 *.swp
 *.swo
+
+.agents/
