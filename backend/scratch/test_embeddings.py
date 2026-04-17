@@ -22,9 +22,9 @@ try:
 except Exception as e:
     print(f"Failed models/text-embedding-004: {e}")
 
-print("\nTesting embedding with 'gemini-embedding-2-preview'...")
+print("\nTesting embedding with 'models/gemini-embedding-2-preview'...")
 try:
-    res = genai.embed_content(model="gemini-embedding-2-preview", content="Hello world")
+    res = genai.embed_content(model="models/gemini-embedding-2-preview", content="Hello world")
     print(f"Success! Dimensions: {len(res['embedding'])}")
 except Exception as e:
     print(f"Failed models/embedding-001: {e}")
