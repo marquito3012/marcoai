@@ -55,6 +55,17 @@ async def lifespan(app: FastAPI):
                 
         except Exception as e:
             print(f"⚠️ Migration warning: {e}")
+
+        # Manual migration for habits module (target_days)
+        try:
+            result = await conn.execute(text("PRAGMA table_info(habits)"))
+            columns = [row[1] for row in result.fetchall()]
+            if columns and "target_days" not in columns:
+                print("⚡ Migrating: Adding target_days to habits...")
+                # Use a safe default for existing habits
+                await conn.execute(text("ALTER TABLE habits ADD COLUMN target_days TEXT DEFAULT '0,1,2,3,4,5,6'"))
+        except Exception as e:
+            print(f"⚠️ Habit migration warning: {e}")
     
     # 2. Robustly create SQLite-vec virtual tables using a sync connection
     # This bypasses aiosqlite/sqlalchemy wrapper issues for extension loading.
