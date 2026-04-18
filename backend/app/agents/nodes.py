@@ -18,6 +18,7 @@ Calendar node (Fase 6):
 from __future__ import annotations
 
 import logging
+import json
 from datetime import datetime, timezone
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
@@ -456,16 +457,16 @@ async def habits_node(state: AgentState) -> dict:
             if any(kw in message_lower for kw in ["crea", "añade", "nuevo", "agrega", "pon", "guarda"]) and any(kw in message_lower for kw in ["hábito", "habito", "lista", "estos", "lo", "los"]):
                 import re
                 # 1. Intento de extracción simple vía Regex
-                name_match = re.search(r'(?:hábito|habito) (?:de |: |que )?(.+?)(?:\s+(?:los |el |cada )|$)', message_lower)
+                name_match = re.search(r'(?:hábito|habito) (?:de |: |que )?(.+?)(?:\s+(?:los |el |cada |$))', message_lower)
                 
                 # 2. Si es vago o complejo, usamos el LLM para extraer del contexto
-                if not name_match or any(kw in message_lower for kw in ["lo", "los", "estos", "plan", "hazlo"]):
+                if not name_match or any(kw in message_lower for kw in ["lo", "los", "estos", "plan", "hazlo", "ambos"]):
                     history_context = ""
                     for m in history[-3:]: # Tomamos los últimos 3 para contexto (User-Assistant-User)
                         history_context += f"{m['role']}: {m['content']}\n"
                     
                     extract_prompt = [
-                        {"role": "system", "content": "Eres un extractor de datos. Extrae hábitos y sus días (0=Lunes, 6=Domingo). REGLA: Ignora días de descanso/off. Responde SOLO un JSON array: [{\"name\": \"...\", \"days\": \"0,1...\"}]."},
+                        {"role": "system", "content": "Eres un extractor de datos de hábitos. Extrae los nombres y días (0=Lunes, 6=Domingo). REGLA: Ignora días de descanso. Responde SOLO un JSON array: [{\"name\": \"...\", \"days\": \"0,1...\"}]."},
                         {"role": "user", "content": f"Contexto:\n{history_context}\nMensaje: {user_message}"}
                     ]
                     try:
