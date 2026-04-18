@@ -77,27 +77,30 @@ async def chat_stream(
 
         history = []
         user_id_str = str(current_user.id)
+        conv_id = body.conversation_id
 
         try:
             async with AsyncSessionLocal() as db:
-                # 1. Fetch last 10 messages for context
-                stmt = (
-                    select(ChatMessage)
-                    .where(ChatMessage.user_id == user_id_str)
-                    .order_by(ChatMessage.created_at.desc())
-                    .limit(10)
-                )
-                res = await db.execute(stmt)
-                db_msgs = res.scalars().all()
-                # Reverse to get chronological order
-                for m in reversed(db_msgs):
-                    history.append({"role": m.role, "content": m.content})
+                # 1. Fetch last 15 messages FOR THIS CONVERSATION specifically
+                if conv_id:
+                    stmt = (
+                        select(ChatMessage)
+                        .where(ChatMessage.user_id == user_id_str, ChatMessage.conversation_id == conv_id)
+                        .order_by(ChatMessage.created_at.desc())
+                        .limit(15)
+                    )
+                    res = await db.execute(stmt)
+                    db_msgs = res.scalars().all()
+                    # Reverse to get chronological order
+                    for m in reversed(db_msgs):
+                        history.append({"role": m.role, "content": m.content})
 
                 # 2. Save new user message
                 new_user_msg = ChatMessage(
                     user_id=user_id_str,
                     role="user",
-                    content=body.message
+                    content=body.message,
+                    conversation_id=conv_id
                 )
                 db.add(new_user_msg)
                 await db.commit()
@@ -120,7 +123,8 @@ async def chat_stream(
                     assistant_msg = ChatMessage(
                         user_id=user_id_str,
                         role="assistant",
-                        content="".join(full_content)
+                        content="".join(full_content),
+                        conversation_id=conv_id
                     )
                     db.add(assistant_msg)
                     await db.commit()

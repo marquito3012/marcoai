@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=8192, description="User's chat message")
+    conversation_id: str | None = Field(None, description="Current conversation session ID")
 
 
 class ChatResponse(BaseModel):

@@ -59,6 +59,7 @@ class ChatMessage(Base):
     )
     role: Mapped[str] = mapped_column(String(16))   # "user" | "assistant"
     content: Mapped[str] = mapped_column(Text)
+    conversation_id: Mapped[str | None] = mapped_column(String(64), index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow
     )

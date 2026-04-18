@@ -19,6 +19,7 @@ export function useStreamingChat(userName) {
   const [messages, setMessages]       = useState(() => [WELCOME(userName)])
   const [isStreaming, setIsStreaming]  = useState(false)
   const [currentRoute, setCurrentRoute] = useState(null)  // {intent, label}
+  const [conversationId]              = useState(() => `c-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`)
   const abortRef                       = useRef(null)
 
   const sendMessage = useCallback(async (text) => {
@@ -45,7 +46,10 @@ export function useStreamingChat(userName) {
         method:      'POST',
         credentials: 'include',
         headers:     { 'Content-Type': 'application/json' },
-        body:        JSON.stringify({ message: trimmed }),
+        body:        JSON.stringify({ 
+          message: trimmed,
+          conversation_id: conversationId 
+        }),
         signal:      controller.signal,
       })
 
