@@ -127,6 +127,7 @@ class Habit(Base):
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     frequency: Mapped[str] = mapped_column(String(32), default="daily") # daily, weekly
+    target_days: Mapped[str] = mapped_column(String(64), default="0,1,2,3,4,5,6") # 0=Monday, 6=Sunday
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     user: Mapped["User"] = relationship("User")

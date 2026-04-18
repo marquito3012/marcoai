@@ -451,11 +451,21 @@ async def habits_node(state: AgentState) -> dict:
             # Intent: Crear hábito
             if any(kw in message_lower for kw in ["crea", "añade", "nuevo", "agrega"]) and any(kw in message_lower for kw in ["hábito", "habito"]):
                 import re
-                name_match = re.search(r'(?:hábito|habito) (?:de |: |que )?(.+)', message_lower)
+                # Extraer el nombre cortando si encuentra palabras como "los", "el", "cada"
+                name_match = re.search(r'(?:hábito|habito) (?:de |: |que )?(.+?)(?:\s+(?:los |el |cada )|$)', message_lower)
                 name = name_match.group(1).strip() if name_match else "Nuevo Hábito"
                 if name.endswith('.'): name = name[:-1]
                 
-                habit = await service.create_habit(name=name.capitalize())
+                days_map = {"lunes": 0, "martes": 1, "miércoles": 2, "miercoles": 2, "jueves": 3, "viernes": 4, "sábado": 5, "sabado": 5, "domingo": 6}
+                target_days = []
+                for day_name, day_num in days_map.items():
+                    if day_name in message_lower:
+                        target_days.append(day_num)
+                
+                # Convert list to unique sorted comma-separated string, or all days if none specified
+                target_days_str = ",".join(map(str, sorted(list(set(target_days))))) if target_days else "0,1,2,3,4,5,6"
+                
+                habit = await service.create_habit(name=name.capitalize(), target_days=target_days_str)
                 tool_result = f"✅ He añadido el hábito: **{habit.name}**."
                 
             # Intent: Borrar hábito

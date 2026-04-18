@@ -24,6 +24,7 @@ router = APIRouter(prefix="/habits", tags=["Hábitos"])
 class HabitCreate(BaseModel):
     name: str
     description: str | None = None
+    target_days: str | None = "0,1,2,3,4,5,6"
 
 class HabitTrack(BaseModel):
     habit_id: str
@@ -41,23 +42,36 @@ async def get_summary(
     
     # Get today's completion status for habits
     import datetime
-    today = datetime.date.today().isoformat()
+    today = datetime.date.today()
+    today_iso = today.isoformat()
+    weekday_num = today.weekday() # 0 is Monday, 6 is Sunday
     
     # Simple check for each habit if it has a log for today
-    habits_data = []
+    today_habits_data = []
+    other_habits_data = []
     for h in habits:
         log_res = await db.execute(
-            select(HabitLog).where(HabitLog.habit_id == h.id, HabitLog.completed_date == today)
+            select(HabitLog).where(HabitLog.habit_id == h.id, HabitLog.completed_date == today_iso)
         )
         is_done_today = log_res.scalar_one_or_none() is not None
-        habits_data.append({
+        
+        habit_dict = {
             "id": h.id,
             "name": h.name,
-            "is_done_today": is_done_today
-        })
+            "is_done_today": is_done_today,
+            "target_days": h.target_days
+        }
+        
+        target_days_list = [int(d) for d in h.target_days.split(",")] if h.target_days else [0,1,2,3,4,5,6]
+        
+        if weekday_num in target_days_list:
+            today_habits_data.append(habit_dict)
+        else:
+            other_habits_data.append(habit_dict)
 
     return {
-        "habits": habits_data,
+        "habits": today_habits_data,
+        "other_habits": other_habits_data,
         "todos": [] # Redirigido a Google Calendar
     }
 
@@ -106,7 +120,7 @@ async def create_habit(
     db: AsyncSession = Depends(get_db),
 ):
     service = HabitsService(db, current_user.id)
-    habit = await service.create_habit(name=body.name, description=body.description)
+    habit = await service.create_habit(name=body.name, description=body.description, target_days=body.target_days)
     return {"id": habit.id, "name": habit.name, "message": "Hábito creado"}
 
 @router.delete("/{habit_id}", summary="Eliminar un hábito")

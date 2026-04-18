@@ -24,11 +24,21 @@ import {
 import { apiFetch } from '../lib/api.js'
 
 export default function HabitsPage() {
-  const [data, setData] = useState({ habits: [], todos: [] })
+  const [data, setData] = useState({ habits: [], other_habits: [], todos: [] })
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
   const [newHabitName, setNewHabitName] = useState('')
   const [isCreating, setIsCreating] = useState(false)
+  const [selectedDays, setSelectedDays] = useState([0,1,2,3,4,5,6])
+  const DAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+
+  const toggleDay = (idx) => {
+    if (selectedDays.includes(idx)) {
+      setSelectedDays(selectedDays.filter(d => d !== idx))
+    } else {
+      setSelectedDays([...selectedDays, idx].sort())
+    }
+  }
 
   const fetchAll = async () => {
     try {
@@ -70,9 +80,13 @@ export default function HabitsPage() {
     try {
       await apiFetch('/habits', {
         method: 'POST',
-        body: JSON.stringify({ name: newHabitName.trim() })
+        body: JSON.stringify({ 
+           name: newHabitName.trim(),
+           target_days: selectedDays.length > 0 ? selectedDays.join(',') : "0,1,2,3,4,5,6"
+        })
       })
       setNewHabitName('')
+      setSelectedDays([0,1,2,3,4,5,6])
       fetchAll()
     } catch (err) {
       console.error('Error creating habit:', err)
@@ -161,17 +175,74 @@ export default function HabitsPage() {
                 </div>
               ))}
               
-              <form onSubmit={handleCreateHabit} style={styles.addHabitForm}>
-                <Plus size={16} color="var(--color-text-muted)" />
-                <input 
-                  type="text" 
-                  value={newHabitName}
-                  onChange={(e) => setNewHabitName(e.target.value)}
-                  placeholder="Añadir hábito..."
-                  style={styles.addHabitInput}
-                  disabled={isCreating}
-                />
+              <form onSubmit={handleCreateHabit} style={styles.addHabitFormContainer}>
+                <div style={styles.addHabitForm}>
+                  <Plus size={16} color="var(--color-text-muted)" />
+                  <input 
+                    type="text" 
+                    value={newHabitName}
+                    onChange={(e) => setNewHabitName(e.target.value)}
+                    placeholder="Añadir hábito..."
+                    style={styles.addHabitInput}
+                    disabled={isCreating}
+                  />
+                </div>
+                {newHabitName.trim() !== '' && (
+                  <div style={styles.daySelector}>
+                    {DAYS.map((d, idx) => (
+                      <button 
+                        key={idx} 
+                        type="button"
+                        onClick={() => toggleDay(idx)}
+                        style={{
+                          ...styles.dayBtn,
+                          backgroundColor: selectedDays.includes(idx) ? 'var(--color-primary)' : 'var(--color-surface-3)',
+                          color: selectedDays.includes(idx) ? 'white' : 'var(--color-text-muted)'
+                        }}
+                      >
+                        {d}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </form>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Programmed Habits */}
+        <div style={styles.rightCol}>
+          <div style={styles.card} className="glass-card">
+            <div style={styles.cardHeader}>
+              <ListTodo size={18} color="var(--color-primary-light)" />
+              <h3 style={styles.cardTitle}>Otros Hábitos</h3>
+            </div>
+            <div style={styles.habitList}>
+              {data.other_habits && data.other_habits.length > 0 ? (
+                data.other_habits.map(habit => (
+                  <div key={habit.id} style={styles.habitItemOther}>
+                    <div style={styles.habitItemOtherInfo}>
+                      <span style={styles.habitNameOther}>{habit.name}</span>
+                      <div style={styles.habitDaysTags}>
+                        {(() => {
+                           const days = habit.target_days ? habit.target_days.split(',').map(Number) : [0,1,2,3,4,5,6];
+                           if (days.length === 7) return <span style={styles.dayTag}>Todos los días</span>;
+                           return days.map(d => <span key={d} style={styles.dayTag}>{DAYS[d]}</span>)
+                        })()}
+                      </div>
+                    </div>
+                    <button 
+                      style={styles.deleteBtn} 
+                      onClick={(e) => handleDeleteHabit(e, habit.id)}
+                      title="Borrar hábito"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div style={{color: 'var(--color-text-muted)', fontSize: 14}}>No tienes hábitos programados para otros días.</div>
+              )}
             </div>
           </div>
         </div>
@@ -236,6 +307,7 @@ const styles = {
   habitName: { fontSize: 15, fontWeight: 500, flex: 1 },
   textStrikethrough: { textDecoration: 'line-through', opacity: 0.6, color: 'var(--color-success)' },
   deleteBtn: { background: 'none', border: 'none', color: 'var(--color-text-faint)', cursor: 'pointer', display: 'flex', padding: 4 },
+  addHabitFormContainer: { display: 'flex', flexDirection: 'column', gap: 8 },
   addHabitForm: { 
     display: 'flex', alignItems: 'center', gap: 12, padding: '8px 16px', 
     background: 'var(--color-surface-3)', borderRadius: 'var(--radius-md)',
@@ -245,6 +317,13 @@ const styles = {
     flex: 1, background: 'transparent', border: 'none', color: 'var(--color-text)', 
     fontSize: 14, outline: 'none'
   },
+  daySelector: { display: 'flex', gap: 6, justifyContent: 'center', marginTop: 4 },
+  dayBtn: { width: 28, height: 28, borderRadius: '50%', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' },
+  habitItemOther: { display: 'flex', alignItems: 'center', gap: 12, padding: '12px', borderRadius: 'var(--radius-md)', background: 'var(--color-surface-2)' },
+  habitItemOtherInfo: { flex: 1, display: 'flex', flexDirection: 'column', gap: 4 },
+  habitNameOther: { fontSize: 14, fontWeight: 500, color: 'var(--color-text-muted)' },
+  habitDaysTags: { display: 'flex', gap: 4, flexWrap: 'wrap' },
+  dayTag: { fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--color-surface-3)', color: 'var(--color-text-faint)' },
  
   // Graph
   graphWrapper: { padding: '8px 0' },

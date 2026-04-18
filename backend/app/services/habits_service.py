@@ -26,8 +26,8 @@ class HabitsService:
         res = await self.db.execute(select(Habit).where(Habit.user_id == self.user_id))
         return list(res.scalars().all())
 
-    async def create_habit(self, name: str, description: str = None) -> Habit:
-        habit = Habit(user_id=self.user_id, name=name, description=description)
+    async def create_habit(self, name: str, description: str = None, target_days: str = "0,1,2,3,4,5,6") -> Habit:
+        habit = Habit(user_id=self.user_id, name=name, description=description, target_days=target_days)
         self.db.add(habit)
         await self.db.commit()
         await self.db.refresh(habit)
