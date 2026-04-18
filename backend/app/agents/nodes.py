@@ -52,10 +52,14 @@ async def supervisor_node(state: AgentState) -> dict:
     Classify the user's message into one of the six intent categories using
     the cheapest (FAST) LLM tier – typically <100ms on Groq.
     """
-    messages = [
-        {"role": "system", "content": CLASSIFIER},
-        {"role": "user",   "content": state["user_message"]},
-    ]
+    messages = [{"role": "system", "content": CLASSIFIER}]
+    
+    # Include a few history messages for context if available
+    history = state.get("history", [])
+    for msg in history[-3:]: # Just the last 3 for speed
+        messages.append(msg)
+        
+    messages.append({"role": "user", "content": state["user_message"]})
     try:
         raw    = await gateway.complete(messages, tier=TaskTier.FAST, max_tokens=20, temperature=0.0)
         intent = raw.strip().upper().split()[0]          # take first word only
@@ -455,13 +459,13 @@ async def habits_node(state: AgentState) -> dict:
                 name_match = re.search(r'(?:hábito|habito) (?:de |: |que )?(.+?)(?:\s+(?:los |el |cada )|$)', message_lower)
                 
                 # 2. Si es vago o complejo, usamos el LLM para extraer del contexto
-                if not name_match or any(kw in message_lower for kw in ["lo", "los", "estos", "plan"]):
+                if not name_match or any(kw in message_lower for kw in ["lo", "los", "estos", "plan", "hazlo"]):
                     history_context = ""
-                    for m in history[-2:]: # Tomamos los últimos 2 para contexto inmediato
+                    for m in history[-3:]: # Tomamos los últimos 3 para contexto (User-Assistant-User)
                         history_context += f"{m['role']}: {m['content']}\n"
                     
                     extract_prompt = [
-                        {"role": "system", "content": "Eres un extractor de datos. Extrae hábitos y sus días (0=Lunes, 6=Domingo). Responde SOLO un JSON array: [{\"name\": \"...\", \"days\": \"0,1...\"}]."},
+                        {"role": "system", "content": "Eres un extractor de datos. Extrae hábitos y sus días (0=Lunes, 6=Domingo). REGLA: Ignora días de descanso/off. Responde SOLO un JSON array: [{\"name\": \"...\", \"days\": \"0,1...\"}]."},
                         {"role": "user", "content": f"Contexto:\n{history_context}\nMensaje: {user_message}"}
                     ]
                     try:
