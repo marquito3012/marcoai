@@ -276,7 +276,7 @@ function ContributionGraph({ logs }) {
   }
 
   return (
-    <div style={styles.graphGrid}>
+    <div className="habits-consistency-grid" style={styles.graphGrid}>
       {days.map(day => (
         <div 
           key={day.key} 

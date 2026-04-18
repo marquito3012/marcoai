@@ -397,7 +397,6 @@ const styles = {
   },
   listPane: {
     width: 400,
-    display: 'flex',
     flexDirection: 'column',
     background: 'var(--color-surface)',
     borderRadius: 'var(--radius-lg)',
@@ -410,7 +409,6 @@ const styles = {
     background: 'var(--color-surface)',
     borderRadius: 'var(--radius-lg)',
     border: '1px solid var(--color-border-subtle)',
-    display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
   },

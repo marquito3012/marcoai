@@ -714,8 +714,6 @@ const styles = {
     flex: 1,
   },
   balanceCards: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
     gap: 16,
   },
   balanceCard: {
@@ -741,8 +739,6 @@ const styles = {
     fontFamily: 'var(--font-display)',
   },
   chartsRow: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
     gap: 16,
     flex: 1,
     minHeight: 0,
