@@ -112,12 +112,9 @@ export default function MailPage() {
       </header>
 
       {/* ── Main Content ─────────────────────────────────────────────────── */}
-      <div style={styles.mainContainer}>
+      <div className="mail-container" style={styles.mainContainer}>
         {/* Left Sidebar: Email List */}
-        <div style={{
-          ...styles.listPane,
-          ...(selectedMail ? styles.listPaneHiddenMobile : {})
-        }}>
+        <div className={`mail-list-pane ${selectedMail ? 'hidden-mobile' : ''}`} style={styles.listPane}>
           {loading ? (
             <div style={styles.emptyState}>
               <RefreshCw size={32} className="spin" color="var(--color-primary)" />
@@ -171,15 +168,12 @@ export default function MailPage() {
         </div>
 
         {/* Right Pane: Mail Detail */}
-        <div style={{
-          ...styles.detailPane,
-          ...(selectedMail ? styles.detailPaneVisibleMobile : {})
-        }}>
+        <div className={`mail-detail-pane ${selectedMail ? 'visible-mobile' : ''}`} style={styles.detailPane}>
           {selectedMail ? (
             <div style={styles.detailWrapper}>
               {/* Detail Header / Toolbar */}
               <div style={styles.detailToolbar}>
-                <button onClick={() => setSelectedMail(null)} style={styles.backBtn}>
+                <button onClick={() => setSelectedMail(null)} className="mail-back-btn" style={styles.backBtn}>
                   <ArrowLeft size={20} />
                 </button>
                 <div style={styles.toolbarActions}>
@@ -409,6 +403,7 @@ const styles = {
     borderRadius: 'var(--radius-lg)',
     border: '1px solid var(--color-border-subtle)',
     overflow: 'hidden',
+    flexShrink: 0,
   },
   detailPane: {
     flex: 1,
@@ -495,7 +490,7 @@ const styles = {
     border: 'none',
     color: 'var(--color-text)',
     cursor: 'pointer',
-    display: 'none', // Shown only on mobile
+    display: 'block', // Default for mobile logic
   },
   mailBodyScroll: {
     flex: 1,

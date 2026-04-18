@@ -221,7 +221,7 @@ export default function FinancePage() {
         ) : (
           <>
             {/* Balance cards */}
-            <div style={styles.balanceCards}>
+            <div className="finance-balance-cards" style={styles.balanceCards}>
               <BalanceCard
                 title="Ingresos"
                 amount={balance?.income || 0}
@@ -244,9 +244,9 @@ export default function FinancePage() {
             </div>
 
             {/* Charts row */}
-            <div style={styles.chartsRow}>
+            <div className="finance-charts-row" style={styles.chartsRow}>
               {/* Categories donut chart */}
-              <div style={styles.chartCard}>
+              <div className="finance-chart-card" style={styles.chartCard}>
                 <div style={styles.chartHeader}>
                   <PieChartIcon size={18} color="var(--color-text-muted)" />
                   <h3 style={styles.chartTitle}>Gastos por categoría</h3>
@@ -316,7 +316,7 @@ export default function FinancePage() {
               </div>
 
               {/* Transactions list */}
-              <div style={styles.transactionsCard}>
+              <div className="finance-transactions-card" style={styles.transactionsCard}>
                 <div style={styles.chartHeader}>
                   <List size={18} color="var(--color-text-muted)" />
                   <h3 style={styles.chartTitle}>Transacciones recientes</h3>
