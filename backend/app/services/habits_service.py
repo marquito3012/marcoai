@@ -26,6 +26,25 @@ class HabitsService:
         res = await self.db.execute(select(Habit).where(Habit.user_id == self.user_id))
         return list(res.scalars().all())
 
+    async def create_habit(self, name: str, description: str = None) -> Habit:
+        habit = Habit(user_id=self.user_id, name=name, description=description)
+        self.db.add(habit)
+        await self.db.commit()
+        await self.db.refresh(habit)
+        return habit
+
+    async def delete_habit(self, habit_id: str) -> bool:
+        from sqlalchemy import delete
+        res = await self.db.execute(select(Habit).where(Habit.id == habit_id, Habit.user_id == self.user_id))
+        habit = res.scalar_one_or_none()
+        if not habit:
+            return False
+        
+        await self.db.execute(delete(HabitLog).where(HabitLog.habit_id == habit.id))
+        await self.db.delete(habit)
+        await self.db.commit()
+        return True
+
     async def track_habit(self, habit_name: str, date_str: str) -> str:
         """Busca o crea un hábito, y luego registra su completitud."""
         res = await self.db.execute(

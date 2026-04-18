@@ -18,7 +18,8 @@ import {
   Activity,
   ChevronRight,
   Loader2,
-  Sparkles
+  Sparkles,
+  Trash2
 } from 'lucide-react'
 import { apiFetch } from '../lib/api.js'
 
@@ -26,6 +27,8 @@ export default function HabitsPage() {
   const [data, setData] = useState({ habits: [], todos: [] })
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
+  const [newHabitName, setNewHabitName] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
 
   const fetchAll = async () => {
     try {
@@ -57,6 +60,37 @@ export default function HabitsPage() {
       fetchAll() // Refresh both list and graph
     } catch (err) {
       console.error('Error tracking habit:', err)
+    }
+  }
+
+  const handleCreateHabit = async (e) => {
+    e.preventDefault()
+    if (!newHabitName.trim() || isCreating) return
+    setIsCreating(true)
+    try {
+      await apiFetch('/habits', {
+        method: 'POST',
+        body: JSON.stringify({ name: newHabitName.trim() })
+      })
+      setNewHabitName('')
+      fetchAll()
+    } catch (err) {
+      console.error('Error creating habit:', err)
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const handleDeleteHabit = async (e, habitId) => {
+    e.stopPropagation()
+    if (!window.confirm('¿Seguro que quieres borrar este hábito? Esta acción no se puede deshacer.')) return
+    try {
+      await apiFetch(`/habits/${habitId}`, {
+        method: 'DELETE'
+      })
+      fetchAll()
+    } catch (err) {
+      console.error('Error deleting habit:', err)
     }
   }
 
@@ -117,11 +151,27 @@ export default function HabitsPage() {
                   }}>
                     {habit.name}
                   </span>
+                  <button 
+                    style={styles.deleteBtn} 
+                    onClick={(e) => handleDeleteHabit(e, habit.id)}
+                    title="Borrar hábito"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               ))}
-              <div style={styles.addHabitPlaceholder}>
-                <Plus size={16} /> Añadir hábito corporbot...
-              </div>
+              
+              <form onSubmit={handleCreateHabit} style={styles.addHabitForm}>
+                <Plus size={16} color="var(--color-text-muted)" />
+                <input 
+                  type="text" 
+                  value={newHabitName}
+                  onChange={(e) => setNewHabitName(e.target.value)}
+                  placeholder="Añadir hábito..."
+                  style={styles.addHabitInput}
+                  disabled={isCreating}
+                />
+              </form>
             </div>
           </div>
         </div>
@@ -183,9 +233,18 @@ const styles = {
     padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'var(--color-surface-2)',
     transition: 'transform 0.1s',
   },
-  habitName: { fontSize: 15, fontWeight: 500 },
+  habitName: { fontSize: 15, fontWeight: 500, flex: 1 },
   textStrikethrough: { textDecoration: 'line-through', opacity: 0.6, color: 'var(--color-success)' },
-  addHabitPlaceholder: { color: 'var(--color-text-faint)', fontSize: 13, padding: '0 16px', display: 'flex', alignItems: 'center', gap: 8 },
+  deleteBtn: { background: 'none', border: 'none', color: 'var(--color-text-faint)', cursor: 'pointer', display: 'flex', padding: 4 },
+  addHabitForm: { 
+    display: 'flex', alignItems: 'center', gap: 12, padding: '8px 16px', 
+    background: 'var(--color-surface-3)', borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--color-border-subtle)'
+  },
+  addHabitInput: { 
+    flex: 1, background: 'transparent', border: 'none', color: 'var(--color-text)', 
+    fontSize: 14, outline: 'none'
+  },
  
   // Graph
   graphWrapper: { padding: '8px 0' },

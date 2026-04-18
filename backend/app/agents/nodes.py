@@ -448,21 +448,48 @@ async def habits_node(state: AgentState) -> dict:
             from app.services.habits_service import HabitsService
             service = HabitsService(db, user_id)
             
-            # Intent: Registrar que completé un hábito
-            if any(kw in message_lower for kw in ["hábito", "habito", "completé", "hecho", "marcar"]):
-                # Intento básico de listar hábitos para que el sistema sepa qué hay
+            # Intent: Crear hábito
+            if any(kw in message_lower for kw in ["crea", "añade", "nuevo", "agrega"]) and any(kw in message_lower for kw in ["hábito", "habito"]):
+                import re
+                name_match = re.search(r'(?:hábito|habito) (?:de |: |que )?(.+)', message_lower)
+                name = name_match.group(1).strip() if name_match else "Nuevo Hábito"
+                if name.endswith('.'): name = name[:-1]
+                
+                habit = await service.create_habit(name=name.capitalize())
+                tool_result = f"✅ He añadido el hábito: **{habit.name}**."
+                
+            # Intent: Borrar hábito
+            elif any(kw in message_lower for kw in ["borra", "elimina", "quita"]) and any(kw in message_lower for kw in ["hábito", "habito"]):
+                import re
+                name_match = re.search(r'(?:hábito|habito) (?:de )?(.+)', message_lower)
+                if name_match:
+                    target_name = name_match.group(1).strip()
+                    if target_name.endswith('.'): target_name = target_name[:-1]
+                    
+                    habits = await service.get_habits()
+                    target_habit = next((h for h in habits if target_name in h.name.lower() or h.name.lower() in target_name), None)
+                    if target_habit:
+                        await service.delete_habit(target_habit.id)
+                        tool_result = f"🗑️ He eliminado el hábito: **{target_habit.name}**."
+                    else:
+                        tool_result = f"No he encontrado ningún hábito llamado '{target_name}' para borrar."
+                else:
+                    tool_result = "No me has dicho qué hábito quieres borrar."
+                    
+            # Intent: Listar o Registrar completado
+            elif any(kw in message_lower for kw in ["hábito", "habito", "completé", "hecho", "marcar", "lista", "cuales", "cuáles"]):
                 habits = await service.get_habits()
                 if habits:
                     lines = ["🔥 **Tus hábitos actuales:**\n"]
                     for h in habits:
                         lines.append(f"• {h.name}")
-                    tool_result = "\n".join(lines) + "\n\n(Dime cuál quieres marcar como hecho hoy)"
+                    tool_result = "\n".join(lines) + "\n\n(Dime cuál quieres marcar como hecho hoy o hazlo desde la interfaz web)"
                 else:
-                    tool_result = "No tienes hábitos registrados. Pídeme 'Crear el hábito de leer' para empezar."
+                    tool_result = "No tienes hábitos registrados. Pídeme 'Crea el hábito de leer' para empezar."
             
             else:
-                # Fallback: Redirigir a agenda si se menciona algo genérico que no sea un hábito
-                tool_result = "Gestiono tus hábitos y consistencia. Para tareas o recordatorios, pídeme que lo anote en tu Agenda."
+                # Fallback
+                tool_result = "Gestiono tus hábitos y consistencia. Para añadir uno dime 'crea el hábito de...'."
                     
     except Exception as exc:
         logger.warning("Habits tool execution failed: %s", exc)

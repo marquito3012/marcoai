@@ -98,3 +98,25 @@ async def track_habit_completion(
     service = HabitsService(db, current_user.id)
     msg = await service.track_habit(habit.name, body.date)
     return {"message": msg}
+
+@router.post("", summary="Crear un nuevo hábito")
+async def create_habit(
+    body: HabitCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = HabitsService(db, current_user.id)
+    habit = await service.create_habit(name=body.name, description=body.description)
+    return {"id": habit.id, "name": habit.name, "message": "Hábito creado"}
+
+@router.delete("/{habit_id}", summary="Eliminar un hábito")
+async def delete_habit(
+    habit_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = HabitsService(db, current_user.id)
+    success = await service.delete_habit(habit_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Hábito no encontrado")
+    return {"message": "Hábito eliminado"}
