@@ -484,8 +484,9 @@ async def habits_node(state: AgentState) -> dict:
                 ]
                 
                 try:
-                    logger.info("HabitsNode: Extracting habits from context...")
+                    logger.info("HabitsNode: Requesting LLM extraction...")
                     raw_json = await gateway.complete(extract_prompt, tier=TaskTier.FAST)
+                    logger.info("HabitsNode: Raw LLM output: %s", raw_json)
                     
                     # Clean markdown if present
                     clean_json = raw_json.strip()
@@ -494,13 +495,16 @@ async def habits_node(state: AgentState) -> dict:
                     elif "```" in clean_json:
                         clean_json = clean_json.split("```")[1].split("```")[0].strip()
                     
+                    logger.info("HabitsNode: Cleaned JSON for parsing: %s", clean_json)
                     extracted = json.loads(clean_json)
+                    logger.info("HabitsNode: Parsed extracted data: %s", extracted)
                     
                     if isinstance(extracted, list) and len(extracted) > 0:
                         created = []
                         for item in extracted:
                             name = item.get("name", "Nuevo Hábito").capitalize()
                             days = item.get("days", "0,1,2,3,4,5,6")
+                            logger.info("HabitsNode: Calling service.create_habit for '%s'", name)
                             habit = await service.create_habit(name=name, target_days=days)
                             # Convert day numbers to names for the confirmation message
                             day_names = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]

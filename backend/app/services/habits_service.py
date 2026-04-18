@@ -27,10 +27,12 @@ class HabitsService:
         return list(res.scalars().all())
 
     async def create_habit(self, name: str, description: str = None, target_days: str = "0,1,2,3,4,5,6") -> Habit:
+        logger.info("HabitsService: Creating habit '%s' with days %s for user %s", name, target_days, self.user_id)
         habit = Habit(user_id=self.user_id, name=name, description=description, target_days=target_days)
         self.db.add(habit)
         await self.db.commit()
         await self.db.refresh(habit)
+        logger.info("HabitsService: Habit '%s' persisted with ID %s", habit.name, habit.id)
         return habit
 
     async def delete_habit(self, habit_id: str) -> bool:
