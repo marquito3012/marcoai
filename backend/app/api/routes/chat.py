@@ -68,21 +68,63 @@ async def chat_stream(
 ) -> StreamingResponse:
     """
     Low-latency streaming chat routed through the LangGraph supervisor.
-
-    Pipeline per request:
-      1. Supervisor node classifies intent (FAST tier, ~100ms on Groq)
-      2. Route event sent to frontend  → shows module badge in the UI
-      3. Agent node sets system prompt and LLM tier
-      4. Response streamed token-by-token via gateway.stream()
+    Now persists history to the DB and provides context to the agent.
     """
     async def sse_generator():
+        from app.db.base import AsyncSessionLocal
+        from app.db.models import ChatMessage
+        from sqlalchemy import select
+
+        history = []
+        user_id_str = str(current_user.id)
+
         try:
+            async with AsyncSessionLocal() as db:
+                # 1. Fetch last 10 messages for context
+                stmt = (
+                    select(ChatMessage)
+                    .where(ChatMessage.user_id == user_id_str)
+                    .order_by(ChatMessage.created_at.desc())
+                    .limit(10)
+                )
+                res = await db.execute(stmt)
+                db_msgs = res.scalars().all()
+                # Reverse to get chronological order
+                for m in reversed(db_msgs):
+                    history.append({"role": m.role, "content": m.content})
+
+                # 2. Save new user message
+                new_user_msg = ChatMessage(
+                    user_id=user_id_str,
+                    role="user",
+                    content=body.message
+                )
+                db.add(new_user_msg)
+                await db.commit()
+
+            # 3. Stream from supervisor
+            full_content = []
             async for event in supervisor_stream(
                 message   = body.message,
                 user_name = current_user.name,
-                user_id   = str(current_user.id),
+                user_id   = user_id_str,
+                history   = history
             ):
+                if "content" in event:
+                    full_content.append(event["content"])
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+            # 4. Save assistant response
+            if full_content:
+                async with AsyncSessionLocal() as db:
+                    assistant_msg = ChatMessage(
+                        user_id=user_id_str,
+                        role="assistant",
+                        content="".join(full_content)
+                    )
+                    db.add(assistant_msg)
+                    await db.commit()
+
         except Exception as exc:
             logger.exception("SSE generator error")
             yield f"data: {json.dumps({'error': str(exc)})}\n\n"

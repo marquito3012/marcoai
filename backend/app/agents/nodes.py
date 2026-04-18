@@ -466,6 +466,7 @@ async def habits_node(state: AgentState) -> dict:
                 target_days_str = ",".join(map(str, sorted(list(set(target_days))))) if target_days else "0,1,2,3,4,5,6"
                 
                 habit = await service.create_habit(name=name.capitalize(), target_days=target_days_str)
+                logger.info("Habit created successfully: %s (id: %s)", habit.name, habit.id)
                 tool_result = f"✅ He añadido el hábito: **{habit.name}**."
                 
             # Intent: Borrar hábito
@@ -480,6 +481,7 @@ async def habits_node(state: AgentState) -> dict:
                     target_habit = next((h for h in habits if target_name in h.name.lower() or h.name.lower() in target_name), None)
                     if target_habit:
                         await service.delete_habit(target_habit.id)
+                        logger.info("Habit deleted: %s", target_habit.name)
                         tool_result = f"🗑️ He eliminado el hábito: **{target_habit.name}**."
                     else:
                         tool_result = f"No he encontrado ningún hábito llamado '{target_name}' para borrar."
@@ -500,10 +502,12 @@ async def habits_node(state: AgentState) -> dict:
             else:
                 # Fallback
                 tool_result = "Gestiono tus hábitos y consistencia. Para añadir uno dime 'crea el hábito de...'."
+                
+            logger.info("Habits node tool_result: %s", tool_result)
                     
     except Exception as exc:
-        logger.warning("Habits tool execution failed: %s", exc)
-        tool_result = None
+        logger.error("Habits tool execution failed: %s", exc, exc_info=True)
+        tool_result = f"Hubo un error al gestionar tus hábitos: {str(exc)}"
 
     return {
         "system_prompt": system_prompt,

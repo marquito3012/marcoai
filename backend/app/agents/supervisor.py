@@ -105,23 +105,10 @@ async def supervisor_stream(
     message:   str,
     user_name: str,
     user_id:   str,
+    history:   list[dict] | None = None,
 ) -> AsyncIterator[dict]:
     """
     Main entry point for the agent pipeline.
-
-    Yields dicts in two shapes:
-      1. Routing event (once):
-           {"event": "route", "intent": "FINANCE", "label": "Finanzas"}
-      2. Content tokens (many):
-           {"content": "<token>"}
-
-    The SSE endpoint in chat.py JSON-encodes each dict and sends it as
-    an SSE ``data`` frame.
-
-    Steps:
-      a. Run the LangGraph graph → classify intent, select agent prompt
-      b. Yield the routing event so the frontend can show a badge
-      c. Stream the LLM response using the selected system_prompt + tier
     """
     # ── a. Intent classification via the graph ────────────────────────────────
     initial: AgentState = {
@@ -172,10 +159,17 @@ async def supervisor_stream(
     if habits_result:
         system_content += f"\n\n[Gestión de tareas completada/obtenida:]\n{habits_result}"
 
-    lc_messages = [
-        {"role": "system", "content": system_content},
-        {"role": "user",   "content": message},
-    ]
+    # Prepare messages: history + system + current message
+    lc_messages = []
+    lc_messages.append({"role": "system", "content": system_content})
+    
+    if history:
+        # Add history messages (filtered or limited if necessary)
+        for msg in history:
+            lc_messages.append(msg)
+            
+    lc_messages.append({"role": "user",   "content": message})
+    
     tier = TaskTier(final.get("tier", "standard"))
 
     try:
