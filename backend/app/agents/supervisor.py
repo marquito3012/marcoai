@@ -115,6 +115,7 @@ async def supervisor_stream(
         "user_message":  message,
         "user_name":     user_name,
         "user_id":       user_id,
+        "history":       history or [],
         "intent":        None,
         "system_prompt": "",
         "tier":          "standard",

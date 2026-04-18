@@ -10,6 +10,7 @@ class AgentState(TypedDict):
     user_message: str
     user_name:    str
     user_id:      str
+    history:      list[dict]  # list of {"role": "...", "content": "..."}
 
     # ── Set by supervisor_node ─────────────────────────────────────────────────
     intent: str | None     # one of the VALID_INTENTS keys

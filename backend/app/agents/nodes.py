@@ -438,8 +438,8 @@ async def habits_node(state: AgentState) -> dict:
     user_id = state.get("user_id")
     user_name = state.get("user_name", "usuario")
 
+    history = state.get("history", [])
     system_prompt = AGENT_PROMPTS["HABITS"].format(name=user_name)
-
     tool_result = None
     message_lower = user_message.lower()
 
@@ -449,25 +449,62 @@ async def habits_node(state: AgentState) -> dict:
             service = HabitsService(db, user_id)
             
             # Intent: Crear hábito
-            if any(kw in message_lower for kw in ["crea", "añade", "nuevo", "agrega"]) and any(kw in message_lower for kw in ["hábito", "habito"]):
+            if any(kw in message_lower for kw in ["crea", "añade", "nuevo", "agrega", "pon", "guarda"]) and any(kw in message_lower for kw in ["hábito", "habito", "lista", "estos", "lo", "los"]):
                 import re
-                # Extraer el nombre cortando si encuentra palabras como "los", "el", "cada"
+                # 1. Intento de extracción simple vía Regex
                 name_match = re.search(r'(?:hábito|habito) (?:de |: |que )?(.+?)(?:\s+(?:los |el |cada )|$)', message_lower)
-                name = name_match.group(1).strip() if name_match else "Nuevo Hábito"
-                if name.endswith('.'): name = name[:-1]
                 
-                days_map = {"lunes": 0, "martes": 1, "miércoles": 2, "miercoles": 2, "jueves": 3, "viernes": 4, "sábado": 5, "sabado": 5, "domingo": 6}
-                target_days = []
-                for day_name, day_num in days_map.items():
-                    if day_name in message_lower:
-                        target_days.append(day_num)
-                
-                # Convert list to unique sorted comma-separated string, or all days if none specified
-                target_days_str = ",".join(map(str, sorted(list(set(target_days))))) if target_days else "0,1,2,3,4,5,6"
-                
-                habit = await service.create_habit(name=name.capitalize(), target_days=target_days_str)
-                logger.info("Habit created successfully: %s (id: %s)", habit.name, habit.id)
-                tool_result = f"✅ He añadido el hábito: **{habit.name}**."
+                # 2. Si es vago o complejo, usamos el LLM para extraer del contexto
+                if not name_match or any(kw in message_lower for kw in ["lo", "los", "estos", "plan"]):
+                    history_context = ""
+                    for m in history[-2:]: # Tomamos los últimos 2 para contexto inmediato
+                        history_context += f"{m['role']}: {m['content']}\n"
+                    
+                    extract_prompt = [
+                        {"role": "system", "content": "Eres un extractor de datos. Extrae hábitos y sus días (0=Lunes, 6=Domingo). Responde SOLO un JSON array: [{\"name\": \"...\", \"days\": \"0,1...\"}]."},
+                        {"role": "user", "content": f"Contexto:\n{history_context}\nMensaje: {user_message}"}
+                    ]
+                    try:
+                        raw_json = await gateway.complete(extract_prompt, tier=TaskTier.FAST)
+                        # Limpiar posible markdown
+                        if "```json" in raw_json:
+                            raw_json = raw_json.split("```json")[1].split("```")[0].strip()
+                        elif "```" in raw_json:
+                            raw_json = raw_json.split("```")[1].split("```")[0].strip()
+                        
+                        extracted = json.loads(raw_json)
+                        if isinstance(extracted, list) and len(extracted) > 0:
+                            created_names = []
+                            for item in extracted:
+                                h_name = item.get("name", "Nuevo Hábito").capitalize()
+                                h_days = item.get("days", "0,1,2,3,4,5,6")
+                                habit = await service.create_habit(name=h_name, target_days=h_days)
+                                created_names.append(habit.name)
+                            tool_result = f"✅ He añadido los hábitos: {', '.join(created_names)}."
+                        else:
+                            # Fallback if JSON is empty or not list
+                            name = name_match.group(1).strip() if name_match else "Nuevo Hábito"
+                            habit = await service.create_habit(name=name.capitalize())
+                            tool_result = f"✅ He añadido el hábito: **{habit.name}**."
+                    except Exception as e:
+                        logger.warning("LLM Extraction failed, falling back: %s", e)
+                        name = name_match.group(1).strip() if name_match else "Nuevo Hábito"
+                        habit = await service.create_habit(name=name.capitalize())
+                        tool_result = f"✅ He añadido el hábito: **{habit.name}**."
+                else:
+                    # Regex simple funcionó
+                    name = name_match.group(1).strip()
+                    if name.endswith('.'): name = name[:-1]
+                    
+                    days_map = {"lunes": 0, "martes": 1, "miércoles": 2, "miercoles": 2, "jueves": 3, "viernes": 4, "sábado": 5, "sabado": 5, "domingo": 6}
+                    target_days = []
+                    for day_name, day_num in days_map.items():
+                        if day_name in message_lower:
+                            target_days.append(day_num)
+                    
+                    target_days_str = ",".join(map(str, sorted(list(set(target_days))))) if target_days else "0,1,2,3,4,5,6"
+                    habit = await service.create_habit(name=name.capitalize(), target_days=target_days_str)
+                    tool_result = f"✅ He añadido el hábito: **{habit.name}**."
                 
             # Intent: Borrar hábito
             elif any(kw in message_lower for kw in ["borra", "elimina", "quita"]) and any(kw in message_lower for kw in ["hábito", "habito"]):
