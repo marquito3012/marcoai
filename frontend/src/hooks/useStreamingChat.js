@@ -12,7 +12,7 @@ import { useState, useCallback, useRef } from 'react'
 const WELCOME = (name) => ({
   id: 'welcome',
   role: 'assistant',
-  content: `¡Hola${name ? `, **${name.split(' ')[0]}**` : ''}! Soy **Marco**, tu asistente personal inteligente.\n\nPuedo ayudarte con:\n- 📅 **Calendario** – gestionar reuniones y eventos\n- 💰 **Finanzas** – anotar gastos y ver balances\n- 📧 **Correo** – redactar y resumir emails\n- 📁 **Nube** – consultar tus documentos\n- 🔥 **Hábitos** – seguimiento de rutinas\n\n¿En qué puedo ayudarte hoy?`,
+  content: `¡Hola${name ? `, **${name.split(' ')[0]}**` : ''}! Soy **Marco**, tu asistente personal inteligente.\n\nPuedo ayudarte con:\n- 📅 **Calendario** – gestionar reuniones y eventos\n- 💰 **Finanzas** – anotar gastos y ver balances\n- 📧 **Correo** – redactar, leer y resumir emails\n- 📁 **Nube** – consultar tus documentos\n- 🔥 **Hábitos** – creación y seguimiento de hábitos\n\n¿En qué puedo ayudarte hoy?`,
 })
 
 export function useStreamingChat(userName) {
