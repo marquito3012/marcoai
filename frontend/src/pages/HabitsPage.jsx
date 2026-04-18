@@ -109,7 +109,7 @@ export default function HabitsPage() {
   }
 
   return (
-    <div style={styles.root}>
+    <div className="habits-root" style={styles.root}>
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <header style={styles.header}>
         <div style={styles.headerLeft}>

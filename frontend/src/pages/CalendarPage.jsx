@@ -171,7 +171,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <div style={styles.root}>
+    <div className="calendar-root" style={styles.root}>
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <header style={styles.header}>
         <div style={styles.headerLeft}>
@@ -279,7 +279,7 @@ export default function CalendarPage() {
 // ── Month View ───────────────────────────────────────────────────────────────
 function MonthView({ grid, loading, onEventClick }) {
   return (
-    <div style={styles.monthView}>
+    <div className="calendar-month-view" style={styles.monthView}>
       {/* Day headers */}
       <div style={styles.weekDaysRow}>
         {DAYS.map(day => (
@@ -313,6 +313,7 @@ function MonthView({ grid, loading, onEventClick }) {
                     <button
                       key={event.id}
                       onClick={() => onEventClick(event)}
+                      className="event-chip"
                       style={styles.eventChip}
                       title={event.summary}
                     >
@@ -829,6 +830,8 @@ const styles = {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+    display: 'block',
+    width: '100%',
   },
   moreEvents: {
     fontSize: 11,
