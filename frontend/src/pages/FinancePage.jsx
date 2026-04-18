@@ -155,6 +155,7 @@ export default function FinancePage() {
   }, [transactions, filterType])
 
   return (
+    <div className="finance-root" style={styles.root}>
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <header style={styles.header}>
         <div style={styles.headerLeft}>
@@ -205,7 +206,7 @@ export default function FinancePage() {
 
           <button onClick={() => setShowCreateModal(true)} style={styles.createBtn}>
             <Plus size={18} />
-            <span style={{ fontSize: 13 }}>Añadir</span>
+            <span>Añadir</span>
           </button>
         </div>
       </header>
