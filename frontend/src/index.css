@@ -253,17 +253,24 @@ a:hover { text-decoration: underline; }
 }
 
 @media (max-width: 768px) {
-  .calendar-root header {
+  .calendar-root header, .finance-root header {
     flex-direction: column;
     gap: 12px !important;
     align-items: stretch !important;
   }
-  .calendar-root header > div {
-    justify-content: space-between;
+  .calendar-root header > div, .finance-root header > div {
+    justify-content: space-between !important;
     width: 100%;
+    gap: 8px;
   }
   .calendar-root .event-chip {
     font-size: 9px !important;
+  }
+  .calendar-root h1, .finance-root h1 {
+    font-size: 18px !important;
+    min-width: auto !important;
+    flex: 1;
+    text-align: center;
   }
 }
 
@@ -349,11 +356,18 @@ a:hover { text-decoration: underline; }
     display: flex !important;
     flex-direction: column !important;
     overflow-y: auto;
-  }
-  .finance-chart-card, .finance-transactions-card {
-    width: 100% !important;
-    min-height: 350px;
-    flex-shrink: 0;
+    .finance-chart-card, .finance-transactions-card {
+      width: 100% !important;
+      min-height: 350px;
+      flex-shrink: 0;
+    }
+    .finance-root header button span {
+      display: none; /* Hide button text on mobile for filters/add to save space */
+    }
+    .finance-root header button:has(svg) span {
+      display: none;
+    }
+    /* Specifically show text for some buttons if needed, but let's keep it clean */
   }
 }
 

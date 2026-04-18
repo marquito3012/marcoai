@@ -155,7 +155,6 @@ export default function FinancePage() {
   }, [transactions, filterType])
 
   return (
-    <div style={styles.root}>
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <header style={styles.header}>
         <div style={styles.headerLeft}>
