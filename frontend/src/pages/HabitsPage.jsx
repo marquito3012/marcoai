@@ -188,21 +188,31 @@ export default function HabitsPage() {
                   />
                 </div>
                 {newHabitName.trim() !== '' && (
-                  <div style={styles.daySelector}>
-                    {DAYS.map((d, idx) => (
-                      <button 
-                        key={idx} 
-                        type="button"
-                        onClick={() => toggleDay(idx)}
-                        style={{
-                          ...styles.dayBtn,
-                          backgroundColor: selectedDays.includes(idx) ? 'var(--color-primary)' : 'var(--color-surface-3)',
-                          color: selectedDays.includes(idx) ? 'white' : 'var(--color-text-muted)'
-                        }}
-                      >
-                        {d}
-                      </button>
-                    ))}
+                  <div style={styles.habitCreationActions}>
+                    <div style={styles.daySelector}>
+                      {DAYS.map((d, idx) => (
+                        <button 
+                          key={idx} 
+                          type="button"
+                          onClick={() => toggleDay(idx)}
+                          style={{
+                            ...styles.dayBtn,
+                            backgroundColor: selectedDays.includes(idx) ? 'var(--color-primary)' : 'var(--color-surface-3)',
+                            color: selectedDays.includes(idx) ? 'white' : 'var(--color-text-muted)'
+                          }}
+                        >
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                    <button 
+                      type="submit" 
+                      style={styles.saveHabitBtn}
+                      disabled={isCreating}
+                    >
+                      {isCreating ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
+                      <span>{isCreating ? 'Guardando...' : 'Confirmar'}</span>
+                    </button>
                   </div>
                 )}
               </form>
@@ -317,8 +327,14 @@ const styles = {
     flex: 1, background: 'transparent', border: 'none', color: 'var(--color-text)', 
     fontSize: 14, outline: 'none'
   },
-  daySelector: { display: 'flex', gap: 6, justifyContent: 'center', marginTop: 4 },
+  daySelector: { display: 'flex', gap: 6, justifyContent: 'center' },
   dayBtn: { width: 28, height: 28, borderRadius: '50%', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' },
+  habitCreationActions: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginTop: 4, padding: '0 8px' },
+  saveHabitBtn: {
+    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 'var(--radius-md)',
+    background: 'var(--color-primary)', color: 'white', border: 'none', cursor: 'pointer',
+    fontSize: 13, fontWeight: 600, transition: 'all 0.2s'
+  },
   habitItemOther: { display: 'flex', alignItems: 'center', gap: 12, padding: '12px', borderRadius: 'var(--radius-md)', background: 'var(--color-surface-2)' },
   habitItemOtherInfo: { flex: 1, display: 'flex', flexDirection: 'column', gap: 4 },
   habitNameOther: { fontSize: 14, fontWeight: 500, color: 'var(--color-text-muted)' },
