@@ -72,9 +72,9 @@ export default function ChatPage() {
   const msgCount = messages.filter(m => m.role === 'user').length
 
   return (
-    <div style={styles.root}>
+    <div className="chat-container">
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <header style={styles.header}>
+      <header className="chat-header" style={styles.header}>
         <div style={styles.headerLeft}>
           <div style={styles.modelBadge}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-success)', animation: 'pulse-glow 2s infinite' }} />
@@ -94,7 +94,7 @@ export default function ChatPage() {
       </header>
 
       {/* ── Message list ────────────────────────────────────────────────── */}
-      <div style={styles.messageList} role="log" aria-label="Conversación" aria-live="polite">
+      <div className="chat-message-list" style={styles.messageList} role="log" aria-label="Conversación" aria-live="polite">
         {messages.map((msg) => (
           <MessageBubble
             key={msg.id}
@@ -115,7 +115,7 @@ export default function ChatPage() {
       </p>
 
       {/* ── Input area ──────────────────────────────────────────────────── */}
-      <div style={styles.inputWrapper}>
+      <div className="chat-input-wrapper" style={styles.inputWrapper}>
         <div style={styles.inputBox} className="glass-card" role="form" aria-label="Redactar mensaje">
           <textarea
             ref={textareaRef}

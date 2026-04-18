@@ -127,7 +127,7 @@ export default function HabitsPage() {
         </div>
       </header>
 
-      <div style={styles.mainGrid}>
+      <div className="habits-grid">
         {/* Left Column: Graph & Habits */}
         <div style={styles.leftCol}>
           {/* Contribution Graph Card */}
@@ -299,7 +299,6 @@ const styles = {
   title: { fontSize: 24, margin: 0 },
   statsRow: { display: 'flex', gap: 16 },
   statItem: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--color-text-muted)' },
-  mainGrid: { display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24 },
   leftCol: { display: 'flex', flexDirection: 'column', gap: 24 },
   rightCol: { display: 'flex', flexDirection: 'column', gap: 24 },
   card: { padding: 20, display: 'flex', flexDirection: 'column', gap: 16 },
