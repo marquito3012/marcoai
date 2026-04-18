@@ -70,6 +70,12 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;   /* shell layout manages its own scroll */
+  
+  /* Support for notches/safe areas */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 /* ── Scrollbars (webkit) ──────────────────────────────────────────────────── */
@@ -101,7 +107,7 @@ a:hover { text-decoration: underline; }
 @media (max-width: 768px) {
   .app-shell {
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr 64px; /* Space for bottom nav */
+    grid-template-rows: 1fr calc(64px + env(safe-area-inset-bottom));
   }
 }
 
@@ -121,18 +127,20 @@ a:hover { text-decoration: underline; }
 @media (max-width: 768px) {
   .sidebar {
     flex-direction: row;
-    padding: 0 16px;
+    padding: 0 8px;
+    padding-bottom: env(safe-area-inset-bottom);
     border-right: none;
     border-top: 1px solid var(--color-border-subtle);
     grid-row: 2;
     width: 100%;
-    justify-content: space-around;
+    justify-content: center;
+    height: auto;
   }
   .sidebar__logo {
     display: none;
   }
   .sidebar__bottom {
-    display: none; /* We'll hide extra items on mobile to keep it clean */
+    display: none !important; /* Force hide avatar/settings/logout on mobile to keep it clean */
   }
 }
 
@@ -247,7 +255,8 @@ a:hover { text-decoration: underline; }
 
 @media (max-width: 768px) {
   .main-content {
-    height: calc(100vh - 64px); /* Adjust for bottom nav */
+    height: calc(100vh - 64px - env(safe-area-inset-bottom));
+    padding: 12px 16px 0;
   }
 }
 
