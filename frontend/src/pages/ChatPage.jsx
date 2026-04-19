@@ -72,7 +72,7 @@ export default function ChatPage() {
   const msgCount = messages.filter(m => m.role === 'user').length
 
   return (
-    <div className="chat-container">
+    <div className="chat-container" style={styles.root}>
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <header className="chat-header" style={styles.header}>
         <div style={styles.headerLeft}>
@@ -235,6 +235,7 @@ const styles = {
     gap:        10,
     padding:    '10px 10px 10px 16px',
     borderRadius: 'var(--radius-lg)',
+    // Inline background logic handles the state changes
   },
   textarea: {
     flex:      1,
