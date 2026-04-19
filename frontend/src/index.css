@@ -352,22 +352,21 @@ a:hover { text-decoration: underline; }
     grid-template-columns: 1fr !important;
   }
   .finance-charts-row {
-    grid-template-columns: 1fr !important;
     display: flex !important;
     flex-direction: column !important;
-    overflow-y: auto;
-    .finance-chart-card, .finance-transactions-card {
-      width: 100% !important;
-      min-height: 350px;
-      flex-shrink: 0;
-    }
-    .finance-root header button span {
-      display: none; /* Hide button text on mobile for filters/add to save space */
-    }
-    .finance-root header button:has(svg) span {
-      display: none;
-    }
-    /* Specifically show text for some buttons if needed, but let's keep it clean */
+    overflow-y: visible !important;
+    flex: none !important;
+  }
+  .finance-chart-card, .finance-transactions-card {
+    width: 100% !important;
+    min-height: 400px;
+    flex-shrink: 0;
+  }
+  .finance-root header button span {
+    display: none; 
+  }
+  .finance-root header button:has(svg) span {
+    display: none;
   }
 }
 
