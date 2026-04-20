@@ -213,6 +213,67 @@ async def calendar_node(state: AgentState) -> dict:
                 else:
                     tool_result = "No tienes eventos programados en los próximos 30 días."
 
+            elif is_deletion:
+                # Use LLM to extract event summary or date
+                history_context = ""
+                for m in history[-3:]:
+                    history_context += f"{m['role'].upper()}: {m['content']}\n"
+                
+                now_str = datetime.now(timezone.utc).isoformat()
+                
+                extract_prompt = [
+                    {"role": "system", "content": f"""
+                    Eres un experto en gestión de Google Calendar.
+                    Tu objetivo es identificar qué evento quiere eliminar el usuario.
+                    
+                    REGLAS:
+                    1. Fecha/Hora actual: {now_str}
+                    2. Busca el nombre (summary) o la fecha mencionada.
+                    3. Si menciona una fecha, inclúyela en el campo "date" (ISO8601).
+                    
+                    Responde ÚNICAMENTE con un objeto JSON: {{"action": "delete", "summary": "...", "date": "ISO8601 or null"}}
+                    Si no está claro qué eliminar, responde: {{"action": "none"}}
+                    """},
+                    {"role": "user", "content": f"HISTORIAL:\n{history_context}\nMENSAJE ACTUAL: {user_message}"}
+                ]
+                
+                try:
+                    raw_json = await gateway.complete(extract_prompt, tier=TaskTier.FAST)
+                    clean_json = raw_json.strip()
+                    if "```json" in clean_json: clean_json = clean_json.split("```json")[1].split("```")[0].strip()
+                    elif "```" in clean_json: clean_json = clean_json.split("```")[1].split("```")[0].strip()
+                    
+                    data = json.loads(clean_json)
+                    if data.get("action") == "delete":
+                        summary = data.get("summary")
+                        date_str = data.get("date")
+                        
+                        target_event = None
+                        if summary and summary != "...":
+                            target_event = await service.find_event_by_summary(summary)
+                        
+                        if not target_event and date_str:
+                            try:
+                                day_dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                                day_start = day_dt.replace(hour=0, minute=0, second=0)
+                                day_end = day_dt.replace(hour=23, minute=59, second=59)
+                                events = await service.list_events(start_date=day_start, end_date=day_end)
+                                if events:
+                                    if len(events) == 1:
+                                        target_event = events[0]
+                                    else:
+                                        tool_result = f"He encontrado varios eventos el {day_dt.strftime('%d/%m')}. ¿Cuál quieres borrar?\n" + \
+                                                      "\n".join([f"• **{e['summary']}**" for e in events])
+                            except: pass
+                            
+                        if target_event:
+                            await service.delete_event(target_event["id"])
+                            tool_result = f"🗑️ He eliminado el evento **{target_event['summary']}** de tu calendario."
+                        elif not tool_result:
+                            tool_result = "❌ No he encontrado el evento que mencionas para eliminar."
+                except Exception as e:
+                    logger.error("Error deleting calendar event via chat: %s", e)
+                    tool_result = "No pude identificar qué evento quieres eliminar."
 
     except Exception as exc:
         logger.error("Error en calendar_node: %s", exc, exc_info=True)
