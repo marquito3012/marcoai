@@ -250,3 +250,23 @@ class CalendarService:
             start_dt=new_start_dt,
             end_dt=new_end_dt
         )
+
+    async def find_event_by_summary(self, summary_query: str) -> dict | None:
+        """Busca un evento por su título (aproximado)."""
+        events = await self.list_events(
+            start_date=datetime.now(timezone.utc) - timedelta(days=7), # Buscar desde hace una semana
+            end_date=datetime.now(timezone.utc) + timedelta(days=90),  # Hasta 3 meses
+            max_results=250
+        )
+        
+        # Búsqueda exacta primero
+        for event in events:
+            if event.get("summary", "").lower() == summary_query.lower():
+                return event
+        
+        # Búsqueda parcial si no hay exacta
+        for event in events:
+            if summary_query.lower() in event.get("summary", "").lower():
+                return event
+                
+        return None

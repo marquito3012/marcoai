@@ -19,6 +19,7 @@ import {
   Users,
   RefreshCw,
   ExternalLink,
+  Trash2,
 } from 'lucide-react'
 import { apiFetch } from '../lib/api.js'
 
@@ -259,6 +260,17 @@ export default function CalendarPage() {
         <EventDetailModal
           event={selectedEvent}
           onClose={() => setSelectedEvent(null)}
+          onDelete={async () => {
+            if (window.confirm('¿Estás seguro de que quieres eliminar este evento?')) {
+              try {
+                await apiFetch(`/calendar/events/${selectedEvent.id}`, { method: 'DELETE' })
+                setSelectedEvent(null)
+                fetchEvents()
+              } catch (err) {
+                alert('Error al eliminar el evento')
+              }
+            }
+          }}
         />
       )}
 
@@ -416,7 +428,7 @@ function WeekView({ currentDate, events, loading, onEventClick }) {
 }
 
 // ── Event Detail Modal ───────────────────────────────────────────────────────
-function EventDetailModal({ event, onClose }) {
+function EventDetailModal({ event, onClose, onDelete }) {
   const startDate = parseGoogleDate(event.start)
   const endDate = parseGoogleDate(event.end)
 
@@ -481,6 +493,16 @@ function EventDetailModal({ event, onClose }) {
             </a>
           </div>
         )}
+        
+        <div style={{ ...styles.modalFooter, borderTop: '1px solid var(--color-border-subtle)', marginTop: 8, paddingTop: 16 }}>
+          <button 
+            onClick={onDelete}
+            style={styles.deleteBtn}
+          >
+            <Trash2 size={16} />
+            Eliminar evento
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -752,6 +774,22 @@ const styles = {
     color: '#000',
     cursor: 'pointer',
     boxShadow: '0 4px 15px rgba(212, 175, 55, 0.2)',
+  },
+  deleteBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%',
+    padding: '10px',
+    background: 'rgba(239, 68, 68, 0.1)',
+    border: '1px solid rgba(239, 68, 68, 0.2)',
+    borderRadius: 'var(--radius-md)',
+    color: '#ef4444',
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
   content: {
     flex: 1,

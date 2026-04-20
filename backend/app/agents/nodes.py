@@ -213,9 +213,6 @@ async def calendar_node(state: AgentState) -> dict:
                 else:
                     tool_result = "No tienes eventos programados en los próximos 30 días."
 
-            elif is_deletion:
-                # Similar extraction for deletion could be added here
-                tool_result = "Para eliminar eventos, por ahora te recomiendo usar la pestaña de Agenda directamente."
 
     except Exception as exc:
         logger.error("Error en calendar_node: %s", exc, exc_info=True)
