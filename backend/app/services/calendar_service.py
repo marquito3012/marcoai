@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from google.oauth2.credentials import Credentials
@@ -41,13 +41,22 @@ class CalendarService:
         """Lista los eventos del calendario."""
         service = await self._get_service()
 
+        # Asegurar formato RFC3339 (Z al final, sin desfase +00:00 redundante)
         if not start_date:
-            start_date = datetime.now()
+            start_date = datetime.now(timezone.utc)
         
-        time_min = start_date.isoformat() + "Z"
-        time_max = end_date.isoformat() + "Z" if end_date else None
+        # Google Calendar API es estricta con el formato de fecha
+        def format_rfc3339(dt: datetime) -> str:
+            # Convertir a UTC si tiene zona horaria, luego quitarla y añadir Z
+            if dt.tzinfo:
+                dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+            return dt.isoformat() + "Z"
+
+        time_min = format_rfc3339(start_date)
+        time_max = format_rfc3339(end_date) if end_date else None
 
         try:
+            logger.info("Listando eventos: timeMin=%s, timeMax=%s", time_min, time_max)
             events_result = (
                 service.events()
                 .list(
@@ -100,6 +109,12 @@ class CalendarService:
     ) -> dict:
         """Crea un nuevo evento."""
         service = await self._get_service()
+
+        # Asegurar que las fechas son aware y están en UTC para la API
+        if not start_dt.tzinfo:
+            start_dt = start_dt.replace(tzinfo=timezone.utc)
+        if not end_dt.tzinfo:
+            end_dt = end_dt.replace(tzinfo=timezone.utc)
 
         event = {
             "summary": summary,
@@ -158,15 +173,19 @@ class CalendarService:
             "summary": summary or existing["summary"],
             "description": description if description is not None else existing["description"],
             "location": location if location is not None else existing["location"],
-            "start": existing["start"] if start_dt is None else {
-                "dateTime": start_dt.isoformat(),
-                "timeZone": "Europe/Madrid",
-            },
-            "end": existing["end"] if end_dt is None else {
-                "dateTime": end_dt.isoformat(),
-                "timeZone": "Europe/Madrid",
-            },
         }
+
+        if start_dt:
+            if not start_dt.tzinfo: start_dt = start_dt.replace(tzinfo=timezone.utc)
+            event["start"] = {"dateTime": start_dt.isoformat(), "timeZone": "Europe/Madrid"}
+        else:
+            event["start"] = existing["start"]
+
+        if end_dt:
+            if not end_dt.tzinfo: end_dt = end_dt.replace(tzinfo=timezone.utc)
+            event["end"] = {"dateTime": end_dt.isoformat(), "timeZone": "Europe/Madrid"}
+        else:
+            event["end"] = existing["end"]
 
         try:
             updated = (
