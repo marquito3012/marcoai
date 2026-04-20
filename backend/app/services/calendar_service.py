@@ -249,11 +249,6 @@ class CalendarService:
                 .execute()
             )
             logger.info("Evento creado: %s (%s)", summary, created.get("id"))
-            return {
-                "id": created.get("id"),
-                "summary": created.get("summary"),
-                "htmlLink": created.get("htmlLink"),
-            }
         except HttpError as exc:
             logger.error("Error creando evento: %s", exc)
             raise
@@ -296,11 +291,6 @@ class CalendarService:
                 .execute()
             )
             logger.info("Evento actualizado: %s (%s)", updated.get("summary"), event_id)
-            return {
-                "id": updated.get("id"),
-                "summary": updated.get("summary"),
-                "htmlLink": updated.get("htmlLink"),
-            }
         except HttpError as exc:
             logger.error("Error actualizando evento %s: %s", event_id, exc)
             raise

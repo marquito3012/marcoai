@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import tool
@@ -123,46 +123,108 @@ async def calendar_node(state: AgentState) -> dict:
     user_message = state.get("user_message", "")
     user_id = state.get("user_id")
     user_name = state.get("user_name", "usuario")
+    history = state.get("history", [])
 
     # Set calendar-specific prompt
     system_prompt = AGENT_PROMPTS["CALENDAR"].format(name=user_name)
 
-    # Try to execute calendar tools if user has tokens
     tool_result = None
+    message_lower = user_message.lower()
+
     try:
         async with AsyncSessionLocal() as db:
             result = await db.execute(select(User).where(User.id == user_id))
             user = result.scalar_one_or_none()
 
-            if user and user.google_calendar_token:
-                if any(kw in user_message.lower() for kw in ["ver", "lista", "próxim", "agenda", "evento", "reunión", "reunion"]):
-                    from app.services.calendar_service import CalendarService
-                    service = CalendarService(db, user)
-                    events = await service.list_events(
-                        end_date=datetime.now(timezone.utc) + timedelta(days=30),
-                        max_results=10
-                    )
+            if not user or not user.google_calendar_token:
+                return {
+                    "system_prompt": system_prompt,
+                    "tier": "standard",
+                    "context": {"calendar_result": "No has conectado tu cuenta de Google Calendar."},
+                }
 
-                    if events:
-                        lines = ["📅 **Próximos eventos:**\n"]
-                        for event in events:
-                            start = event.get("start", {})
-                            date_str = start.get("dateTime", start.get("date", "Sin fecha"))
-                            if "T" in date_str:
-                                dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-                                date_str = dt.strftime("%d/%m %H:%M")
-                            summary = event.get("summary", "Sin título")
-                            lines.append(f"• **{summary}** – {date_str}")
-                        tool_result = "\n".join(lines)
-                    else:
-                        tool_result = "No tienes eventos programados en los próximos 30 días."
+            from app.services.calendar_service import CalendarService
+            service = CalendarService(db, user)
+
+            # Intent detection
+            is_creation = any(kw in message_lower for kw in ["crea", "añade", "nuevo", "agrega", "pon", "agendar", "programa", "recordatorio", "recuérdame", "recuerdame"])
+            is_listing = any(kw in message_lower for kw in ["ver", "lista", "próxim", "agenda", "qué tengo", "que tengo", "planes"])
+            is_deletion = any(kw in message_lower for kw in ["borra", "elimina", "quita", "cancela"])
+
+            if is_creation:
+                # Use LLM to extract event details
+                history_context = ""
+                for m in history[-4:]:
+                    history_context += f"{m['role'].upper()}: {m['content']}\n"
+                
+                now_str = datetime.now(timezone.utc).isoformat()
+                
+                extract_prompt = [
+                    {"role": "system", "content": f"""
+                    Eres un experto en extracción de datos para Google Calendar. 
+                    Extrae los detalles del evento del mensaje del usuario y la conversación.
+                    
+                    REGLAS:
+                    1. Fecha/Hora actual de referencia: {now_str}
+                    2. Interpreta términos relativos como "mañana", "lunes que viene", "a las 5".
+                    3. Si no se especifica duración, asume 1 hora.
+                    4. Devuelve los campos: summary (str), start_datetime (ISO 8601), end_datetime (ISO 8601), location (str|null), description (str|null).
+                    
+                    Responde ÚNICAMENTE con un objeto JSON: {{"action": "create", "summary": "...", "start_datetime": "...", "end_datetime": "...", "location": "...", "description": "..."}}
+                    Si no hay datos suficientes para crear un evento, responde: {{"action": "none"}}
+                    """},
+                    {"role": "user", "content": f"HISTORIAL:\n{history_context}\nMENSAJE ACTUAL: {user_message}"}
+                ]
+                
+                try:
+                    raw_json = await gateway.complete(extract_prompt, tier=TaskTier.FAST)
+                    clean_json = raw_json.strip()
+                    if "```json" in clean_json: clean_json = clean_json.split("```json")[1].split("```")[0].strip()
+                    elif "```" in clean_json: clean_json = clean_json.split("```")[1].split("```")[0].strip()
+                    
+                    data = json.loads(clean_json)
+                    if data.get("action") == "create" and data.get("summary"):
+                        start_dt = datetime.fromisoformat(data["start_datetime"].replace("Z", "+00:00"))
+                        end_dt = datetime.fromisoformat(data["end_datetime"].replace("Z", "+00:00"))
+                        
+                        created = await service.create_event(
+                            summary=data["summary"],
+                            start_dt=start_dt,
+                            end_dt=end_dt,
+                            description=data.get("description"),
+                            location=data.get("location"),
+                        )
+                        tool_result = f"✅ Evento **{created['summary']}** creado para el {start_dt.strftime('%d/%m a las %H:%M')}."
+                except Exception as e:
+                    logger.error("Error extraction calendar: %s", e)
+                    tool_result = "No pude extraer los detalles del evento correctamente. ¿Podrías ser más específico con la fecha y hora?"
+
+            elif is_listing:
+                events = await service.list_events(
+                    end_date=datetime.now(timezone.utc) + timedelta(days=30),
+                    max_results=10
+                )
+                if events:
+                    lines = ["📅 **Próximos eventos:**\n"]
+                    for event in events:
+                        start = event.get("start", {})
+                        date_str = start.get("dateTime", start.get("date", "Sin fecha"))
+                        if "T" in date_str:
+                            dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                            date_str = dt.strftime("%d/%m %H:%M")
+                        summary = event.get("summary", "Sin título")
+                        lines.append(f"• **{summary}** – {date_str}")
+                    tool_result = "\n".join(lines)
+                else:
+                    tool_result = "No tienes eventos programados en los próximos 30 días."
+
+            elif is_deletion:
+                # Similar extraction for deletion could be added here
+                tool_result = "Para eliminar eventos, por ahora te recomiendo usar la pestaña de Agenda directamente."
+
     except Exception as exc:
-        logger.error("Error crítico en calendar_node: %s", exc, exc_info=True)
-        # We provide a clean, non-technical context to the LLM so it can answer helpfully
-        tool_result = "No se pudo recuperar información del calendario debido a un problema técnico interno de sincronización."
-
-    if not tool_result:
-        tool_result = "No se pudo recuperar información del calendario. Es posible que el usuario necesite volver a iniciar sesión para renovar permisos o que no tenga eventos próximos."
+        logger.error("Error en calendar_node: %s", exc, exc_info=True)
+        tool_result = "Hubo un problema al acceder a tu calendario."
 
     return {
         "system_prompt": system_prompt,
@@ -176,7 +238,7 @@ async def calendar_node(state: AgentState) -> dict:
 # ══════════════════════════════════════════════════════════════════════════════
 
 async def finance_node(state: AgentState) -> dict:
-    """
+    \"\"\"
     Finance agent node with tool integration for expense/income tracking.
 
     This node:
@@ -184,7 +246,7 @@ async def finance_node(state: AgentState) -> dict:
     2. Detects intent from user message (register expense, check balance, etc.)
     3. Executes finance tools automatically when applicable
     4. Returns context for the streaming response
-    """
+    \"\"\"
     from app.db.base import AsyncSessionLocal
     from app.db.models import User
     from sqlalchemy import select
@@ -253,7 +315,7 @@ async def finance_node(state: AgentState) -> dict:
                     )
 
                     tool_result = (
-                        f"✅ **Gasto registrado:** {amount:.2f}€ en **{category}**\n\n"
+                        f"✅ **Gasto registrado:** {amount:.2f}€ en **{category}**\\n\\n"
                         f"📝 {transaction.description}"
                     )
 
@@ -267,12 +329,12 @@ async def finance_node(state: AgentState) -> dict:
 
                 emoji = "🟢" if balance["balance"] >= 0 else "🔴"
                 tool_result = (
-                    f"{emoji} **Balance de {month_name}**\n\n"
-                    f"| Concepto | Cantidad |\n"
-                    f"|----------|----------|\n"
-                    f"| Ingresos | {balance['income']:,.2f} € |\n"
-                    f"| Gastos   | {balance['expenses']:,.2f} € |\n"
-                    f"| **Balance** | **{balance['balance']:,.2f} €** |\n\n"
+                    f"{emoji} **Balance de {month_name}**\\n\\n"
+                    f"| Concepto | Cantidad |\\n"
+                    f"|----------|----------|\\n"
+                    f"| Ingresos | {balance['income']:,.2f} € |\\n"
+                    f"| Gastos   | {balance['expenses']:,.2f} € |\\n"
+                    f"| **Balance** | **{balance['balance']:,.2f} €** |\\n\\n"
                     f"💡 Tasa de ahorro: {balance['savings_rate']:.1f}%"
                 )
 
@@ -280,12 +342,12 @@ async def finance_node(state: AgentState) -> dict:
             elif any(kw in message_lower for kw in ["categoría", "categoria", "distribución", "distribucion", "gráfica", "grafica"]):
                 categories = await service.get_expenses_by_category()
                 if categories:
-                    lines = ["📊 **Gastos por categoría:**\n"]
+                    lines = ["📊 **Gastos por categoría:**\\n"]
                     total = sum(c["total"] for c in categories)
                     for cat in categories[:5]:  # Top 5
                         percentage = (cat["total"] / total * 100) if total > 0 else 0
                         lines.append(f"• **{cat['category'].capitalize()}**: {cat['total']:,.2f}€ ({percentage:.0f}%)")
-                    tool_result = "\n".join(lines)
+                    tool_result = "\\n".join(lines)
                 else:
                     tool_result = "No hay gastos registrados este mes para analizar por categoría."
 
@@ -293,13 +355,13 @@ async def finance_node(state: AgentState) -> dict:
             elif any(kw in message_lower for kw in ["últimos", "ultimos", "recientes", "historial", "lista de"]):
                 transactions = await service.list_transactions(limit=5)
                 if transactions:
-                    lines = ["📋 **Últimas transacciones:**\n"]
+                    lines = ["📋 **Últimas transacciones:**\\n"]
                     for tx in transactions:
                         emoji = "💰" if tx.type == "income" else "💸"
                         sign = "+" if tx.type == "income" else "-"
                         date_str = tx.date.strftime("%d/%m")
                         lines.append(f"{emoji} {date_str}: {sign}{tx.amount:,.2f}€ - {tx.description}")
-                    tool_result = "\n".join(lines)
+                    tool_result = "\\n".join(lines)
                 else:
                     tool_result = "No hay transacciones recientes."
 
@@ -318,7 +380,7 @@ async def finance_node(state: AgentState) -> dict:
 # ══════════════════════════════════════════════════════════════════════════════
 
 async def mail_node(state: AgentState) -> dict:
-    """
+    \"\"\"
     Mail agent node with Gmail tool integration.
 
     This node:
@@ -326,7 +388,7 @@ async def mail_node(state: AgentState) -> dict:
     2. Detects intent from user message (read inbox, send email)
     3. Executes gmail tools automatically when applicable
     4. Returns context for the streaming response
-    """
+    \"\"\"
     from app.db.base import AsyncSessionLocal
     from app.db.models import User
     from sqlalchemy import select
@@ -359,15 +421,15 @@ async def mail_node(state: AgentState) -> dict:
                     emails = await service.list_messages(query=query, max_results=5)
 
                     if emails:
-                        lines = ["📧 **Últimos correos:**\n"]
+                        lines = ["📧 **Últimos correos:**\\n"]
                         for em in emails:
                             lines.append(f"• **{em['subject']}** - de {em['from']} ({em['date']})")
-                        tool_result = "\n".join(lines)
+                        tool_result = "\\n".join(lines)
                     else:
                         tool_result = "No tienes correos nuevos en tu bandeja."
 
                 # Intent: Enviar un mensaje
-                # Si es muy evidente (ej. "envía un correo a juan@gmail.com con asunto X...") 
+                # Si es muy evidente (ej. \"envía un correo a juan@gmail.com con asunto X...\") 
                 # dejaríamos al LLM organizar el envío a través de tools en Fase 8b.
                 # Por ahora, extraemos al contexto que la intención es redactar.
                 elif any(kw in message_lower for kw in ["envía", "manda", "redacta", "escribe", "responder"]):
@@ -390,9 +452,9 @@ async def mail_node(state: AgentState) -> dict:
 # ══════════════════════════════════════════════════════════════════════════════
 
 async def files_node(state: AgentState) -> dict:
-    """
+    \"\"\"
     Files agent node with Document RAG tool integration.
-    """
+    \"\"\"
     from app.db.base import AsyncSessionLocal
     
     user_message = state.get("user_message", "")
@@ -412,10 +474,10 @@ async def files_node(state: AgentState) -> dict:
                 results = await service.search_similar(query=user_message, top_k=5)
                 
                 if results:
-                    lines = ["📂 **Información encontrada en tus documentos:**\n"]
+                    lines = ["📂 **Información encontrada en tus documentos:**\\n"]
                     for r in results:
-                        lines.append(f"• {r}\n")
-                    tool_result = "\n".join(lines)
+                        lines.append(f"• {r}\\n")
+                    tool_result = "\\n".join(lines)
     except Exception as exc:
         logger.warning("Files/RAG tool execution failed: %s", exc)
         tool_result = None
@@ -432,9 +494,9 @@ async def files_node(state: AgentState) -> dict:
 # ══════════════════════════════════════════════════════════════════════════════
 
 async def habits_node(state: AgentState) -> dict:
-    """
+    \"\"\"
     Habits agent node handling habit tracking and project breakdowns into To-Dos.
-    """
+    \"\"\"
     from app.db.base import AsyncSessionLocal
     import re
     from datetime import datetime
@@ -448,10 +510,10 @@ async def habits_node(state: AgentState) -> dict:
     message_lower = user_message.lower()
 
     # Determine if we should attempt habit creation/management
-    is_habit_creation = any(kw in message_lower for kw in ["crea", "añade", "nuevo", "agrega", "pon", "guarda", "registrar"]) and \
+    is_habit_creation = any(kw in message_lower for kw in ["crea", "añade", "nuevo", "agrega", "pon", "guarda", "registrar"]) and \\
                         any(kw in message_lower for kw in ["hábito", "habito", "lista", "estos", "lo", "los", "plan", "ambos"])
     
-    is_habit_deletion = any(kw in message_lower for kw in ["borra", "elimina", "quita", "suprime"]) and \
+    is_habit_deletion = any(kw in message_lower for kw in ["borra", "elimina", "quita", "suprime"]) and \\
                         any(kw in message_lower for kw in ["hábito", "habito"])
 
     try:
@@ -464,23 +526,23 @@ async def habits_node(state: AgentState) -> dict:
                 history_context = ""
                 # We take the last 4 messages to ensure we have the plan and the user's confirmation
                 for m in history[-4:]: 
-                    history_context += f"{m['role'].upper()}: {m['content']}\n"
+                    history_context += f"{m['role'].upper()}: {m['content']}\\n"
                 
                 extract_prompt = [
-                    {"role": "system", "content": """
+                    {"role": "system", "content": \"\"\"
                     Eres un asistente experto en extracción de datos. 
                     Tu objetivo es extraer una lista de hábitos a crear a partir de la conversación.
                     
                     REGLAS:
-                    1. Identifica el nombre del hábito (ej: "Salir a correr", "Hacer skate").
+                    1. Identifica el nombre del hábito (ej: \"Salir a correr\", \"Hacer skate\").
                     2. Identifica los días programados (0=Lunes, 1=Martes, 2=Miércoles, 3=Jueves, 4=Viernes, 5=Sábado, 6=Domingo).
                     3. IGNORA explícitamente días de descanso, relax u off. No los incluyas en los días del hábito.
-                    4. Si el usuario dice "añade ambos" o "crea el plan", busca en el último mensaje del ASISTENTE el plan propuesto.
+                    4. Si el usuario dice \"añade ambos\" o \"crea el plan\", busca en el último mensaje del ASISTENTE el plan propuesto.
                     
-                    Responde ÚNICAMENTE con un array JSON: [{"name": "...", "days": "0,2,4"}, ...]
+                    Responde ÚNICAMENTE con un array JSON: [{\"name\": \"...\", \"days\": \"0,2,4\"}, ...]
                     Si no hay hábitos claros, responde: []
-                    """},
-                    {"role": "user", "content": f"HISTORIAL:\n{history_context}\nMENSAJE ACTUAL: {user_message}"}
+                    \"\"\"},
+                    {"role": "user", "content": f"HISTORIAL:\\n{history_context}\\nMENSAJE ACTUAL: {user_message}"}
                 ]
                 
                 try:
@@ -519,7 +581,7 @@ async def habits_node(state: AgentState) -> dict:
                     logger.error("HabitsNode: LLM extraction failed: %s", e)
                     # Simple regex fallback if LLM fails
                     import re
-                    name_match = re.search(r'(?:hábito|habito) (?:de |: |que )?(.+?)(?:\s+(?:los |el |cada |$))', message_lower)
+                    name_match = re.search(r'(?:hábito|habito) (?:de |: |que )?(.+?)(?:\\s+(?:los |el |cada |$))', message_lower)
                     if name_match:
                         name = name_match.group(1).strip().capitalize()
                         habit = await service.create_habit(name=name)
@@ -543,7 +605,7 @@ async def habits_node(state: AgentState) -> dict:
                 habits = await service.get_habits()
                 if habits:
                     h_list = [f"• {h.name} ({h.target_days})" for h in habits]
-                    tool_result = "🔥 **Tus hábitos actuales:**\n" + "\n".join(h_list)
+                    tool_result = "🔥 **Tus hábitos actuales:**\\n" + "\\n".join(h_list)
                 else:
                     tool_result = "No tienes hábitos registrados. Pídeme 'Crea el hábito de leer' para empezar."
 
@@ -556,4 +618,3 @@ async def habits_node(state: AgentState) -> dict:
         "tier": "standard",
         "context": {"habits_result": tool_result} if tool_result else {},
     }
-
