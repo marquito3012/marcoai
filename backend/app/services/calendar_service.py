@@ -8,6 +8,7 @@ from googleapiclient.errors import HttpError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import User
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +25,10 @@ class CalendarService:
 
         creds = Credentials(
             token=self.user.google_calendar_token,
-            refresh_token=self.user.google_refresh_token,
+            refresh_token=self.user.google_calendar_refresh_token,
             token_uri="https://oauth2.googleapis.com/token",
-            client_id=self.user.google_client_id,
-            client_secret=self.user.google_client_secret,
+            client_id=settings.google_client_id,
+            client_secret=settings.google_client_secret,
         )
         return build("calendar", "v3", credentials=creds)
 
