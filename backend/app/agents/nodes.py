@@ -165,6 +165,12 @@ async def calendar_node(state: AgentState) -> dict:
                 "borra", "elimina", "quita", "cancela", "borrar", "eliminar",
                 "quitar", "cancelar", "suprime", "suprimir"
             ])
+            is_update = any(kw in msg_norm for kw in [
+                "mueve", "mover", "cambia", "cambiar", "modifica", "modificar",
+                "retrasa", "adelanta", "pospone", "posponer", "reprograma", "reprogramar",
+                "actualiza", "actualizar", "han movido", "lo han movido", "la han movido",
+                "nueva fecha", "nueva hora", "otro dia", "otro dia", "misma hora"
+            ])
 
             if is_creation:
                 # Use LLM to extract event details
@@ -323,6 +329,90 @@ O si no hay suficientes datos: {{"action": "none"}}
                 except Exception as e:
                     logger.error("Error deleting calendar event via chat: %s", e)
                     tool_result = "No pude identificar qué evento quieres eliminar."
+
+            elif is_update:
+                # Use LLM to extract which event to move/update and the new datetime
+                history_context = ""
+                for m in history[-4:]:
+                    history_context += f"{m['role'].upper()}: {m['content']}\n"
+
+                import zoneinfo
+                tz_madrid = zoneinfo.ZoneInfo("Europe/Madrid")
+                now_local = datetime.now(tz_madrid)
+                day_names = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+                today_weekday = day_names[now_local.weekday()]
+
+                extract_prompt = [
+                    {"role": "system", "content": f"""
+Eres un experto en gestión de Google Calendar. Tu única tarea es identificar qué evento quiere mover/modificar el usuario y a qué nueva fecha/hora.
+
+CONTEXTO TEMPORAL:
+- Fecha y hora actual: {now_local.strftime('%Y-%m-%dT%H:%M:%S%z')}
+- Hoy es: {today_weekday}, {now_local.strftime('%d/%m/%Y')}
+- Zona horaria: Europe/Madrid
+
+REGLAS:
+1. Identifica el nombre del evento (summary) que se quiere modificar.
+2. Identifica la nueva fecha/hora. Interpreta expresiones relativas correctamente:
+   - "el sábado" = el sábado más próximo
+   - "mañana" = {(now_local + timedelta(days=1)).strftime('%d/%m/%Y')}
+   - "misma hora" = mantener la hora original, solo cambiar el día
+3. Si el usuario dice "misma hora" o no especifica hora, usa null en new_time y se conservará la hora original.
+4. Usa siempre zona horaria Europe/Madrid en los ISO 8601.
+
+Responde ÚINICAMENTE con JSON válido:
+{{"action": "update", "summary": "nombre del evento", "new_datetime": "2026-04-25T13:00:00+02:00", "keep_time": true/false}}
+O si no está claro: {{"action": "none"}}
+"""},
+                    {"role": "user", "content": f"HISTORIAL:\n{history_context}\nMENSAJE ACTUAL: {user_message}"}
+                ]
+
+                try:
+                    raw_json = await gateway.complete(extract_prompt, tier=TaskTier.FAST)
+                    logger.info("Calendar update raw LLM output: %s", raw_json)
+                    clean_json = raw_json.strip()
+                    if "```json" in clean_json:
+                        clean_json = clean_json.split("```json")[1].split("```")[0].strip()
+                    elif "```" in clean_json:
+                        clean_json = clean_json.split("```")[1].split("```")[0].strip()
+                    start_idx = clean_json.find('{')
+                    end_idx = clean_json.rfind('}')
+                    if start_idx != -1 and end_idx != -1:
+                        clean_json = clean_json[start_idx:end_idx+1]
+
+                    data = json.loads(clean_json)
+                    logger.info("Calendar update parsed data: %s", data)
+
+                    if data.get("action") == "update" and data.get("summary"):
+                        target_event = await service.find_event_by_summary(data["summary"])
+
+                        if target_event:
+                            new_dt_str = data.get("new_datetime")
+                            if new_dt_str:
+                                new_dt = datetime.fromisoformat(new_dt_str.replace("Z", "+00:00"))
+
+                                if data.get("keep_time", False):
+                                    # Keep original hour/minute, only change the date
+                                    old_start_str = target_event.get("start", {}).get("dateTime", "")
+                                    if old_start_str:
+                                        old_dt = datetime.fromisoformat(old_start_str.replace("Z", "+00:00"))
+                                        new_dt = new_dt.replace(hour=old_dt.hour, minute=old_dt.minute, second=0)
+
+                                updated = await service.move_event(target_event["id"], new_dt)
+                                tool_result = (
+                                    f"✅ He movido **{updated['summary']}** al "
+                                    f"{new_dt.strftime('%d/%m a las %H:%M')}."
+                                )
+                                logger.info("Calendar event updated: %s", updated.get("id"))
+                            else:
+                                tool_result = "Necesito saber la nueva fecha/hora para poder mover el evento."
+                        else:
+                            tool_result = f"❌ No encontré ningún evento llamado **{data['summary']}** en tu calendario."
+                    else:
+                        logger.warning("Update LLM returned action=none")
+                except Exception as e:
+                    logger.error("Error updating calendar event via chat: %s", e, exc_info=True)
+                    tool_result = "No pude identificar qué evento quieres modificar."
 
     except Exception as exc:
         logger.error("Error en calendar_node: %s", exc, exc_info=True)
