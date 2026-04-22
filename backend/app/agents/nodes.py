@@ -141,47 +141,93 @@ async def calendar_node(state: AgentState) -> dict:
             from app.services.calendar_service import CalendarService
             service = CalendarService(db, user)
 
-            # Intent detection
-            is_creation = any(kw in message_lower for kw in ["crea", "añade", "nuevo", "agrega", "pon", "agendar", "programa", "recordatorio", "recuérdame", "recuerdame"])
-            is_listing = any(kw in message_lower for kw in ["ver", "lista", "próxim", "agenda", "qué tengo", "que tengo", "planes"])
-            is_deletion = any(kw in message_lower for kw in ["borra", "elimina", "quita", "cancela"])
+            # Normalize message: strip accents so "añádeme" matches "añade", etc.
+            import unicodedata
+            def _strip_accents(s: str) -> str:
+                return ''.join(
+                    c for c in unicodedata.normalize('NFD', s)
+                    if unicodedata.category(c) != 'Mn'
+                )
+            msg_norm = _strip_accents(message_lower)
+
+            # Intent detection (accent-insensitive)
+            is_creation = any(kw in msg_norm for kw in [
+                "crea", "añade", "anade", "nuevo evento", "agrega", "agregar",
+                "pon", "ponme", "agendar", "agenda", "programa", "programar",
+                "recordatorio", "recuerdame", "recuerdame", "apunta", "anota",
+                "añadir", "anadir", "meter", "registra"
+            ])
+            is_listing = any(kw in msg_norm for kw in [
+                "ver", "lista", "proximo", "que tengo", "planes", "eventos",
+                "agenda de", "tengo hoy", "tengo manana", "tengo esta"
+            ])
+            is_deletion = any(kw in msg_norm for kw in [
+                "borra", "elimina", "quita", "cancela", "borrar", "eliminar",
+                "quitar", "cancelar", "suprime", "suprimir"
+            ])
 
             if is_creation:
                 # Use LLM to extract event details
                 history_context = ""
                 for m in history[-4:]:
                     history_context += f"{m['role'].upper()}: {m['content']}\n"
-                
-                now_str = datetime.now(timezone.utc).isoformat()
-                
+
+                # Use local Madrid time so relative dates ("este domingo") are correct
+                import zoneinfo
+                tz_madrid = zoneinfo.ZoneInfo("Europe/Madrid")
+                now_local = datetime.now(tz_madrid)
+                day_names = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+                now_str_local = now_local.strftime('%Y-%m-%dT%H:%M:%S%z')
+                today_weekday = day_names[now_local.weekday()]
+
                 extract_prompt = [
                     {"role": "system", "content": f"""
-                    Eres un experto en extracción de datos para Google Calendar. 
-                    Extrae los detalles del evento del mensaje del usuario y la conversación.
-                    
-                    REGLAS:
-                    1. Fecha/Hora actual de referencia: {now_str}
-                    2. Interpreta términos relativos como "mañana", "lunes que viene", "a las 5".
-                    3. Si no se especifica duración, asume 1 hora.
-                    4. Devuelve los campos: summary (str), start_datetime (ISO 8601), end_datetime (ISO 8601), location (str|null), description (str|null).
-                    
-                    Responde ÚNICAMENTE con un objeto JSON: {{"action": "create", "summary": "...", "start_datetime": "...", "end_datetime": "...", "location": "...", "description": "..."}}
-                    Si no hay datos suficientes para crear un evento, responde: {{"action": "none"}}
-                    """},
+Eres un experto en extracción de datos para Google Calendar. Tu única tarea es extraer los detalles del evento que el usuario quiere crear.
+
+CONTEXTO TEMPORAL (MUY IMPORTANTE):
+- Fecha y hora actual: {now_str_local}
+- Hoy es: {today_weekday}, {now_local.strftime('%d/%m/%Y')}
+- Zona horaria: Europe/Madrid
+
+REGLAS:
+1. Interpreta CORRECTAMENTE los términos relativos:
+   - "este domingo" = el próximo domingo (si hoy es miércoles 22/04, este domingo = 26/04)
+   - "mañana" = {(now_local + timedelta(days=1)).strftime('%d/%m/%Y')}
+   - "el lunes" = el próximo lunes
+   - "a las 13:00" = 13:00 hora de Madrid (Europe/Madrid)
+2. Usa SIEMPRE la zona horaria Europe/Madrid en los datetime ISO 8601 (ej: 2026-04-26T13:00:00+02:00)
+3. Si no se especifica hora de fin, añade la duración indicada o asume 1 hora.
+4. El campo "summary" es el nombre/título del evento.
+5. Si falta información crítica (fecha), responde con action: none.
+
+Responde ÚNICAMENTE con JSON válido sin markdown:
+{{"action": "create", "summary": "...", "start_datetime": "2026-04-26T13:00:00+02:00", "end_datetime": "2026-04-26T17:00:00+02:00", "location": null, "description": null}}
+O si no hay suficientes datos: {{"action": "none"}}
+"""},
                     {"role": "user", "content": f"HISTORIAL:\n{history_context}\nMENSAJE ACTUAL: {user_message}"}
                 ]
-                
+
                 try:
                     raw_json = await gateway.complete(extract_prompt, tier=TaskTier.FAST)
+                    logger.info("Calendar creation raw LLM output: %s", raw_json)
                     clean_json = raw_json.strip()
-                    if "```json" in clean_json: clean_json = clean_json.split("```json")[1].split("```")[0].strip()
-                    elif "```" in clean_json: clean_json = clean_json.split("```")[1].split("```")[0].strip()
-                    
+                    # Strip markdown code fences if present
+                    if "```json" in clean_json:
+                        clean_json = clean_json.split("```json")[1].split("```")[0].strip()
+                    elif "```" in clean_json:
+                        clean_json = clean_json.split("```")[1].split("```")[0].strip()
+                    # Strip any leading/trailing text outside the JSON braces
+                    start_idx = clean_json.find('{')
+                    end_idx = clean_json.rfind('}')
+                    if start_idx != -1 and end_idx != -1:
+                        clean_json = clean_json[start_idx:end_idx+1]
+
                     data = json.loads(clean_json)
+                    logger.info("Calendar creation parsed data: %s", data)
                     if data.get("action") == "create" and data.get("summary"):
                         start_dt = datetime.fromisoformat(data["start_datetime"].replace("Z", "+00:00"))
                         end_dt = datetime.fromisoformat(data["end_datetime"].replace("Z", "+00:00"))
-                        
+
                         created = await service.create_event(
                             summary=data["summary"],
                             start_dt=start_dt,
@@ -190,9 +236,12 @@ async def calendar_node(state: AgentState) -> dict:
                             location=data.get("location"),
                         )
                         tool_result = f"✅ Evento **{created['summary']}** creado para el {start_dt.strftime('%d/%m a las %H:%M')}."
+                        logger.info("Calendar event created successfully: %s", created.get("id"))
+                    else:
+                        logger.warning("LLM returned action=none or missing summary for creation.")
                 except Exception as e:
-                    logger.error("Error extraction calendar: %s", e)
-                    tool_result = "No pude extraer los detalles del evento correctamente. ¿Podrías ser más específico con la fecha y hora?"
+                    logger.error("Error extracting/creating calendar event: %s", e, exc_info=True)
+                    tool_result = "No pude extraer los detalles del evento correctamente. ¿Podrías indicarme la fecha y hora exactas?"
 
             elif is_listing:
                 events = await service.list_events(
