@@ -115,9 +115,12 @@ async def get_habit_logs(
         # Hábitos programados para este día de la semana
         scheduled_ids = []
         for h in habits:
-            target_days = [int(d) for d in h.target_days.split(",")] if h.target_days else [0,1,2,3,4,5,6]
-            if weekday in target_days:
-                scheduled_ids.append(h.id)
+            # Solo consideramos el hábito si ya existía en esa fecha
+            # h.created_at es un datetime con timezone, necesitamos comparar con day (date)
+            if h.created_at.date() <= day:
+                target_days = [int(d) for d in h.target_days.split(",")] if h.target_days else [0,1,2,3,4,5,6]
+                if weekday in target_days:
+                    scheduled_ids.append(h.id)
         
         done_ids = logs_by_date.get(day_iso, set())
         
