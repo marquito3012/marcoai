@@ -262,7 +262,7 @@ export default function HabitsPage() {
 }
 
 function ContributionGraph({ logs }) {
-  // Simple representation of the last 12 weeks
+  // Representing the last 12 weeks
   const today = new Date()
   const days = []
   
@@ -272,7 +272,12 @@ function ContributionGraph({ logs }) {
     d.setDate(today.getDate() - i)
     const key = d.toISOString().split('T')[0]
     const log = logs.find(l => l.date === key)
-    days.push({ key, count: log ? log.count : 0 })
+    days.push({ 
+      key, 
+      count: log ? log.count : 0,
+      status: log ? log.status : 'none',
+      scheduled: log ? log.scheduled : 0
+    })
   }
 
   return (
@@ -282,11 +287,14 @@ function ContributionGraph({ logs }) {
           key={day.key} 
           style={{
             ...styles.graphCell,
-            backgroundColor: day.count > 0 
-              ? `rgba(244, 114, 182, ${Math.min(0.2 + day.count * 0.2, 1)})`
-              : 'var(--color-surface-3)'
+            backgroundColor: 
+              day.status === 'success' ? 'var(--color-success)' :
+              day.status === 'failed' ? 'var(--color-danger)' :
+              'var(--color-surface-3)',
+            opacity: day.status === 'pending' ? 0.6 : 1,
+            border: day.status === 'pending' ? '1px dashed var(--color-text-faint)' : 'none'
           }}
-          title={`${day.key}: ${day.count} hábitos`}
+          title={`${day.key}: ${day.count}/${day.scheduled} hábitos (${day.status})`}
         />
       ))}
     </div>

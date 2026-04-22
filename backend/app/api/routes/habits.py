@@ -80,20 +80,65 @@ async def get_habit_logs(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    """Devuelve datos compatibles con un 'GitHub contributions graph'."""
-    from sqlalchemy import func
+    """Devuelve datos de consistencia (éxito/fallo) para el gráfico de contribuciones."""
+    import datetime
+    
+    # 1. Obtener todos los hábitos del usuario
+    res_habits = await db.execute(select(Habit).where(Habit.user_id == current_user.id))
+    habits = res_habits.scalars().all()
+    
+    # 2. Obtener todos los logs de los últimos 90 días
+    today = datetime.date.today()
+    start_date = today - datetime.timedelta(days=90)
     
     stmt = (
-        select(HabitLog.completed_date, func.count(HabitLog.id).label("count"))
+        select(HabitLog.completed_date, HabitLog.habit_id)
         .join(Habit)
-        .where(Habit.user_id == current_user.id)
-        .group_by(HabitLog.completed_date)
+        .where(Habit.user_id == current_user.id, HabitLog.completed_date >= start_date.isoformat())
     )
-    res = await db.execute(stmt)
+    res_logs = await db.execute(stmt)
     
+    # Organizar logs por fecha: { "2023-10-01": {habit_id1, habit_id2} }
+    logs_by_date = {}
+    for log_date, habit_id in res_logs.all():
+        if log_date not in logs_by_date:
+            logs_by_date[log_date] = set()
+        logs_by_date[log_date].add(habit_id)
+    
+    # 3. Calcular estado para cada día
     data = []
-    for row in res.all():
-        data.append({"date": row[0], "count": row[1]})
+    for i in range(91):
+        day = today - datetime.timedelta(days=i)
+        day_iso = day.isoformat()
+        weekday = day.weekday() # 0=Mon, 6=Sun
+        
+        # Hábitos programados para este día de la semana
+        scheduled_ids = []
+        for h in habits:
+            target_days = [int(d) for d in h.target_days.split(",")] if h.target_days else [0,1,2,3,4,5,6]
+            if weekday in target_days:
+                scheduled_ids.append(h.id)
+        
+        done_ids = logs_by_date.get(day_iso, set())
+        
+        status = "none" # Color estándar (sin hábitos programados)
+        if scheduled_ids:
+            # Si se han completado todos los programados -> Éxito (Verde)
+            if all(sid in done_ids for sid in scheduled_ids):
+                status = "success"
+            # Si es un día pasado y falta alguno -> Fallo (Rojo)
+            elif day < today:
+                status = "failed"
+            # Si es hoy y falta alguno -> Aún puede completarlo
+            else:
+                status = "pending"
+        
+        data.append({
+            "date": day_iso,
+            "status": status,
+            "count": len(done_ids),
+            "scheduled": len(scheduled_ids)
+        })
         
     return data
 
