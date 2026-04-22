@@ -37,3 +37,4 @@ python-dotenv==1.1.0
 pydantic==2.10.6                # last stable with pre-built wheels everywhere
 pydantic-settings==2.7.1        # compatible with pydantic 2.10.x
 tenacity==9.1.2                 # retry/fallback logic
+apscheduler==3.10.4             # daily notification scheduler (Fase 11)

@@ -140,9 +140,41 @@ async def supervisor_stream(
     # ── b. Yield routing event ────────────────────────────────────────────────
     yield {"event": "route", "intent": intent, "label": label}
 
-    # ── c. Stream LLM response ────────────────────────────────────────────────
+    # ── c. Load user AI personalization settings ──────────────────────────────
+    ai_tone_prefix = ""
+    custom_instructions_prefix = ""
+    try:
+        from app.db.base import AsyncSessionLocal
+        from app.db.models import UserSettings
+        from sqlalchemy import select as sa_select
+        async with AsyncSessionLocal() as db:
+            res = await db.execute(
+                sa_select(UserSettings).where(UserSettings.user_id == user_id)
+            )
+            user_settings = res.scalar_one_or_none()
+            if user_settings:
+                tone_map = {
+                    "professional": "Usa un tono profesional, directo y preciso. Evita coloquialismos.",
+                    "motivational": "Usa un tono motivador, energético y positivo. Anima al usuario a alcanzar sus metas.",
+                    "friendly":     "",  # Default, no extra instruction needed
+                }
+                ai_tone_prefix = tone_map.get(user_settings.ai_tone, "")
+                if user_settings.custom_instructions and user_settings.custom_instructions.strip():
+                    custom_instructions_prefix = (
+                        f"[Instrucciones permanentes del usuario: {user_settings.custom_instructions.strip()}]"
+                    )
+    except Exception as exc:
+        logger.warning("Could not load user settings for prompt injection: %s", exc)
+
+    # ── d. Stream LLM response ────────────────────────────────────────────────
     # Build system prompt with optional tool context
     system_content = final["system_prompt"]
+
+    # Prepend personalization (tone + custom instructions)
+    personalization_prefix = "\n".join(filter(None, [ai_tone_prefix, custom_instructions_prefix]))
+    if personalization_prefix:
+        system_content = personalization_prefix + "\n\n" + system_content
+
     calendar_result = final.get("context", {}).get("calendar_result")
     finance_result = final.get("context", {}).get("finance_result")
     mail_result = final.get("context", {}).get("mail_result")

@@ -76,6 +76,31 @@ async def lifespan(app: FastAPI):
                 await conn.execute(text("ALTER TABLE chat_messages ADD COLUMN conversation_id VARCHAR(64)"))
         except Exception as e:
             print(f"⚠️ Chat migration warning: {e}")
+
+        # Manual migration for user settings (Fase 11)
+        try:
+            result = await conn.execute(text("PRAGMA table_info(user_settings)"))
+            columns = [row[1] for row in result.fetchall()]
+            if not columns:
+                print("⚡ Creating user_settings table...")
+                await conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS user_settings (
+                        id VARCHAR(36) PRIMARY KEY,
+                        user_id VARCHAR(36) UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        ai_tone VARCHAR(32) DEFAULT 'friendly',
+                        custom_instructions TEXT,
+                        language VARCHAR(8) DEFAULT 'es',
+                        notifications_enabled BOOLEAN DEFAULT 0,
+                        notification_hour INTEGER DEFAULT 8,
+                        notify_calendar BOOLEAN DEFAULT 1,
+                        notify_habits BOOLEAN DEFAULT 1,
+                        notify_finance BOOLEAN DEFAULT 0,
+                        created_at DATETIME,
+                        updated_at DATETIME
+                    )
+                """))
+        except Exception as e:
+            print(f"⚠️ Settings migration warning: {e}")
     
     # 2. Robustly create SQLite-vec virtual tables using a sync connection
     # This bypasses aiosqlite/sqlalchemy wrapper issues for extension loading.
@@ -103,7 +128,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"⚠️ Warning: Could not initialize RAG tables synchronously: {e}")
 
+    # 3. Start background scheduler (daily digest notifications)
+    from app.core.scheduler import start_scheduler
+    start_scheduler()
+
     yield
+
+    # Shutdown scheduler gracefully
+    from app.core.scheduler import stop_scheduler
+    stop_scheduler()
     await engine.dispose()
 
 
@@ -145,9 +178,11 @@ api_v1.include_router(gmail_router)
 
 from app.api.routes.documents import router as documents_router
 from app.api.routes.habits import router as habits_router
+from app.api.routes.settings import router as settings_router
 
 api_v1.include_router(documents_router)
 api_v1.include_router(habits_router)
+api_v1.include_router(settings_router)
 
 app.include_router(api_v1)
 

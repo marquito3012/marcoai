@@ -9,7 +9,7 @@ import FilesPage      from './pages/FilesPage.jsx'
 import HabitsPage     from './pages/HabitsPage.jsx'
 import LoginPage      from './pages/LoginPage.jsx'
 import ChatPage       from './pages/ChatPage.jsx'
-import ComingSoonPage from './pages/ComingSoonPage.jsx'
+import SettingsPage   from './pages/SettingsPage.jsx'
 import ProtectedRoute from './components/ui/ProtectedRoute.jsx'
 import { useAuth }    from './hooks/useAuth.js'
 
@@ -41,6 +41,7 @@ function App() {
                 <Route path="/mail"     element={<MailPage />} />
                 <Route path="/files"    element={<FilesPage />} />
                 <Route path="/habits"   element={<HabitsPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
               </Routes>
             </AppShell>
           </ProtectedRoute>
