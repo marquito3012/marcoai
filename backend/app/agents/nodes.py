@@ -141,278 +141,168 @@ async def calendar_node(state: AgentState) -> dict:
             from app.services.calendar_service import CalendarService
             service = CalendarService(db, user)
 
-            # Normalize message: strip accents so "añádeme" matches "añade", etc.
-            import unicodedata
-            def _strip_accents(s: str) -> str:
-                return ''.join(
-                    c for c in unicodedata.normalize('NFD', s)
-                    if unicodedata.category(c) != 'Mn'
-                )
-            msg_norm = _strip_accents(message_lower)
+            # ── Single LLM call: classify action + extract data ──────────────
+            # This approach is robust to any Spanish conjugation/phrasing.
+            import zoneinfo, unicodedata
+            tz_madrid = zoneinfo.ZoneInfo("Europe/Madrid")
+            now_local = datetime.now(tz_madrid)
+            day_names = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+            today_weekday = day_names[now_local.weekday()]
 
-            # Intent detection (accent-insensitive)
-            is_creation = any(kw in msg_norm for kw in [
-                "crea", "añade", "anade", "nuevo evento", "agrega", "agregar",
-                "pon", "ponme", "agendar", "agenda", "programa", "programar",
-                "recordatorio", "recuerdame", "recuerdame", "apunta", "anota",
-                "añadir", "anadir", "meter", "registra"
-            ])
-            is_listing = any(kw in msg_norm for kw in [
-                "ver", "lista", "proximo", "que tengo", "planes", "eventos",
-                "agenda de", "tengo hoy", "tengo manana", "tengo esta"
-            ])
-            is_deletion = any(kw in msg_norm for kw in [
-                "borra", "elimina", "quita", "cancela", "borrar", "eliminar",
-                "quitar", "cancelar", "suprime", "suprimir"
-            ])
-            is_update = any(kw in msg_norm for kw in [
-                "mueve", "mover", "cambia", "cambiar", "modifica", "modificar",
-                "retrasa", "adelanta", "pospone", "posponer", "reprograma", "reprogramar",
-                "actualiza", "actualizar", "han movido", "lo han movido", "la han movido",
-                "nueva fecha", "nueva hora", "otro dia", "otro dia", "misma hora"
-            ])
+            history_context = ""
+            for m in history[-6:]:
+                history_context += f"{m['role'].upper()}: {m['content']}\n"
 
-            if is_creation:
-                # Use LLM to extract event details
-                history_context = ""
-                for m in history[-4:]:
-                    history_context += f"{m['role'].upper()}: {m['content']}\n"
-
-                # Use local Madrid time so relative dates ("este domingo") are correct
-                import zoneinfo
-                tz_madrid = zoneinfo.ZoneInfo("Europe/Madrid")
-                now_local = datetime.now(tz_madrid)
-                day_names = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
-                now_str_local = now_local.strftime('%Y-%m-%dT%H:%M:%S%z')
-                today_weekday = day_names[now_local.weekday()]
-
-                extract_prompt = [
-                    {"role": "system", "content": f"""
-Eres un experto en extracción de datos para Google Calendar. Tu única tarea es extraer los detalles del evento que el usuario quiere crear.
-
-CONTEXTO TEMPORAL (MUY IMPORTANTE):
-- Fecha y hora actual: {now_str_local}
-- Hoy es: {today_weekday}, {now_local.strftime('%d/%m/%Y')}
-- Zona horaria: Europe/Madrid
-
-REGLAS:
-1. Interpreta CORRECTAMENTE los términos relativos:
-   - "este domingo" = el próximo domingo (si hoy es miércoles 22/04, este domingo = 26/04)
-   - "mañana" = {(now_local + timedelta(days=1)).strftime('%d/%m/%Y')}
-   - "el lunes" = el próximo lunes
-   - "a las 13:00" = 13:00 hora de Madrid (Europe/Madrid)
-2. Usa SIEMPRE la zona horaria Europe/Madrid en los datetime ISO 8601 (ej: 2026-04-26T13:00:00+02:00)
-3. Si no se especifica hora de fin, añade la duración indicada o asume 1 hora.
-4. El campo "summary" es el nombre/título del evento.
-5. Si falta información crítica (fecha), responde con action: none.
-
-Responde ÚNICAMENTE con JSON válido sin markdown:
-{{"action": "create", "summary": "...", "start_datetime": "2026-04-26T13:00:00+02:00", "end_datetime": "2026-04-26T17:00:00+02:00", "location": null, "description": null}}
-O si no hay suficientes datos: {{"action": "none"}}
-"""},
-                    {"role": "user", "content": f"HISTORIAL:\n{history_context}\nMENSAJE ACTUAL: {user_message}"}
-                ]
-
-                try:
-                    raw_json = await gateway.complete(extract_prompt, tier=TaskTier.FAST)
-                    logger.info("Calendar creation raw LLM output: %s", raw_json)
-                    clean_json = raw_json.strip()
-                    # Strip markdown code fences if present
-                    if "```json" in clean_json:
-                        clean_json = clean_json.split("```json")[1].split("```")[0].strip()
-                    elif "```" in clean_json:
-                        clean_json = clean_json.split("```")[1].split("```")[0].strip()
-                    # Strip any leading/trailing text outside the JSON braces
-                    start_idx = clean_json.find('{')
-                    end_idx = clean_json.rfind('}')
-                    if start_idx != -1 and end_idx != -1:
-                        clean_json = clean_json[start_idx:end_idx+1]
-
-                    data = json.loads(clean_json)
-                    logger.info("Calendar creation parsed data: %s", data)
-                    if data.get("action") == "create" and data.get("summary"):
-                        start_dt = datetime.fromisoformat(data["start_datetime"].replace("Z", "+00:00"))
-                        end_dt = datetime.fromisoformat(data["end_datetime"].replace("Z", "+00:00"))
-
-                        created = await service.create_event(
-                            summary=data["summary"],
-                            start_dt=start_dt,
-                            end_dt=end_dt,
-                            description=data.get("description"),
-                            location=data.get("location"),
-                        )
-                        tool_result = f"✅ Evento **{created['summary']}** creado para el {start_dt.strftime('%d/%m a las %H:%M')}."
-                        logger.info("Calendar event created successfully: %s", created.get("id"))
-                    else:
-                        logger.warning("LLM returned action=none or missing summary for creation.")
-                except Exception as e:
-                    logger.error("Error extracting/creating calendar event: %s", e, exc_info=True)
-                    tool_result = "No pude extraer los detalles del evento correctamente. ¿Podrías indicarme la fecha y hora exactas?"
-
-            elif is_listing:
-                events = await service.list_events(
-                    end_date=datetime.now(timezone.utc) + timedelta(days=30),
-                    max_results=10
-                )
-                if events:
-                    lines = ["📅 **Próximos eventos:**\n"]
-                    for event in events:
-                        start = event.get("start", {})
-                        date_str = start.get("dateTime", start.get("date", "Sin fecha"))
-                        if "T" in date_str:
-                            dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-                            date_str = dt.strftime("%d/%m %H:%M")
-                        summary = event.get("summary", "Sin título")
-                        lines.append(f"• **{summary}** – {date_str}")
-                    tool_result = "\n".join(lines)
-                else:
-                    tool_result = "No tienes eventos programados en los próximos 30 días."
-
-            elif is_deletion:
-                # Use LLM to extract event summary or date
-                history_context = ""
-                for m in history[-3:]:
-                    history_context += f"{m['role'].upper()}: {m['content']}\n"
-                
-                now_str = datetime.now(timezone.utc).isoformat()
-                
-                extract_prompt = [
-                    {"role": "system", "content": f"""
-                    Eres un experto en gestión de Google Calendar.
-                    Tu objetivo es identificar qué evento quiere eliminar el usuario.
-                    
-                    REGLAS:
-                    1. Fecha/Hora actual: {now_str}
-                    2. Busca el nombre (summary) o la fecha mencionada.
-                    3. Si menciona una fecha, inclúyela en el campo "date" (ISO8601).
-                    
-                    Responde ÚNICAMENTE con un objeto JSON: {{"action": "delete", "summary": "...", "date": "ISO8601 or null"}}
-                    Si no está claro qué eliminar, responde: {{"action": "none"}}
-                    """},
-                    {"role": "user", "content": f"HISTORIAL:\n{history_context}\nMENSAJE ACTUAL: {user_message}"}
-                ]
-                
-                try:
-                    raw_json = await gateway.complete(extract_prompt, tier=TaskTier.FAST)
-                    clean_json = raw_json.strip()
-                    if "```json" in clean_json: clean_json = clean_json.split("```json")[1].split("```")[0].strip()
-                    elif "```" in clean_json: clean_json = clean_json.split("```")[1].split("```")[0].strip()
-                    
-                    data = json.loads(clean_json)
-                    if data.get("action") == "delete":
-                        summary = data.get("summary")
-                        date_str = data.get("date")
-                        
-                        target_event = None
-                        if summary and summary != "...":
-                            target_event = await service.find_event_by_summary(summary)
-                        
-                        if not target_event and date_str:
-                            try:
-                                day_dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-                                day_start = day_dt.replace(hour=0, minute=0, second=0)
-                                day_end = day_dt.replace(hour=23, minute=59, second=59)
-                                events = await service.list_events(start_date=day_start, end_date=day_end)
-                                if events:
-                                    if len(events) == 1:
-                                        target_event = events[0]
-                                    else:
-                                        tool_result = f"He encontrado varios eventos el {day_dt.strftime('%d/%m')}. ¿Cuál quieres borrar?\n" + \
-                                                      "\n".join([f"• **{e['summary']}**" for e in events])
-                            except: pass
-                            
-                        if target_event:
-                            await service.delete_event(target_event["id"])
-                            tool_result = f"🗑️ He eliminado el evento **{target_event['summary']}** de tu calendario."
-                        elif not tool_result:
-                            tool_result = "❌ No he encontrado el evento que mencionas para eliminar."
-                except Exception as e:
-                    logger.error("Error deleting calendar event via chat: %s", e)
-                    tool_result = "No pude identificar qué evento quieres eliminar."
-
-            elif is_update:
-                # Use LLM to extract which event to move/update and the new datetime
-                history_context = ""
-                for m in history[-4:]:
-                    history_context += f"{m['role'].upper()}: {m['content']}\n"
-
-                import zoneinfo
-                tz_madrid = zoneinfo.ZoneInfo("Europe/Madrid")
-                now_local = datetime.now(tz_madrid)
-                day_names = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
-                today_weekday = day_names[now_local.weekday()]
-
-                extract_prompt = [
-                    {"role": "system", "content": f"""
-Eres un experto en gestión de Google Calendar. Tu única tarea es identificar qué evento quiere mover/modificar el usuario y a qué nueva fecha/hora.
+            classify_prompt = [
+                {"role": "system", "content": f"""
+Eres el motor de acción de Google Calendar. Analiza el mensaje del usuario y el historial y decide qué acción realizar.
 
 CONTEXTO TEMPORAL:
-- Fecha y hora actual: {now_local.strftime('%Y-%m-%dT%H:%M:%S%z')}
-- Hoy es: {today_weekday}, {now_local.strftime('%d/%m/%Y')}
-- Zona horaria: Europe/Madrid
+- Ahora: {now_local.strftime('%Y-%m-%dT%H:%M:%S%z')}
+- Hoy es {today_weekday} {now_local.strftime('%d/%m/%Y')}
+- Mañana es {(now_local + timedelta(days=1)).strftime('%d/%m/%Y')}
+- Zona horaria: Europe/Madrid (usa siempre +02:00 en verano o +01:00 en invierno)
 
-REGLAS:
-1. Identifica el nombre del evento (summary) que se quiere modificar.
-2. Identifica la nueva fecha/hora. Interpreta expresiones relativas correctamente:
-   - "el sábado" = el sábado más próximo
-   - "mañana" = {(now_local + timedelta(days=1)).strftime('%d/%m/%Y')}
-   - "misma hora" = mantener la hora original, solo cambiar el día
-3. Si el usuario dice "misma hora" o no especifica hora, usa null en new_time y se conservará la hora original.
-4. Usa siempre zona horaria Europe/Madrid en los ISO 8601.
+ACCIONES POSIBLES:
+1. "create" – crear un nuevo evento
+2. "list" – consultar/listar eventos existentes  
+3. "update" – mover, cambiar fecha/hora, reprogramar un evento existente
+4. "delete" – eliminar/borrar un evento existente
+5. "none" – consulta general, no requiere acción en el calendario
 
-Responde ÚINICAMENTE con JSON válido:
-{{"action": "update", "summary": "nombre del evento", "new_datetime": "2026-04-25T13:00:00+02:00", "keep_time": true/false}}
-O si no está claro: {{"action": "none"}}
+REGLAS PARA "update":
+- Cualquier intención de cambiar fecha/hora/nombre de un evento existente → "update"
+- "mueve", "muevas", "cambia", "cambies", "modifica", "modifiques", "retrasa", "adelanta", "pospón", "reprograma" → "update"
+- "misma hora" → keep_time: true (conservar la hora, solo cambiar el día)
+- Si la nueva fecha no está en el mensaje actual, búscala en el HISTORIAL
+
+REGLAS PARA FECHAS:
+- "este sábado" / "el sábado" → próximo sábado = {(now_local + timedelta(days=(5 - now_local.weekday()) % 7)).strftime('%Y-%m-%d')}
+- "este domingo" / "el domingo" → próximo domingo = {(now_local + timedelta(days=(6 - now_local.weekday()) % 7)).strftime('%Y-%m-%d')}
+- Si se dice "misma hora", usa la hora del evento original (pon keep_time: true)
+
+Responde ÚNICAMENTE con JSON válido (sin markdown):
+
+Para create: {{"action":"create","summary":"...","start_datetime":"2026-04-25T13:00:00+02:00","end_datetime":"2026-04-25T17:00:00+02:00","location":null,"description":null}}
+Para list:   {{"action":"list"}}
+Para update: {{"action":"update","summary":"nombre actual del evento","new_datetime":"2026-04-25T13:00:00+02:00","keep_time":false}}
+Para delete: {{"action":"delete","summary":"nombre del evento","date":null}}
+Para nada:   {{"action":"none"}}
 """},
-                    {"role": "user", "content": f"HISTORIAL:\n{history_context}\nMENSAJE ACTUAL: {user_message}"}
-                ]
+                {"role": "user", "content": f"HISTORIAL:\n{history_context}\nMENSAJE ACTUAL: {user_message}"}
+            ]
 
+            try:
+                raw = await gateway.complete(classify_prompt, tier=TaskTier.FAST)
+                logger.info("Calendar router LLM raw: %s", raw)
+                clean = raw.strip()
+                if "```json" in clean: clean = clean.split("```json")[1].split("```")[0].strip()
+                elif "```" in clean: clean = clean.split("```")[1].split("```")[0].strip()
+                si = clean.find('{'); ei = clean.rfind('}')
+                if si != -1 and ei != -1: clean = clean[si:ei+1]
+                action_data = json.loads(clean)
+                logger.info("Calendar router parsed: %s", action_data)
+            except Exception as e:
+                logger.error("Calendar router LLM failed: %s", e)
+                action_data = {"action": "list"}  # safe fallback
+
+            action = action_data.get("action", "none")
+
+            # ── Execute action ────────────────────────────────────────────────
+            if action == "create":
                 try:
-                    raw_json = await gateway.complete(extract_prompt, tier=TaskTier.FAST)
-                    logger.info("Calendar update raw LLM output: %s", raw_json)
-                    clean_json = raw_json.strip()
-                    if "```json" in clean_json:
-                        clean_json = clean_json.split("```json")[1].split("```")[0].strip()
-                    elif "```" in clean_json:
-                        clean_json = clean_json.split("```")[1].split("```")[0].strip()
-                    start_idx = clean_json.find('{')
-                    end_idx = clean_json.rfind('}')
-                    if start_idx != -1 and end_idx != -1:
-                        clean_json = clean_json[start_idx:end_idx+1]
-
-                    data = json.loads(clean_json)
-                    logger.info("Calendar update parsed data: %s", data)
-
-                    if data.get("action") == "update" and data.get("summary"):
-                        target_event = await service.find_event_by_summary(data["summary"])
-
-                        if target_event:
-                            new_dt_str = data.get("new_datetime")
-                            if new_dt_str:
-                                new_dt = datetime.fromisoformat(new_dt_str.replace("Z", "+00:00"))
-
-                                if data.get("keep_time", False):
-                                    # Keep original hour/minute, only change the date
-                                    old_start_str = target_event.get("start", {}).get("dateTime", "")
-                                    if old_start_str:
-                                        old_dt = datetime.fromisoformat(old_start_str.replace("Z", "+00:00"))
-                                        new_dt = new_dt.replace(hour=old_dt.hour, minute=old_dt.minute, second=0)
-
-                                updated = await service.move_event(target_event["id"], new_dt)
-                                tool_result = (
-                                    f"✅ He movido **{updated['summary']}** al "
-                                    f"{new_dt.strftime('%d/%m a las %H:%M')}."
-                                )
-                                logger.info("Calendar event updated: %s", updated.get("id"))
-                            else:
-                                tool_result = "Necesito saber la nueva fecha/hora para poder mover el evento."
-                        else:
-                            tool_result = f"❌ No encontré ningún evento llamado **{data['summary']}** en tu calendario."
-                    else:
-                        logger.warning("Update LLM returned action=none")
+                    start_dt = datetime.fromisoformat(action_data["start_datetime"].replace("Z", "+00:00"))
+                    end_dt = datetime.fromisoformat(action_data["end_datetime"].replace("Z", "+00:00"))
+                    created = await service.create_event(
+                        summary=action_data["summary"],
+                        start_dt=start_dt,
+                        end_dt=end_dt,
+                        description=action_data.get("description"),
+                        location=action_data.get("location"),
+                    )
+                    tool_result = f"✅ Evento **{created['summary']}** creado para el {start_dt.strftime('%d/%m a las %H:%M')}."
+                    logger.info("Calendar create OK: %s", created.get("id"))
                 except Exception as e:
-                    logger.error("Error updating calendar event via chat: %s", e, exc_info=True)
-                    tool_result = "No pude identificar qué evento quieres modificar."
+                    logger.error("Calendar create error: %s", e, exc_info=True)
+                    tool_result = "No pude crear el evento. ¿Podrías indicarme la fecha y hora exactas?"
+
+            elif action == "list":
+                try:
+                    events = await service.list_events(
+                        end_date=datetime.now(timezone.utc) + timedelta(days=30),
+                        max_results=10
+                    )
+                    if events:
+                        lines = [f"Tienes {len(events)} eventos próximos:"]
+                        for event in events:
+                            start = event.get("start", {})
+                            date_str = start.get("dateTime", start.get("date", "Sin fecha"))
+                            if "T" in date_str:
+                                dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                                date_str = dt.strftime("%d/%m %H:%M")
+                            lines.append(f"• **{event.get('summary', 'Sin título')}** – {date_str}")
+                        tool_result = "\n".join(lines)
+                    else:
+                        tool_result = "No tienes eventos programados en los próximos 30 días."
+                except Exception as e:
+                    logger.error("Calendar list error: %s", e)
+                    tool_result = "No pude obtener tus eventos."
+
+            elif action == "update":
+                try:
+                    target_event = await service.find_event_by_summary(action_data.get("summary", ""))
+                    if target_event:
+                        new_dt_str = action_data.get("new_datetime")
+                        if new_dt_str:
+                            new_dt = datetime.fromisoformat(new_dt_str.replace("Z", "+00:00"))
+                            if action_data.get("keep_time", False):
+                                old_start_str = target_event.get("start", {}).get("dateTime", "")
+                                if old_start_str:
+                                    old_dt = datetime.fromisoformat(old_start_str.replace("Z", "+00:00"))
+                                    new_dt = new_dt.replace(hour=old_dt.hour, minute=old_dt.minute, second=0)
+                            updated = await service.move_event(target_event["id"], new_dt)
+                            tool_result = f"✅ He movido **{updated['summary']}** al {new_dt.strftime('%d/%m a las %H:%M')}."
+                            logger.info("Calendar update OK: %s", updated.get("id"))
+                        else:
+                            tool_result = "Necesito saber la nueva fecha/hora para poder mover el evento."
+                    else:
+                        tool_result = f"❌ No encontré ningún evento llamado **{action_data.get('summary')}** en tu calendario."
+                except Exception as e:
+                    logger.error("Calendar update error: %s", e, exc_info=True)
+                    tool_result = "No pude modificar el evento. Inténtalo de nuevo."
+
+            elif action == "delete":
+                try:
+                    summary_q = action_data.get("summary", "")
+                    date_q = action_data.get("date")
+                    target_event = None
+
+                    if summary_q:
+                        target_event = await service.find_event_by_summary(summary_q)
+
+                    if not target_event and date_q:
+                        day_dt = datetime.fromisoformat(date_q.replace("Z", "+00:00"))
+                        events = await service.list_events(
+                            start_date=day_dt.replace(hour=0, minute=0),
+                            end_date=day_dt.replace(hour=23, minute=59),
+                            max_results=10
+                        )
+                        if len(events) == 1:
+                            target_event = events[0]
+                        elif len(events) > 1:
+                            tool_result = "Hay varios eventos ese día. ¿Cuál quieres borrar?\n" + \
+                                          "\n".join([f"• **{e['summary']}**" for e in events])
+
+                    if target_event:
+                        await service.delete_event(target_event["id"])
+                        tool_result = f"🗑️ He eliminado el evento **{target_event['summary']}** de tu calendario."
+                    elif not tool_result:
+                        tool_result = "❌ No encontré el evento para eliminar."
+                except Exception as e:
+                    logger.error("Calendar delete error: %s", e)
+                    tool_result = "No pude eliminar el evento."
+
+
 
     except Exception as exc:
         logger.error("Error en calendar_node: %s", exc, exc_info=True)
