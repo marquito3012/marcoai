@@ -24,7 +24,7 @@ import {
 import { apiFetch } from '../lib/api.js'
 
 // ── Helper: date utilities ───────────────────────────────────────────────────
-const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 const MONTHS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
@@ -120,7 +120,9 @@ export default function CalendarPage() {
     const year = currentDate.getFullYear()
     const month = currentDate.getMonth()
     const daysInMonth = getDaysInMonth(year, month)
-    const firstDay = getFirstDayOfMonth(year, month)
+    // getDay() returns 0=Sun,1=Mon...6=Sat. Convert to Mon-based: Mon=0...Sun=6
+    const rawFirstDay = getFirstDayOfMonth(year, month)
+    const firstDay = rawFirstDay === 0 ? 6 : rawFirstDay - 1
 
     const days = []
     // Previous month padding
@@ -351,7 +353,10 @@ function MonthView({ grid, loading, onEventClick }) {
 function WeekView({ currentDate, events, loading, onEventClick }) {
   const weekDays = useMemo(() => {
     const startOfWeek = new Date(currentDate)
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay())
+    // Start on Monday: getDay() 0=Sun,1=Mon..6=Sat → shift so Mon=0
+    const dayOfWeek = currentDate.getDay() // 0=Sun
+    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+    startOfWeek.setDate(currentDate.getDate() - daysFromMonday)
 
     const days = []
     for (let i = 0; i < 7; i++) {
