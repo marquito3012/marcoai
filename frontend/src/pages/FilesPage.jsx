@@ -102,7 +102,7 @@ export default function FilesPage() {
   }
 
   return (
-    <div style={styles.root}>
+    <div className="files-root" style={styles.root}>
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <header style={styles.header}>
         <div style={styles.headerLeft}>

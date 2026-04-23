@@ -83,7 +83,7 @@ export default function MailPage() {
   }
 
   return (
-    <div style={styles.root}>
+    <div className="mail-root" style={styles.root}>
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <header style={styles.header}>
         <div style={styles.headerLeft}>
