@@ -504,3 +504,60 @@ a:hover { text-decoration: underline; }
   to   { opacity: 1; transform: translateY(0); }
 }
 .fade-in-up { animation: fadeInUp var(--transition-normal) ease forwards; }
+
+/* ── Module Specific: Settings ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+
+  /* Reduce root padding and gap */
+  .settings-root {
+    padding: 16px 14px !important;
+    gap: 16px !important;
+  }
+
+  /* Header: stack title + button vertically */
+  .settings-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  /* Save button: full width on mobile */
+  .settings-header button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Tone grid: 2 columns instead of 3 (Motivador on its own row, centred) */
+  .settings-tone-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  /* Third tone card (Motivador) spans both columns */
+  .settings-tone-grid > button:last-child {
+    grid-column: 1 / -1;
+    /* Limit width so it doesn't look too wide */
+    max-width: 240px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  /* Section card padding */
+  .settings-root section {
+    padding: 18px 14px !important;
+    gap: 16px !important;
+  }
+
+  /* Section header: smaller icon, better wrapping */
+  .settings-root section > div:first-child {
+    gap: 10px !important;
+    padding-bottom: 12px !important;
+  }
+
+  /* Badge wraps under label on small screens */
+  .settings-badge {
+    display: block !important;
+    margin-left: 0 !important;
+    margin-top: 4px !important;
+  }
+}

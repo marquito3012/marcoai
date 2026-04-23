@@ -115,9 +115,9 @@ export default function SettingsPage() {
   }
 
   return (
-    <div style={styles.root}>
+    <div className="settings-root" style={styles.root}>
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <header style={styles.header}>
+      <header className="settings-header" style={styles.header}>
         <div>
           <h1 style={styles.title}>Ajustes</h1>
           <p style={styles.subtitle}>Personaliza cómo Marco trabaja contigo</p>
@@ -163,7 +163,7 @@ export default function SettingsPage() {
               <MessageSquare size={14} />
               Tono del asistente
             </label>
-            <div style={styles.toneGrid}>
+            <div className="settings-tone-grid" style={styles.toneGrid}>
               {TONE_OPTIONS.map(tone => {
                 const Icon = tone.icon
                 const isActive = settings?.ai_tone === tone.id
@@ -202,7 +202,7 @@ export default function SettingsPage() {
             <label style={styles.fieldLabel}>
               <Globe size={14} />
               Instrucciones permanentes
-              <span style={styles.fieldBadge}>Contexto persistente</span>
+              <span className="settings-badge" style={styles.fieldBadge}>Contexto persistente</span>
             </label>
             <textarea
               value={settings?.custom_instructions || ''}
