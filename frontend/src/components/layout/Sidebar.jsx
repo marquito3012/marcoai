@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { to: '/mail',     icon: Mail,             label: 'Correo',    id: 'nav-mail'     },
   { to: '/files',    icon: Cloud,            label: 'Nube',      id: 'nav-files'    },
   { to: '/habits',   icon: Flame,            label: 'Hábitos',   id: 'nav-habits'   },
+  { to: '/settings', icon: Settings,         label: 'Ajustes',   id: 'nav-settings-mobile', mobileOnly: true },
 ]
 
 export default function Sidebar() {
@@ -25,19 +26,20 @@ export default function Sidebar() {
 
   return (
     <aside className="sidebar" role="navigation" aria-label="Navegación principal">
-      {/* Logo */}
+      {/* Logo – desktop only */}
       <div className="sidebar__logo" title="MarcoAI">
         <img src="/logo.png?v=2" alt="MarcoAI" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
       </div>
 
+      {/* Main nav – all items including Settings on mobile */}
       <nav className="sidebar__nav">
-        {NAV_ITEMS.map(({ to, icon: Icon, label, id }) => (
+        {NAV_ITEMS.map(({ to, icon: Icon, label, id, mobileOnly }) => (
           <NavLink
             key={to}
             to={to}
             id={id}
             className={({ isActive }) =>
-              `sidebar__item${isActive ? ' active' : ''}`
+              `sidebar__item${isActive ? ' active' : ''}${mobileOnly ? ' mobile-only' : ''}`
             }
             title={label}
           >
@@ -47,6 +49,7 @@ export default function Sidebar() {
         ))}
       </nav>
 
+      {/* Bottom section – desktop only (Settings, Logout, Avatar) */}
       <div className="sidebar__bottom">
         <NavLink
           to="/settings"

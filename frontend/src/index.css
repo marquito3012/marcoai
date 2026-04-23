@@ -131,26 +131,38 @@ a:hover { text-decoration: underline; }
 @media (max-width: 768px) {
   .sidebar {
     flex-direction: row;
+    align-items: stretch;
     padding: 0;
     padding-bottom: env(safe-area-inset-bottom);
     border-right: none;
     border-top: 1px solid var(--color-border-subtle);
     grid-row: 2;
     width: 100%;
-    justify-content: space-between;
     height: auto;
+    gap: 0;
   }
   .sidebar__logo {
     display: none !important;
   }
+  /* Bottom section (Settings/Logout/Avatar) not needed on mobile —
+     Settings is already in the nav via the mobile-only item */
   .sidebar__bottom {
+    display: none !important;
+  }
+  /* Hide avatar on mobile */
+  #user-avatar {
+    display: none !important;
+  }
+}
+
+/* Desktop: hide the mobile-only nav item (Settings duplicate) */
+.mobile-only {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .mobile-only {
     display: flex !important;
-    flex-direction: row !important;
-    align-items: center;
-    gap: 4px;
-    padding: 0 8px;
-    border-left: 1px solid var(--color-border-subtle);
-    background: rgba(255, 255, 255, 0.02);
   }
 }
 
@@ -183,10 +195,11 @@ a:hover { text-decoration: underline; }
 @media (max-width: 768px) {
   .sidebar__nav {
     flex-direction: row;
-    justify-content: space-around;
+    align-items: stretch;
     padding: 0;
     height: 100%;
     flex: 1;
+    gap: 0;
   }
 }
 
@@ -213,16 +226,22 @@ a:hover { text-decoration: underline; }
 
 @media (max-width: 768px) {
   .sidebar__item {
+    /* All items share space equally regardless of container */
+    flex: 1 1 0;
+    min-width: 0;
     height: 100%;
-    padding: 0 4px;
-    gap: 2px;
-    width: auto;
-    min-width: 48px;
+    padding: 0 2px;
+    gap: 3px;
+    border-radius: 0;
   }
   .sidebar__item span {
-    font-size: 8px;
+    font-size: 9px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
-  /* Hide labels for settings/logout and potentially others if it's too tight */
+  /* Settings and logout labels hidden on mobile to save space */
   .sidebar__bottom .sidebar__item span {
     display: none;
   }
