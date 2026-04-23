@@ -74,16 +74,32 @@ export default function SettingsPage() {
     if (!settings) return
     setSaving(true)
     try {
-      await apiFetch('/settings', {
+      const saved = await apiFetch('/settings', {
         method: 'PUT',
         body: JSON.stringify(settings),
       })
+      // Sync state with what the server actually stored
+      setSettings(saved)
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     } catch (err) {
       console.error('Error saving settings:', err)
     } finally {
       setSaving(false)
+    }
+  }
+
+  // Immediately persists a single field without requiring the user
+  // to click the main "Guardar" button — used for the hour picker
+  const autoSaveField = async (key, value) => {
+    update(key, value)
+    try {
+      await apiFetch('/settings', {
+        method: 'PUT',
+        body: JSON.stringify({ [key]: value }),
+      })
+    } catch (err) {
+      console.error(`Error auto-saving ${key}:`, err)
     }
   }
 
@@ -260,7 +276,7 @@ export default function SettingsPage() {
                 <div style={styles.hourRow}>
                   <select
                     value={settings?.notification_hour ?? 8}
-                    onChange={e => update('notification_hour', parseInt(e.target.value))}
+                    onChange={e => autoSaveField('notification_hour', parseInt(e.target.value, 10))}
                     style={styles.select}
                   >
                     {HOURS.map(h => (

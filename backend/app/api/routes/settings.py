@@ -79,8 +79,10 @@ async def update_settings(
 ) -> Any:
     settings = await _get_or_create_settings(current_user.id, db)
 
-    # Patch only the fields that were explicitly provided
-    update_data = body.model_dump(exclude_none=True)
+    # Patch only the fields that were explicitly sent in the request body.
+    # exclude_unset (not exclude_none) is correct here: it allows setting
+    # notification_hour=0 (midnight) or notify_finance=False explicitly.
+    update_data = body.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(settings, field, value)
 
