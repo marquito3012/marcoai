@@ -67,7 +67,7 @@ export default function Sidebar() {
           title="Cerrar sesión"
           onClick={logout}
         >
-          <LogOut size={18} strokeWidth={1.25} />
+          <LogOut strokeWidth={1.25} />
           <span>Salir</span>
         </button>
 
