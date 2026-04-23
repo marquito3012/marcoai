@@ -12,8 +12,10 @@ Características:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import base64
+import email.mime.multipart
+import email.mime.text
 from email.message import EmailMessage
 
 import httpx
@@ -24,7 +26,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import User
 from app.core.config import settings
-from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -218,22 +219,48 @@ class GmailService:
             logger.warning("No se pudo marcar como leído %s: %s", message_id, exc)
             return False
 
-    async def send_message(self, to: str, subject: str, body: str) -> dict:
-        """Envía un correo nuevo."""
+    async def send_email(
+        self,
+        to: str,
+        subject: str,
+        html_body: str,
+        plain_body: str | None = None,
+    ) -> dict:
+        """
+        Envía un correo con soporte HTML completo.
+        Crea un mensaje MIME multipart/alternative con fallback text/plain.
+        """
         service = await self._get_service()
-        
-        message = EmailMessage()
-        message.set_content(body)
-        message["To"] = to
-        message["From"] = "me"
-        message["Subject"] = subject
-        
-        encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
-        create_message = {"raw": encoded_message}
-        
+
+        # Build a proper MIME multipart message so HTML renders in email clients
+        mime_msg = email.mime.multipart.MIMEMultipart("alternative")
+        mime_msg["To"] = to
+        mime_msg["From"] = "me"
+        mime_msg["Subject"] = subject
+
+        # Plain-text fallback (strip basic HTML tags if no explicit plain given)
+        if plain_body is None:
+            import re
+            plain_body = re.sub(r"<[^>]+>", "", html_body).strip()
+
+        mime_msg.attach(email.mime.text.MIMEText(plain_body, "plain", "utf-8"))
+        mime_msg.attach(email.mime.text.MIMEText(html_body, "html", "utf-8"))
+
+        raw = base64.urlsafe_b64encode(mime_msg.as_bytes()).decode()
+
         try:
-            sent = service.users().messages().send(userId="me", body=create_message).execute()
+            sent = (
+                service.users()
+                .messages()
+                .send(userId="me", body={"raw": raw})
+                .execute()
+            )
+            logger.info("Email sent to %s — id=%s", to, sent.get("id"))
             return {"id": sent["id"], "threadId": sent["threadId"]}
         except HttpError as exc:
-            logger.error("Error enviando correo: %s", exc)
+            logger.error("Error enviando correo a %s: %s", to, exc)
             raise
+
+    async def send_message(self, to: str, subject: str, body: str) -> dict:
+        """Alias de compatibilidad para envío de texto plano."""
+        return await self.send_email(to=to, subject=subject, html_body=body)
