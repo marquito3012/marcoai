@@ -215,28 +215,32 @@ export default function MailPage() {
                       title="Email Content"
                       srcDoc={mailContent.body}
                       style={styles.mailIframe}
-                      sandbox="allow-popups allow-popups-to-escape-sandbox"
+                      scrolling="no"
+                      sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
                       onLoad={(e) => {
                         const iframe = e.target
                         const resize = () => {
                           try {
                             const doc = iframe.contentDocument
+                            // Reset to 1px first to force layout recalc
+                            iframe.style.height = '1px'
                             const h = Math.max(
                               doc?.documentElement?.scrollHeight || 0,
                               doc?.body?.scrollHeight || 0
                             )
                             if (h > 0) iframe.style.height = h + 'px'
-                          } catch (_) {}
+                          } catch (err) {
+                            console.warn('iframe resize:', err)
+                          }
                         }
-                        // First measure: immediate
                         resize()
-                        // Second measure: after images / fonts paint
-                        setTimeout(resize, 150)
-                        setTimeout(resize, 600)
-                        // Continuous watch for dynamic content
-                        const ro = new ResizeObserver(resize)
-                        if (iframe.contentDocument?.body) ro.observe(iframe.contentDocument.body)
-                        iframe._ro = ro
+                        setTimeout(resize, 200)
+                        setTimeout(resize, 800)
+                        try {
+                          const ro = new ResizeObserver(resize)
+                          if (iframe.contentDocument?.body) ro.observe(iframe.contentDocument.body)
+                          iframe._ro = ro
+                        } catch (_) {}
                       }}
                     />
                   ) : (
