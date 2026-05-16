@@ -170,8 +170,10 @@ export default function MailPage() {
         {/* Right Pane: Mail Detail */}
         <div className={`mail-detail-pane ${selectedMail ? 'visible-mobile' : ''}`} style={styles.detailPane}>
           {selectedMail ? (
+            // detailWrapper is now the ONLY scrollable container so the
+            // toolbar scrolls with the body on mobile (no sticky header)
             <div style={styles.detailWrapper}>
-              {/* Detail Header / Toolbar */}
+              {/* Toolbar – NOT fixed, scrolls with content */}
               <div style={styles.detailToolbar}>
                 <button onClick={() => setSelectedMail(null)} className="mail-back-btn" style={styles.backBtn}>
                   <ArrowLeft size={20} />
@@ -187,12 +189,12 @@ export default function MailPage() {
                   <RefreshCw size={32} className="spin" color="var(--color-primary)" />
                 </div>
               ) : mailContent ? (
-                <div style={styles.mailBodyScroll}>
+                <div style={styles.mailBodyContent}>
                   <div style={styles.mailDetailInfo}>
                     <div style={styles.avatar}>
                       <User size={24} color="white" />
                     </div>
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <h2 style={styles.detailSubject}>{mailContent.subject}</h2>
                       <div style={styles.detailMeta}>
                         <span style={{ fontWeight: 600 }}>De: {mailContent.sender}</span>
@@ -312,7 +314,8 @@ const styles = {
     flexDirection: 'column',
     height: '100%',
     overflow: 'hidden',
-    padding: '20px 24px',
+    // Responsive padding: tight on mobile, generous on desktop
+    padding: 'clamp(8px, 3vw, 20px) clamp(8px, 3vw, 24px)',
     background: 'var(--color-bg)',
   },
   header: {
@@ -473,11 +476,13 @@ const styles = {
     color: 'var(--color-text-muted)',
   },
   detailToolbar: {
-    padding: '12px 20px',
+    padding: '12px 16px',
     borderBottom: '1px solid var(--color-border-subtle)',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    // NOT position:sticky — scrolls with content on mobile
+    flexShrink: 0,
   },
   toolbarActions: {
     display: 'flex',
@@ -488,12 +493,18 @@ const styles = {
     border: 'none',
     color: 'var(--color-text)',
     cursor: 'pointer',
-    display: 'block', // Default for mobile logic
+    display: 'block',
   },
-  mailBodyScroll: {
+  detailWrapper: {
+    // Single scrollable container so toolbar scrolls with body on mobile
     flex: 1,
     overflowY: 'auto',
-    padding: '24px 32px',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  mailBodyContent: {
+    // Responsive padding: tight on mobile, generous on desktop
+    padding: 'clamp(12px, 4vw, 24px) clamp(8px, 4vw, 32px)',
   },
   mailDetailInfo: {
     display: 'flex',
