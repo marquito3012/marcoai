@@ -400,6 +400,7 @@ const styles = {
   },
   listPane: {
     width: 400,
+    display: 'flex',          // ← was missing: without this, scrollArea flex:1 has no parent height
     flexDirection: 'column',
     background: 'var(--color-surface)',
     borderRadius: 'var(--radius-lg)',
