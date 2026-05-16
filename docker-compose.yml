@@ -16,7 +16,6 @@
 #   OS host  ~350–400 MB free
 # ─────────────────────────────────────────────────────────────────────────────
 services:
-
   backend:
     build:
       context: ./backend
@@ -32,10 +31,6 @@ services:
       - user_files:/app/uploads
     ports:
       - "8000:8000"
-    deploy:
-      resources:
-        limits:
-          memory: 400M
     logging:
       driver: "json-file"
       options:
@@ -61,10 +56,6 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          memory: 32M
     logging:
       driver: "json-file"
       options:
