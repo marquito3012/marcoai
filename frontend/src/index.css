@@ -390,7 +390,7 @@ a:hover { text-decoration: underline; }
     inset: 0;
     z-index: 50;
     width: 100% !important;
-    display: none;
+    display: none !important;  /* must beat the inline display:flex from React */
     /* Edge-to-edge on mobile: no rounded corners or double border */
     border-radius: 0 !important;
     border: none !important;
