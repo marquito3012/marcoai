@@ -220,13 +220,20 @@ export default function MailPage() {
                         const iframe = e.target
                         const resize = () => {
                           try {
-                            const h = iframe.contentDocument?.documentElement?.scrollHeight
-                                   || iframe.contentDocument?.body?.scrollHeight
-                            if (h) iframe.style.height = h + 'px'
+                            const doc = iframe.contentDocument
+                            const h = Math.max(
+                              doc?.documentElement?.scrollHeight || 0,
+                              doc?.body?.scrollHeight || 0
+                            )
+                            if (h > 0) iframe.style.height = h + 'px'
                           } catch (_) {}
                         }
+                        // First measure: immediate
                         resize()
-                        // Re-measure after images / web fonts finish loading
+                        // Second measure: after images / fonts paint
+                        setTimeout(resize, 150)
+                        setTimeout(resize, 600)
+                        // Continuous watch for dynamic content
                         const ro = new ResizeObserver(resize)
                         if (iframe.contentDocument?.body) ro.observe(iframe.contentDocument.body)
                         iframe._ro = ro
@@ -562,7 +569,7 @@ const styles = {
     lineHeight: 1.8,
     color: 'var(--color-text)',
     fontFamily: 'var(--font-sans)',
-    flex: 1,
+    // No flex:1 — let the iframe dictate height so the parent can scroll
   },
   mailIframe: {
     width: '100%',
