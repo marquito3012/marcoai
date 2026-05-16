@@ -216,6 +216,21 @@ export default function MailPage() {
                       srcDoc={mailContent.body}
                       style={styles.mailIframe}
                       sandbox="allow-popups allow-popups-to-escape-sandbox"
+                      onLoad={(e) => {
+                        const iframe = e.target
+                        const resize = () => {
+                          try {
+                            const h = iframe.contentDocument?.documentElement?.scrollHeight
+                                   || iframe.contentDocument?.body?.scrollHeight
+                            if (h) iframe.style.height = h + 'px'
+                          } catch (_) {}
+                        }
+                        resize()
+                        // Re-measure after images / web fonts finish loading
+                        const ro = new ResizeObserver(resize)
+                        if (iframe.contentDocument?.body) ro.observe(iframe.contentDocument.body)
+                        iframe._ro = ro
+                      }}
                     />
                   ) : (
                     mailContent.body?.split('\n').map((line, i) => (
@@ -551,11 +566,12 @@ const styles = {
   },
   mailIframe: {
     width: '100%',
-    minHeight: '60vh',
-    height: '70vh',
+    // No fixed height — expands to full content via onLoad handler
+    minHeight: 200,
     border: 'none',
     display: 'block',
     background: 'white',
+    overflow: 'hidden',  // suppress iframe's own scrollbar
   },
   // Modal styles
   modalOverlay: {
