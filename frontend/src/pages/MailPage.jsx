@@ -106,7 +106,7 @@ export default function MailPage() {
           </button>
           <button onClick={() => setShowCompose(true)} style={styles.composeBtn}>
             <SquarePen size={18} />
-            <span>Redactar</span>
+            <span className="mail-compose-label">Redactar</span>
           </button>
         </div>
       </header>
@@ -357,7 +357,10 @@ const styles = {
   headerLeft: {
     display: 'flex',
     alignItems: 'center',
-    gap: 24,
+    gap: 12,
+    flex: 1,
+    minWidth: 0,
+    overflow: 'hidden',
   },
   headerRight: {
     display: 'flex',
@@ -379,7 +382,8 @@ const styles = {
     background: 'var(--color-surface-2)',
     padding: '8px 16px',
     borderRadius: 'var(--radius-md)',
-    width: 320,
+    flex: 1,
+    minWidth: 0,
     border: '1px solid var(--color-border-subtle)',
   },
   searchInput: {

@@ -401,6 +401,10 @@ a:hover { text-decoration: underline; }
   .mail-back-btn {
     display: flex !important;
   }
+  /* Compose button: icon only on mobile */
+  .mail-compose-label {
+    display: none !important;
+  }
 }
 
 /* ── Module Specific: Finance ────────────────────────────────────────────── */
