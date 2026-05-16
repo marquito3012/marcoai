@@ -167,13 +167,11 @@ export default function MailPage() {
           )}
         </div>
 
-        {/* Right Pane: Mail Detail */}
+        {/* Right Pane: Mail Detail – detailPane IS the scroll container, no inner wrappers */}
         <div className={`mail-detail-pane ${selectedMail ? 'visible-mobile' : ''}`} style={styles.detailPane}>
           {selectedMail ? (
-            // detailWrapper is now the ONLY scrollable container so the
-            // toolbar scrolls with the body on mobile (no sticky header)
-            <div style={styles.detailWrapper}>
-              {/* Toolbar – NOT fixed, scrolls with content */}
+            <>
+              {/* Toolbar – scrolls with content, not fixed */}
               <div style={styles.detailToolbar}>
                 <button onClick={() => setSelectedMail(null)} className="mail-back-btn" style={styles.backBtn}>
                   <ArrowLeft size={20} />
@@ -189,7 +187,8 @@ export default function MailPage() {
                   <RefreshCw size={32} className="spin" color="var(--color-primary)" />
                 </div>
               ) : mailContent ? (
-                <div style={styles.mailBodyContent}>
+                <>
+                  {/* Header info: padding lateral mínimo */}
                   <div style={styles.mailDetailInfo}>
                     <div style={styles.avatar}>
                       <User size={24} color="white" />
@@ -205,6 +204,7 @@ export default function MailPage() {
                     </div>
                   </div>
                   <div style={styles.divider} />
+                  {/* Body: ocupa todo el ancho */}
                   <div style={styles.mailContent}>
                     {mailContent.is_html ? (
                       <iframe 
@@ -215,13 +215,13 @@ export default function MailPage() {
                       />
                     ) : (
                       mailContent.body?.split('\n').map((line, i) => (
-                        <p key={i} style={{ margin: '0 0 1em' }}>{line}</p>
-                      )) || <p>No se pudo cargar el contenido del mensaje.</p>
+                        <p key={i} style={{ margin: '0 0 1em', padding: '0 12px' }}>{line}</p>
+                      )) || <p style={{ padding: '0 12px' }}>No se pudo cargar el contenido del mensaje.</p>
                     )}
                   </div>
-                </div>
+                </>
               ) : null}
-            </div>
+            </>
           ) : (
             <div style={styles.emptyState}>
               <Mail size={64} color="var(--color-surface-3)" strokeWidth={1} />
@@ -412,8 +412,11 @@ const styles = {
     background: 'var(--color-surface)',
     borderRadius: 'var(--radius-lg)',
     border: '1px solid var(--color-border-subtle)',
+    display: 'flex',
     flexDirection: 'column',
-    overflow: 'hidden',
+    // detailPane IS the scroll container — no inner wrapper needed
+    overflowY: 'auto',
+    overflowX: 'hidden',
   },
   scrollArea: {
     flex: 1,
@@ -481,7 +484,6 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    // NOT position:sticky — scrolls with content on mobile
     flexShrink: 0,
   },
   toolbarActions: {
@@ -495,21 +497,11 @@ const styles = {
     cursor: 'pointer',
     display: 'block',
   },
-  detailWrapper: {
-    // Single scrollable container so toolbar scrolls with body on mobile
-    flex: 1,
-    overflowY: 'auto',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  mailBodyContent: {
-    // Responsive padding: tight on mobile, generous on desktop
-    padding: 'clamp(12px, 4vw, 24px) clamp(8px, 4vw, 32px)',
-  },
   mailDetailInfo: {
     display: 'flex',
-    gap: 16,
-    marginBottom: 24,
+    gap: 12,
+    padding: '16px 12px 12px',
+    alignItems: 'flex-start',
   },
   avatar: {
     width: 48,
@@ -543,20 +535,23 @@ const styles = {
   divider: {
     height: 1,
     background: 'var(--color-border-subtle)',
-    margin: '0 0 24px',
+    margin: '0 0 0',   // no bottom margin: content starts right after
   },
   mailContent: {
     fontSize: 15,
     lineHeight: 1.8,
     color: 'var(--color-text)',
     fontFamily: 'var(--font-sans)',
+    // padding: 0 — content fills full width; plain-text adds its own 12px inline
   },
   mailIframe: {
+    // Edge-to-edge, no border-radius on mobile so it really fills the screen
     width: '100%',
-    height: '600px',
+    minHeight: '60vh',
+    height: '70vh',
     border: 'none',
+    display: 'block',
     background: 'white',
-    borderRadius: 'var(--radius-md)',
   },
   // Modal styles
   modalOverlay: {
