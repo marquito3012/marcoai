@@ -167,28 +167,25 @@ export default function MailPage() {
           )}
         </div>
 
-        {/* Right Pane: Mail Detail – detailPane IS the scroll container, no inner wrappers */}
+        {/* Right Pane: Mail Detail – single unified scroll container */}
         <div className={`mail-detail-pane ${selectedMail ? 'visible-mobile' : ''}`} style={styles.detailPane}>
           {selectedMail ? (
             <>
-              {/* Toolbar – scrolls with content, not fixed */}
-              <div style={styles.detailToolbar}>
-                <button onClick={() => setSelectedMail(null)} className="mail-back-btn" style={styles.backBtn}>
-                  <ArrowLeft size={20} />
-                </button>
-                <div style={styles.toolbarActions}>
-                  <button style={styles.iconBtn}><Reply size={18} /></button>
-                  <button style={styles.iconBtn}><Trash2 size={18} /></button>
+              {/* ── Unified header card: toolbar + meta info ────────────── */}
+              <div style={styles.detailHeader}>
+                {/* Toolbar row */}
+                <div style={styles.detailToolbar}>
+                  <button onClick={() => setSelectedMail(null)} className="mail-back-btn" style={styles.backBtn}>
+                    <ArrowLeft size={20} />
+                  </button>
+                  <div style={styles.toolbarActions}>
+                    <button style={styles.iconBtn}><Reply size={18} /></button>
+                    <button style={styles.iconBtn}><Trash2 size={18} /></button>
+                  </div>
                 </div>
-              </div>
 
-              {loadingDetail ? (
-                <div style={styles.emptyState}>
-                  <RefreshCw size={32} className="spin" color="var(--color-primary)" />
-                </div>
-              ) : mailContent ? (
-                <>
-                  {/* Header info: padding lateral mínimo */}
+                {/* Meta info row (avatar + subject + sender + date) */}
+                {!loadingDetail && mailContent && (
                   <div style={styles.mailDetailInfo}>
                     <div style={styles.avatar}>
                       <User size={24} color="white" />
@@ -203,23 +200,29 @@ export default function MailPage() {
                       </div>
                     </div>
                   </div>
-                  <div style={styles.divider} />
-                  {/* Body: ocupa todo el ancho */}
-                  <div style={styles.mailContent}>
-                    {mailContent.is_html ? (
-                      <iframe 
-                        title="Email Content"
-                        srcDoc={mailContent.body}
-                        style={styles.mailIframe}
-                        sandbox="allow-popups allow-popups-to-escape-sandbox"
-                      />
-                    ) : (
-                      mailContent.body?.split('\n').map((line, i) => (
-                        <p key={i} style={{ margin: '0 0 1em', padding: '0 12px' }}>{line}</p>
-                      )) || <p style={{ padding: '0 12px' }}>No se pudo cargar el contenido del mensaje.</p>
-                    )}
-                  </div>
-                </>
+                )}
+              </div>
+
+              {/* ── Body ─────────────────────────────────────────────────── */}
+              {loadingDetail ? (
+                <div style={styles.emptyState}>
+                  <RefreshCw size={32} className="spin" color="var(--color-primary)" />
+                </div>
+              ) : mailContent ? (
+                <div style={styles.mailContent}>
+                  {mailContent.is_html ? (
+                    <iframe 
+                      title="Email Content"
+                      srcDoc={mailContent.body}
+                      style={styles.mailIframe}
+                      sandbox="allow-popups allow-popups-to-escape-sandbox"
+                    />
+                  ) : (
+                    mailContent.body?.split('\n').map((line, i) => (
+                      <p key={i} style={{ margin: '0 0 1em', padding: '0 12px' }}>{line}</p>
+                    )) || <p style={{ padding: '0 12px' }}>No se pudo cargar el contenido del mensaje.</p>
+                  )}
+                </div>
               ) : null}
             </>
           ) : (
@@ -479,13 +482,17 @@ const styles = {
     gap: 16,
     color: 'var(--color-text-muted)',
   },
+  // Unified header card that wraps both the toolbar and the meta info
+  detailHeader: {
+    background: 'var(--color-surface)',
+    borderBottom: '1px solid var(--color-border-subtle)',
+    flexShrink: 0,
+  },
   detailToolbar: {
     padding: '12px 16px',
-    borderBottom: '1px solid var(--color-border-subtle)',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    flexShrink: 0,
   },
   toolbarActions: {
     display: 'flex',
@@ -501,29 +508,31 @@ const styles = {
   mailDetailInfo: {
     display: 'flex',
     gap: 12,
-    padding: '16px 12px 12px',
+    padding: '4px 16px 16px',
     alignItems: 'flex-start',
   },
   avatar: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: '50%',
     background: 'var(--color-mail)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   detailSubject: {
-    fontSize: 28,
+    fontSize: 22,
     fontFamily: 'var(--font-display)',
     fontWeight: 700,
-    margin: '0 0 12px',
+    margin: '0 0 8px',
     color: 'var(--color-text)',
-    lineHeight: 1.2,
+    lineHeight: 1.25,
   },
   detailMeta: {
     display: 'flex',
-    gap: 12,
+    flexWrap: 'wrap',
+    gap: '4px 12px',
     fontSize: 13,
     color: 'var(--color-text-muted)',
     alignItems: 'center',
@@ -533,20 +542,14 @@ const styles = {
     alignItems: 'center',
     gap: 4,
   },
-  divider: {
-    height: 1,
-    background: 'var(--color-border-subtle)',
-    margin: '0 0 0',   // no bottom margin: content starts right after
-  },
   mailContent: {
     fontSize: 15,
     lineHeight: 1.8,
     color: 'var(--color-text)',
     fontFamily: 'var(--font-sans)',
-    // padding: 0 — content fills full width; plain-text adds its own 12px inline
+    flex: 1,
   },
   mailIframe: {
-    // Edge-to-edge, no border-radius on mobile so it really fills the screen
     width: '100%',
     minHeight: '60vh',
     height: '70vh',

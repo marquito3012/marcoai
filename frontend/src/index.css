@@ -391,6 +391,9 @@ a:hover { text-decoration: underline; }
     z-index: 50;
     width: 100% !important;
     display: none;
+    /* Edge-to-edge on mobile: no rounded corners or double border */
+    border-radius: 0 !important;
+    border: none !important;
   }
   .mail-detail-pane.visible-mobile {
     display: flex !important;
