@@ -678,8 +678,9 @@ const styles = {
     flexDirection: 'column',
     height: '100%',
     overflow: 'hidden',
-    padding: 24,
-    gap: 20,
+    // Reduce padding on narrow screens so the grid has more room
+    padding: 'clamp(8px, 3vw, 24px)',
+    gap: 12,
   },
   header: {
     display: 'flex',
@@ -812,57 +813,71 @@ const styles = {
     display: 'grid',
     gridTemplateColumns: 'repeat(7, 1fr)',
     gap: 1,
-    padding: '0 0 8px',
+    padding: '0 0 6px',
     borderBottom: '1px solid var(--color-border-subtle)',
   },
   weekDayHeader: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 600,
     color: 'var(--color-text-faint)',
     textTransform: 'uppercase',
-    letterSpacing: '0.05em',
+    letterSpacing: '0.03em',
     textAlign: 'center',
-    padding: 8,
+    padding: '4px 2px',
+    // Prevent header labels from expanding their column
+    minWidth: 0,
+    overflow: 'hidden',
   },
   calendarGrid: {
     flex: 1,
     display: 'grid',
     gridTemplateColumns: 'repeat(7, 1fr)',
+    // ⚠️ min-width:0 is CRITICAL: without it, grid cells grow to fit their
+    // content (text) instead of staying at 1fr, breaking the layout on mobile.
     gap: 1,
     overflow: 'auto',
   },
   dayCell: {
-    minHeight: 100,
-    padding: 8,
+    minHeight: 80,
+    // min-width:0 prevents this grid child from overflowing its 1fr column
+    minWidth: 0,
+    padding: '6px 4px',
     border: '1px solid var(--color-border-subtle)',
     background: 'var(--color-surface)',
     display: 'flex',
     flexDirection: 'column',
-    gap: 4,
+    gap: 2,
+    // overflow:hidden clips any child that would expand the cell
+    overflow: 'hidden',
   },
   todayCell: {
     background: 'var(--color-primary-alpha)',
     borderColor: 'var(--color-primary)',
   },
   emptyCell: {
+    // Also needs min-width:0 so padding cells don't bloat
+    minWidth: 0,
     background: 'var(--color-surface-2)',
     border: '1px solid var(--color-border-subtle)',
   },
   dayNumber: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: 600,
     color: 'var(--color-text)',
-    marginBottom: 4,
+    marginBottom: 2,
+    lineHeight: 1,
   },
   eventsList: {
     display: 'flex',
     flexDirection: 'column',
     gap: 2,
+    // overflow:hidden so the list never pushes the cell wider
     overflow: 'hidden',
+    minWidth: 0,
   },
   eventChip: {
-    padding: '3px 6px',
-    fontSize: 11,
+    padding: '2px 4px',
+    fontSize: 10,
     fontWeight: 500,
     background: 'var(--color-primary-alpha)',
     border: 'none',
@@ -870,11 +885,15 @@ const styles = {
     color: 'var(--color-primary)',
     cursor: 'pointer',
     textAlign: 'left',
+    // These three together are required for text truncation to work inside a flex/grid
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+    // width:100% + min-width:0 allows the chip to shrink instead of growing
     display: 'block',
     width: '100%',
+    minWidth: 0,
+    boxSizing: 'border-box',
   },
   moreEvents: {
     fontSize: 11,
