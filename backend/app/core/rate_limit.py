@@ -26,12 +26,14 @@ WINDOW = 60.0  # 1 minute window
 
 async def rate_limit(user: User = Depends(get_current_user)) -> None:
     """FastAPI dependency -- raises 429 if user exceeds RPM."""
-    rpm: int = getattr(settings, "rate_limit_rpm", 30)
+    rpm: int = settings.rate_limit_rpm
     user_id: str = str(user.id)
     now = time.monotonic()
 
     # Prune timestamps outside the window
     _buckets[user_id] = [t for t in _buckets[user_id] if now - t < WINDOW]
+    if not _buckets[user_id]:
+        del _buckets[user_id]
 
     if len(_buckets[user_id]) >= rpm:
         oldest = _buckets[user_id][0]
