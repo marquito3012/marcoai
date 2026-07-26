@@ -32,6 +32,8 @@ Cost strategy:
 from __future__ import annotations
 
 import logging
+import time
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import AsyncIterator
 
@@ -44,6 +46,36 @@ from openai import AsyncOpenAI
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Circuit Breaker
+# ══════════════════════════════════════════════════════════════════════════════
+
+@dataclass
+class _CircuitBreaker:
+    """Per-provider circuit breaker. Opens after ``threshold`` consecutive
+    failures, half-opens after ``cooldown_s`` seconds."""
+    threshold: int = 3
+    cooldown_s: float = 60.0
+    _failures: int = field(default=0, repr=False)
+    _opened_at: float = field(default=0.0, repr=False)
+
+    @property
+    def is_open(self) -> bool:
+        if self._failures < self.threshold:
+            return False
+        if time.monotonic() - self._opened_at >= self.cooldown_s:
+            return False  # half-open: allow one retry
+        return True
+
+    def record_success(self) -> None:
+        self._failures = 0
+
+    def record_failure(self) -> None:
+        self._failures += 1
+        if self._failures >= self.threshold:
+            self._opened_at = time.monotonic()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -87,6 +119,14 @@ _CHAINS: dict[TaskTier, list[dict[str, str]]] = {
 
 # Errors that should trigger provider fallback  ────────────────────────────────
 _FALLBACK_STATUS_CODES = {429, 500, 502, 503, 504}
+
+_breakers: dict[str, _CircuitBreaker] = {}
+
+
+def _get_breaker(provider: str) -> _CircuitBreaker:
+    if provider not in _breakers:
+        _breakers[provider] = _CircuitBreaker()
+    return _breakers[provider]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -153,16 +193,27 @@ class LLMGateway:
         for cfg in chain:
             provider = cfg["provider"]
             model    = cfg["model"]
+
+            breaker = _get_breaker(provider)
+            if breaker.is_open:
+                logger.info(
+                    "Circuit breaker open for %s – skipping (tier %s)",
+                    provider, tier,
+                )
+                continue
+
             try:
                 logger.debug("→ LLM call  tier=%-12s  %s/%s", tier, provider, model)
                 content = await self._dispatch(
                     provider, model, messages, max_tokens, temperature
                 )
                 logger.debug("← LLM ok    %s/%s", provider, model)
+                breaker.record_success()
                 return content
 
             except Exception as exc:
                 last_exc = exc
+                breaker.record_failure()
                 # Decide whether this error warrants a fallback
                 if self._should_fallback(exc):
                     logger.warning(
@@ -199,25 +250,38 @@ class LLMGateway:
         for cfg in chain:
             provider = cfg["provider"]
             model    = cfg["model"]
+
+            breaker = _get_breaker(provider)
+            if breaker.is_open:
+                logger.info(
+                    "Circuit breaker open for %s – skipping (stream tier %s)",
+                    provider, tier,
+                )
+                continue
+
             try:
                 # Only Groq and OpenRouter support true streaming here;
                 # Gemini falls back to non-streaming for simplicity.
                 if provider == "groq":
                     async for chunk in self._stream_groq(model, messages, max_tokens, temperature):
                         yield chunk
+                    breaker.record_success()
                     return
                 elif provider == "openrouter":
                     async for chunk in self._stream_openrouter(model, messages, max_tokens, temperature):
                         yield chunk
+                    breaker.record_success()
                     return
                 else:
                     # Gemini: non-streaming fallback (yields the whole response at once)
                     content = await self._call_gemini(model, messages, max_tokens, temperature)
                     yield content
+                    breaker.record_success()
                     return
 
             except Exception as exc:
                 last_exc = exc
+                breaker.record_failure()
                 if self._should_fallback(exc):
                     logger.warning("Streaming: %s/%s failed – falling back. (%s)", provider, model, exc)
                     continue
