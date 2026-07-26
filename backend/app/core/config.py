@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24  # 24 h
 
+    # ── Encryption (Fernet key for Google OAuth tokens at rest) ─────────────
+    encryption_key: str
+
     # ── Database ─────────────────────────────────────────────────────────────
     database_url: str = "sqlite+aiosqlite:///./marcoai.db"
 

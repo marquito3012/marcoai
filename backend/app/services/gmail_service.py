@@ -48,13 +48,14 @@ class GmailService:
         self._service = None
 
     def _get_credentials(self) -> Credentials | None:
-        if not self.user.google_calendar_token:
+        if not self.user.has_google_token:
             return None
 
-        expires_at = self.user.google_calendar_token_expires_at
+        from app.core.crypto import decrypt_token
+        expires_at = self.user.google_token_expires_at
         return Credentials(
-            token=self.user.google_calendar_token,
-            refresh_token=self.user.google_calendar_refresh_token,
+            token=decrypt_token(self.user.google_access_token),
+            refresh_token=decrypt_token(self.user.google_refresh_token),
             token_uri="https://oauth2.googleapis.com/token",
             client_id=settings.google_client_id,
             client_secret=settings.google_client_secret,
@@ -65,11 +66,12 @@ class GmailService:
     async def _refresh_tokens(self, credentials: Credentials) -> None:
         """Refresca los tokens usando httpx (async) y guarda en BD."""
         try:
+            from app.core.crypto import encrypt_token, decrypt_token
             async with httpx.AsyncClient() as client:
                 resp = await client.post("https://oauth2.googleapis.com/token", data={
                     "client_id": settings.google_client_id,
                     "client_secret": settings.google_client_secret,
-                    "refresh_token": self.user.google_calendar_refresh_token,
+                    "refresh_token": decrypt_token(self.user.google_refresh_token),
                     "grant_type": "refresh_token",
                 })
                 resp.raise_for_status()
@@ -81,10 +83,10 @@ class GmailService:
                     expiry = datetime.now(timezone.utc) + timedelta(seconds=data["expires_in"])
                     # google-auth expects naive UTC internally for its expiry check
                     credentials.expiry = expiry.replace(tzinfo=None)
-                    self.user.google_calendar_token_expires_at = expiry
+                    self.user.google_token_expires_at = expiry
 
-                # Actualizar en BD para persistencia
-                self.user.google_calendar_token = data["access_token"]
+                # Actualizar en BD para persistencia (encrypt the new access token)
+                self.user.google_access_token = encrypt_token(data["access_token"])
                 self.db.add(self.user)
                 await self.db.commit()
                 await self.db.refresh(self.user)

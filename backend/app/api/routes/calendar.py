@@ -75,7 +75,7 @@ class EventsListResponse(BaseModel):
 
 async def get_calendar_service(user: User, db) -> CalendarService:
     """Obtiene el servicio de calendario para el usuario actual."""
-    if not user.google_calendar_token:
+    if not user.has_google_token:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No has conectado tu cuenta de Google Calendar. "

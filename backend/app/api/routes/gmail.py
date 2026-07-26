@@ -65,7 +65,7 @@ class EmailListResponse(BaseModel):
 
 async def get_gmail_service(user: User, db) -> GmailService:
     """Obtiene el servicio de Gmail para el usuario actual."""
-    if not user.google_calendar_token:  # Reutilizamos el token de Google
+    if not user.has_google_token:  # Reutilizamos el token de Google
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No has conectado tu cuenta de Google. "

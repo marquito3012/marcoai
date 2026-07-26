@@ -99,8 +99,29 @@ async def lifespan(app: FastAPI):
                         updated_at DATETIME
                     )
                 """))
+            elif "last_digest_sent_at" not in columns:
+                print("⚡ Migrating: Adding last_digest_sent_at to user_settings...")
+                await conn.execute(text("ALTER TABLE user_settings ADD COLUMN last_digest_sent_at DATETIME"))
         except Exception as e:
             print(f"⚠️ Settings migration warning: {e}")
+
+        # ── Rename Google token columns (security hardening) ────────────────
+        # These migrations rename the legacy column names to clearer names.
+        # SQLite supports RENAME COLUMN since 3.25.0 (2018).
+        try:
+            result = await conn.execute(text("PRAGMA table_info(users)"))
+            columns = [row[1] for row in result.fetchall()]
+            renames = [
+                ("google_calendar_token", "google_access_token"),
+                ("google_calendar_token_expires_at", "google_token_expires_at"),
+                ("google_calendar_refresh_token", "google_refresh_token"),
+            ]
+            for old_name, new_name in renames:
+                if old_name in columns and new_name not in columns:
+                    print(f"⚡ Migrating: Renaming {old_name} → {new_name}...")
+                    await conn.execute(text(f"ALTER TABLE users RENAME COLUMN {old_name} TO {new_name}"))
+        except Exception as e:
+            print(f"⚠️ User column rename migration warning: {e}")
     
     # 2. Robustly create SQLite-vec virtual tables using a sync connection
     # This bypasses aiosqlite/sqlalchemy wrapper issues for extension loading.

@@ -129,6 +129,11 @@ async def google_callback(
     from datetime import timedelta
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
 
+    # ── Encrypt tokens before storing ──────────────────────────────────────
+    from app.core.crypto import encrypt_token, is_encrypted
+    encrypted_access = encrypt_token(calendar_access_token) if calendar_access_token else None
+    encrypted_refresh = encrypt_token(calendar_refresh_token) if calendar_refresh_token else None
+
     # ── Upsert user record ────────────────────────────────────────────────────
     result = await db.execute(select(User).where(User.google_id == google_id))
     user = result.scalar_one_or_none()
@@ -136,9 +141,9 @@ async def google_callback(
     if user is None:
         user = User(
             google_id=google_id, email=email, name=name, picture_url=picture,
-            google_calendar_token=calendar_access_token,
-            google_calendar_token_expires_at=expires_at,
-            google_calendar_refresh_token=calendar_refresh_token,
+            google_access_token=encrypted_access,
+            google_token_expires_at=expires_at,
+            google_refresh_token=encrypted_refresh,
         )
         db.add(user)
         await db.flush()          # get the generated UUID
@@ -146,10 +151,17 @@ async def google_callback(
         user.name        = name
         user.picture_url = picture
         # Update tokens on each login to keep them fresh
-        user.google_calendar_token = calendar_access_token
-        user.google_calendar_token_expires_at = expires_at
-        if calendar_refresh_token:
-            user.google_calendar_refresh_token = calendar_refresh_token
+        user.google_access_token = encrypted_access
+        user.google_token_expires_at = expires_at
+        if encrypted_refresh:
+            user.google_refresh_token = encrypted_refresh
+
+        # ── Re-encrypt legacy plaintext tokens if present ──────────────────
+        # Detect tokens that were stored before encryption was enabled
+        if user.google_access_token and not is_encrypted(user.google_access_token):
+            user.google_access_token = encrypt_token(user.google_access_token)
+        if user.google_refresh_token and not is_encrypted(user.google_refresh_token):
+            user.google_refresh_token = encrypt_token(user.google_refresh_token)
 
     await db.commit()
     await db.refresh(user)

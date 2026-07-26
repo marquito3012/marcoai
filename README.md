@@ -43,6 +43,7 @@ User Message → Supervisor Node (clasificación de intención)
 - **Optimizado para RPi:** Diseñado para funcionar en hardware limitado como una **Raspberry Pi 3** (1 GB RAM).
 - **Cloudflare Tunnels:** Acceso seguro desde cualquier lugar sin abrir puertos ni configurar DNS.
 - **JWT Authentication:** Autenticación segura con tokens JWT y refresh tokens.
+- **Token Encryption:** Los tokens de Google OAuth se almacenan encriptados con Fernet (AES-128-CBC) en la base de datos.
 
 ### 💡 Gateway de LLM con Failover
 
@@ -128,6 +129,7 @@ Panel de preferencias del usuario para personalizar el tono de la IA, gestionar 
 | **PyMuPDF**              | Extracción de texto de PDF para RAG                                          |
 | **PyJWT (python-jose)**  | Autenticación con tokens JWT                                                 |
 | **passlib + bcrypt**     | Hash de contraseñas                                                          |
+| **cryptography (Fernet)**| Encriptación de tokens OAuth en reposo                                        |
 | **pydantic**             | Validación de datos y configuración                                          |
 | **tenacity**             | Lógica de retry y fallback                                                   |
 | **APScheduler**          | Programador para notificaciones diarias                                      |
@@ -191,7 +193,13 @@ Panel de preferencias del usuario para personalizar el tono de la IA, gestionar 
    GOOGLE_CLIENT_ID=tu_client_id
    GOOGLE_CLIENT_SECRET=tu_client_secret
    SECRET_KEY=una_clave_segura_para_jwt
+   ENCRYPTION_KEY=una_clave_fernet_para_encriptar_tokens
    DATABASE_URL=sqlite+aiosqlite:///./marcoai.db
+   ```
+
+   Para generar `ENCRYPTION_KEY`:
+   ```bash
+   python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
    ```
 
    **Variables opcionales:**
@@ -290,6 +298,7 @@ La API está disponible en `/api/v1/` con documentación automática en `/docs` 
 │       │   └── deps.py                # Inyección de dependencias auth
 │       ├── core/
 │       │   ├── config.py              # Configuración pydantic-settings (.env)
+│       │   ├── crypto.py              # Encriptación Fernet para tokens OAuth
 │       │   ├── security.py            # Utilidades JWT y password hashing
 │       │   └── scheduler.py           # APScheduler para notificaciones diarias
 │       ├── db/

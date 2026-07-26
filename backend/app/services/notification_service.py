@@ -30,7 +30,7 @@ async def send_daily_digest(user: User, settings: UserSettings, db: AsyncSession
     Compila y envía el resumen diario al usuario.
     Returns True si el envío fue exitoso.
     """
-    if not user.google_calendar_token:
+    if not user.has_google_token:
         logger.warning("User %s has no Google token, skipping digest.", user.id)
         return False
 
@@ -145,7 +145,7 @@ async def send_daily_digest(user: User, settings: UserSettings, db: AsyncSession
 
         # ── 4. Correos recientes ───────────────────────────────────────────────
         # Included if the user has Gmail connected (same token used for Calendar)
-        if user.google_calendar_token:
+        if user.has_google_token:
             try:
                 from app.services.gmail_service import GmailService
                 gmail_service = GmailService(db, user)

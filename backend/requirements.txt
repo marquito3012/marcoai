@@ -5,6 +5,7 @@ python-multipart==0.0.20        # file upload support
 
 # ── Auth & Security ──────────────────────────────────────────────────────────
 python-jose[cryptography]==3.4.0
+cryptography>=44.0.0             # Fernet encryption for Google OAuth tokens
 passlib[bcrypt]==1.7.4
 httpx==0.28.1                   # OAuth token exchange
 google-auth==2.40.0

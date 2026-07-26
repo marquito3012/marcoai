@@ -20,12 +20,13 @@ class CalendarService:
 
     async def _get_service(self):
         """Inicializa el servicio de Google Calendar."""
-        if not self.user.google_calendar_token:
+        if not self.user.has_google_token:
             raise ValueError("El usuario no tiene una cuenta de Google conectada")
 
+        from app.core.crypto import decrypt_token
         creds = Credentials(
-            token=self.user.google_calendar_token,
-            refresh_token=self.user.google_calendar_refresh_token,
+            token=decrypt_token(self.user.google_access_token),
+            refresh_token=decrypt_token(self.user.google_refresh_token),
             token_uri="https://oauth2.googleapis.com/token",
             client_id=settings.google_client_id,
             client_secret=settings.google_client_secret,

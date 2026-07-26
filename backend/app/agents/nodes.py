@@ -131,7 +131,7 @@ async def calendar_node(state: AgentState) -> dict:
             result = await db.execute(select(User).where(User.id == user_id))
             user = result.scalar_one_or_none()
 
-            if not user or not user.google_calendar_token:
+            if not user or not user.has_google_token:
                 return {
                     "system_prompt": system_prompt,
                     "tier": "standard",
@@ -489,7 +489,7 @@ async def mail_node(state: AgentState) -> dict:
             result = await db.execute(select(User).where(User.id == user_id))
             user = result.scalar_one_or_none()
 
-            if user and user.google_calendar_token:
+            if user and user.has_google_token:
                 from app.services.gmail_service import GmailService
                 service = GmailService(db, user)
 

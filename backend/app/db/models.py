@@ -36,15 +36,20 @@ class User(Base):
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
     )
 
-    # Google Calendar OAuth tokens (encrypted at rest in production)
-    google_calendar_token: Mapped[str | None] = mapped_column(Text, nullable=True)
-    google_calendar_token_expires_at: Mapped[datetime | None] = mapped_column(
+    # Google OAuth tokens (encrypted at rest via Fernet)
+    google_access_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    google_token_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    google_calendar_refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    google_refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships (populated as other modules are added)
     # finances: Mapped[list["Transaction"]] = relationship(back_populates="user")
+
+    @property
+    def has_google_token(self) -> bool:
+        """Check if the user has a Google OAuth token (truthy check without decrypting)."""
+        return bool(self.google_access_token)
 
 
 # ── Chat History (lightweight, in-DB store for short-term context) ────────────
@@ -176,6 +181,11 @@ class UserSettings(Base):
     notify_calendar: Mapped[bool] = mapped_column(Boolean, default=True)
     notify_habits: Mapped[bool] = mapped_column(Boolean, default=True)
     notify_finance: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # ── Digest Dedup ────────────────────────────────────────────────────────
+    last_digest_sent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import zoneinfo
-from datetime import datetime
+from datetime import datetime, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -24,8 +24,9 @@ async def _run_digest_job() -> None:
     """
     Checks every hour which users should receive their digest right now.
     Uses Europe/Madrid time so notification_hour=6 means 06:00 Madrid, not UTC.
+    Includes dedup: won't send if last_digest_sent_at is within the same hour.
     """
-    # Bug 2 fix: always compare against Madrid local time, not server UTC
+    now_utc = datetime.now(timezone.utc)
     current_hour = datetime.now(_TZ_MADRID).hour
     logger.info("Digest job running — Madrid hour: %d", current_hour)
 
@@ -35,8 +36,6 @@ async def _run_digest_job() -> None:
         from app.db.models import User, UserSettings
         from app.services.notification_service import send_daily_digest
 
-        # Bug 3 fix: extract all needed primitive values inside the session,
-        # before it closes, so there is no DetachedInstanceError risk later.
         pending: list[dict] = []
 
         async with AsyncSessionLocal() as db:
@@ -53,17 +52,21 @@ async def _run_digest_job() -> None:
             rows = res.all()
 
             for settings_row, user_row in rows:
-                # Eagerly read every primitive we need while the session is open
+                # ── Dedup: skip if digest was already sent this hour ──────────
+                if settings_row.last_digest_sent_at:
+                    last = settings_row.last_digest_sent_at
+                    if last.tzinfo is None:
+                        last = last.replace(tzinfo=timezone.utc)
+                    if (now_utc - last).total_seconds() < 3600:
+                        logger.debug(
+                            "Skipping digest for %s — already sent at %s",
+                            user_row.id, last.isoformat(),
+                        )
+                        continue
+
                 pending.append({
-                    # User primitives
                     "user_id": user_row.id,
-                    "user_email": user_row.email,
-                    "user_name": user_row.name,
-                    "google_calendar_token": user_row.google_calendar_token,
-                    "google_calendar_refresh_token": user_row.google_calendar_refresh_token,
-                    "google_calendar_token_expires_at": user_row.google_calendar_token_expires_at,
                     "is_active": user_row.is_active,
-                    # Settings primitives
                     "notifications_enabled": settings_row.notifications_enabled,
                     "notification_hour": settings_row.notification_hour,
                     "notify_calendar": settings_row.notify_calendar,
@@ -79,9 +82,7 @@ async def _run_digest_job() -> None:
 
         for data in pending:
             try:
-                # Open a fresh, independent session for each user's digest
                 async with AsyncSessionLocal() as db:
-                    # Reload user and settings from the DB with this fresh session
                     user_obj = await db.get(User, data["user_id"])
                     if not user_obj:
                         logger.warning("User %s not found, skipping digest.", data["user_id"])
@@ -94,7 +95,12 @@ async def _run_digest_job() -> None:
                         logger.warning("Settings not found for user %s.", data["user_id"])
                         continue
 
-                    await send_daily_digest(user=user_obj, settings=settings_obj, db=db)
+                    sent = await send_daily_digest(user=user_obj, settings=settings_obj, db=db)
+
+                    # ── Mark digest as sent to prevent duplicates ────────────
+                    if sent:
+                        settings_obj.last_digest_sent_at = now_utc
+                        await db.commit()
             except Exception as exc:
                 logger.error("Failed digest for user %s: %s", data["user_id"], exc, exc_info=True)
 
