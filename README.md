@@ -49,7 +49,8 @@ User Message → Supervisor Node (clasificación de intención)
 
 - **Multi-Provider:** Soporte para **Google Gemini**, **Groq** y **OpenRouter** con fallback automático.
 - **Cost-Aware Routing:** Enrutamiento inteligente basado en costo (FAST / STANDARD / INTELLIGENT).
-- **Resiliencia:** Si un proveedor falla, el sistema pasa automáticamente al siguiente disponible.
+- **Resiliencia:** Si un proveedor falla, el sistema pasa automáticamente al siguiente disponible. Circuit breaker deshabilita providers tras 3 fallos consecutivos.
+- **Rate Limiting:** Protección por usuario contra abuso (sliding window, configurable).
 
 ### 💎 Interfaz de Usuario Moderna
 
@@ -60,6 +61,7 @@ Frontend construido con **React 18 + Vite**, **Tailwind CSS**, **Zustand** para 
 - Visualizaciones de datos con **Recharts**.
 - Iconos con **lucide-react**.
 - Renderizado de markdown con **react-markdown**.
+- Error boundaries por página para mayor resiliencia.
 
 ---
 
@@ -279,8 +281,6 @@ La API está disponible en `/api/v1/` con documentación automática en `/docs` 
 │       │   ├── states.py           # Definición de AgentState (TypedDict)
 │       │   ├── prompts.py          # Prompts del sistema, clasificación de intención
 │       │   └── tools/
-│       │       ├── calendar_tools.py       # Herramientas de Google Calendar
-│       │       ├── finance_tools.py        # Herramientas financieras
 │       │       ├── gmail_tools.py          # Herramientas de Gmail
 │       │       └── doc_tools.py            # Herramientas de documentos/RAG
 │       ├── api/
@@ -299,6 +299,7 @@ La API está disponible en `/api/v1/` con documentación automática en `/docs` 
 │       ├── core/
 │       │   ├── config.py              # Configuración pydantic-settings (.env)
 │       │   ├── crypto.py              # Encriptación Fernet para tokens OAuth
+│       │   ├── rate_limit.py          # Rate limiting por usuario (sliding window)
 │       │   ├── security.py            # Utilidades JWT y password hashing
 │       │   └── scheduler.py           # APScheduler para notificaciones diarias
 │       ├── db/
@@ -330,6 +331,7 @@ La API está disponible en `/api/v1/` con documentación automática en `/docs` 
 │       │   │   ├── AppShell.jsx          # Layout principal con sidebar
 │       │   │   └── Sidebar.jsx           # Sidebar de navegación
 │       │   └── ui/
+│       │       ├── ErrorBoundary.jsx    # Error boundary por página
 │       │       └── ProtectedRoute.jsx    # Guard de autenticación
 │       ├── hooks/
 │       │   ├── useAuth.js                # Hook de autenticación
