@@ -8,7 +8,7 @@
  *   • Real-time indexing status icons
  *   • Integration with backend DocumentService
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   FileText, 
   Upload, 
@@ -42,16 +42,20 @@ export default function FilesPage() {
     }
   }
 
+  // Use a ref to access current docs inside interval without re-triggering the effect
+  const docsRef = useRef(docs)
+  docsRef.current = docs
+
   useEffect(() => {
     fetchDocs()
     // Poll every 10 seconds if there are pending/processing files
     const interval = setInterval(() => {
-      if (docs.some(d => d.status === 'pending' || d.status === 'processing')) {
+      if (docsRef.current.some(d => d.status === 'pending' || d.status === 'processing')) {
         fetchDocs()
       }
     }, 10000)
     return () => clearInterval(interval)
-  }, [docs])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUpload = async (e) => {
     const file = e.target.files[0]

@@ -32,7 +32,7 @@ export class ApiError extends Error {
  * @returns {Promise<any>} - parsed JSON response
  */
 export async function apiFetch(path, options = {}) {
-  const { headers: extraHeaders, ...rest } = options
+  const { headers: extraHeaders, signal, ...rest } = options
 
   const res = await fetch(`${BASE}${path}`, {
     credentials: 'include',
@@ -40,6 +40,7 @@ export async function apiFetch(path, options = {}) {
       'Content-Type': 'application/json',
       ...extraHeaders,
     },
+    signal,
     ...rest,
   })
 

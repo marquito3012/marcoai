@@ -7,7 +7,7 @@
  *   • Building the assistant reply incrementally (typewriter effect)
  *   • AbortController-based cancellation on unmount / user action
  */
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 
 const WELCOME = (name) => ({
   id: 'welcome',
@@ -138,6 +138,13 @@ export function useStreamingChat(userName) {
 
   const stopStreaming = useCallback(() => {
     abortRef.current?.abort()
+  }, [])
+
+  // Cleanup: abort any in-flight stream when the owner component unmounts
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort()
+    }
   }, [])
 
   return { messages, setMessages, isStreaming, currentRoute, sendMessage, stopStreaming }

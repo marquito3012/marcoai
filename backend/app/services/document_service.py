@@ -106,13 +106,16 @@ class DocumentService:
             
             text_content = ""
             if doc.filename.endswith(".pdf"):
-                # Para ahorrar memoria, abrir y parsear rápido
-                with fitz.open(file_path) as pdf_doc:
-                    for page in pdf_doc:
-                        text_content += page.get_text() + "\n"
+                # Wrap synchronous PDF I/O in a thread to avoid blocking the event loop
+                def _read_pdf():
+                    with fitz.open(file_path) as pdf_doc:
+                        return "\n".join(page.get_text() for page in pdf_doc)
+                text_content = await asyncio.to_thread(_read_pdf)
             else:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    text_content = f.read()
+                def _read_txt():
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        return f.read()
+                text_content = await asyncio.to_thread(_read_txt)
 
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=1000,
