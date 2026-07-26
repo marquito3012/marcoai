@@ -23,6 +23,7 @@ from fastapi.responses import StreamingResponse
 
 from app.agents.supervisor import supervisor_stream
 from app.api.deps import get_current_user
+from app.core.rate_limit import rate_limit
 from app.api.schemas import ChatRequest, ChatResponse
 from app.db.models import User
 from app.services.llm_gateway import AllProvidersExhausted, TaskTier, gateway
@@ -61,7 +62,11 @@ async def chat(
 
 
 # ── Streaming (SSE via LangGraph supervisor) ───────────────────────────────────
-@router.post("/stream", summary="Chat con streaming SSE + LangGraph (HU06, HU07)")
+@router.post(
+    "/stream",
+    summary="Chat con streaming SSE + LangGraph (HU06, HU07)",
+    dependencies=[Depends(rate_limit)],
+)
 async def chat_stream(
     body: ChatRequest,
     current_user: User = Depends(get_current_user),

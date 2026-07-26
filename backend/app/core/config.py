@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     # ── Cloudflare ───────────────────────────────────────────────────────────
     cloudflare_tunnel_token: str = ""
 
+    # ── Rate Limiting ─────────────────────────────────────────────────────────
+    rate_limit_rpm: int = 30  # Max requests per minute per user
+
     # ── Write-batching (SD protection) ───────────────────────────────────────
     # How often (in seconds) deferred writes should be flushed to SQLite
     write_batch_interval_seconds: int = 60
