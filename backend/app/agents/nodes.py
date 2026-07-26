@@ -26,8 +26,6 @@ from langchain_core.tools import tool
 
 from app.agents.prompts import AGENT_PROMPTS, CLASSIFIER
 from app.agents.states import AgentState
-from app.agents.tools.calendar_tools import CALENDAR_TOOLS
-from app.agents.tools.finance_tools import FINANCE_TOOLS
 from app.services.llm_gateway import TaskTier, gateway
 
 logger = logging.getLogger(__name__)
