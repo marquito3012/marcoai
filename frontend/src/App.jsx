@@ -11,6 +11,7 @@ import LoginPage      from './pages/LoginPage.jsx'
 import ChatPage       from './pages/ChatPage.jsx'
 import SettingsPage   from './pages/SettingsPage.jsx'
 import ProtectedRoute from './components/ui/ProtectedRoute.jsx'
+import ErrorBoundary  from './components/ui/ErrorBoundary.jsx'
 import { useAuth }    from './hooks/useAuth.js'
 
 function App() {
@@ -33,15 +34,15 @@ function App() {
             <AppShell>
               <Routes>
                 <Route path="/"         element={<Navigate to="/chat" replace />} />
-                <Route path="/chat"     element={<ChatPage />} />
+                <Route path="/chat"     element={<ErrorBoundary><ChatPage /></ErrorBoundary>} />
 
                 {/* Main functional modules */}
-                <Route path="/calendar" element={<CalendarPage />} />
-                <Route path="/finance"  element={<FinancePage />} />
-                <Route path="/mail"     element={<MailPage />} />
-                <Route path="/files"    element={<FilesPage />} />
-                <Route path="/habits"   element={<HabitsPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/calendar" element={<ErrorBoundary><CalendarPage /></ErrorBoundary>} />
+                <Route path="/finance"  element={<ErrorBoundary><FinancePage /></ErrorBoundary>} />
+                <Route path="/mail"     element={<ErrorBoundary><MailPage /></ErrorBoundary>} />
+                <Route path="/files"    element={<ErrorBoundary><FilesPage /></ErrorBoundary>} />
+                <Route path="/habits"   element={<ErrorBoundary><HabitsPage /></ErrorBoundary>} />
+                <Route path="/settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
               </Routes>
             </AppShell>
           </ProtectedRoute>
