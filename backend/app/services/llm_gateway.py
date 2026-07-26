@@ -18,9 +18,9 @@ Provider matrix
 ────────────────────────────────────────────────────────────────────────────────────────────
  Tier          Primary                          Fallback 1              Fallback 2
 ────────────────────────────────────────────────────────────────────────────────────────────
- FAST          OpenRouter Gemma 4 (free)        Groq / Llama-3.1-8b     Gemini Flash 3.1-lite
- STANDARD      OpenRouter Qwen 3 Coder (free)   Groq / Llama-3.3-70b    Gemini Flash 3.1-lite
- INTELLIGENT   OpenRouter Qwen 3 Next (free)    Gemini Flash 3.1-lite   Groq / Llama-3.3-70b
+ FAST          OpenRouter Laguna-S-2.1 (free)   Gemini 3.5 Flash Lite   Groq / Llama-3.1-8b
+ STANDARD      OpenRouter Laguna-S-2.1 (free)   Gemini 3.5 Flash Lite   Groq / Llama-3.3-70b
+ INTELLIGENT   OpenRouter Laguna-S-2.1 (free)   Gemini 3.5 Flash Lite   Groq / Llama-3.3-70b
 ────────────────────────────────────────────────────────────────────────────────────────────
 
 Cost strategy:
@@ -69,18 +69,18 @@ class TaskTier(str, Enum):
 _CHAINS: dict[TaskTier, list[dict[str, str]]] = {
     TaskTier.FAST: [
         # ~0 cost on free tiers, very low latency on RPi
-        {"provider": "openrouter", "model": "google/gemma-4-26b-a4b-it:free"},
+        {"provider": "openrouter", "model": "poolside/laguna-s-2.1:free"},
+        {"provider": "gemini",     "model": "gemini-3.5-flash-lite"},
         {"provider": "groq",       "model": "llama-3.1-8b-instant"},
-        {"provider": "gemini",     "model": "gemini-3.1-flash-lite"},
     ],
     TaskTier.STANDARD: [
-        {"provider": "openrouter", "model": "qwen/qwen3-coder:free"},
+        {"provider": "openrouter", "model": "poolside/laguna-s-2.1:free"},
         {"provider": "groq",       "model": "llama-3.3-70b-versatile"},
-        {"provider": "gemini",     "model": "gemini-3.1-flash-lite"},
+        {"provider": "gemini",     "model": "gemini-3.5-flash-lite"},
     ],
     TaskTier.INTELLIGENT: [
-        {"provider": "openrouter", "model": "qwen/qwen3-next-80b-a3b-instruct:free"},
-        {"provider": "gemini",     "model": "gemini-3.1-flash-lite"},
+        {"provider": "openrouter", "model": "poolside/laguna-s-2.1:free"},
+        {"provider": "gemini",     "model": "gemini-3.5-flash-lite"},
         {"provider": "groq",       "model": "llama-3.3-70b-versatile"},
     ],
 }
