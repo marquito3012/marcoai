@@ -37,6 +37,42 @@ SCOPES = [
 ]
 
 
+def _gmail_escape(text: str) -> str:
+    """Escape characters that have special meaning in Gmail search syntax.
+    
+    Gmail treats characters like {}, +, -, (), ~, "", etc. as operators.
+    Wrapping in double-quotes prevents interpretation.
+    """
+    if not text:
+        return text
+    # If the query already looks like a Gmail operator (e.g. "is:unread"),
+    # don't escape it — it's intentional.
+    gmail_operators = {"is:", "in:", "from:", "to:", "subject:", "label:", "after:", "before:", "newer_than:", "older_than:"}
+    text_lower = text.lower().strip()
+    if any(text_lower.startswith(op) for op in gmail_operators):
+        return text
+    # Otherwise wrap in double-quotes to escape special chars
+    # and escape any existing double-quotes inside
+    escaped = text.replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+async def _retry_gmail(coro_factory, max_retries: int = 3, base_delay: float = 1.0):
+    """Retry a Gmail API call with exponential backoff on transient errors (429, 500, 503)."""
+    import asyncio
+    for attempt in range(max_retries):
+        try:
+            return await coro_factory()
+        except HttpError as exc:
+            status = exc.resp.status if exc.resp else 0
+            if status in (429, 500, 502, 503, 504) and attempt < max_retries - 1:
+                delay = base_delay * (2 ** attempt)
+                logger.warning("Gmail API error %d (attempt %d/%d), retrying in %.1fs…", status, attempt + 1, max_retries, delay)
+                await asyncio.sleep(delay)
+                continue
+            raise
+
+
 class GmailService:
     """
     Servicio de Gmail con gestión automática de tokens (reutiliza lógica de calendario).
@@ -110,13 +146,12 @@ class GmailService:
     async def list_messages(self, query: str = "", max_results: int = 10) -> list[dict]:
         """Busca correos en Gmail usando el query especificado."""
         service = await self._get_service()
+
+        # Escape special Gmail search syntax characters to prevent injection
+        escaped_query = _gmail_escape(query) if query else ""
+
         try:
-            res = (
-                service.users()
-                .messages()
-                .list(userId="me", q=query, maxResults=max_results)
-                .execute()
-            )
+            res = await _retry_gmail(lambda: service.users().messages().list(userId="me", q=escaped_query, maxResults=max_results).execute())
             messages = res.get("messages", [])
             
             result = []
@@ -251,12 +286,7 @@ class GmailService:
         raw = base64.urlsafe_b64encode(mime_msg.as_bytes()).decode()
 
         try:
-            sent = (
-                service.users()
-                .messages()
-                .send(userId="me", body={"raw": raw})
-                .execute()
-            )
+            sent = await _retry_gmail(lambda: service.users().messages().send(userId="me", body={"raw": raw}).execute())
             logger.info("Email sent to %s — id=%s", to, sent.get("id"))
             return {"id": sent["id"], "threadId": sent["threadId"]}
         except HttpError as exc:

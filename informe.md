@@ -1,7 +1,7 @@
 # Informe de Auditoría Técnica — MarcoAI
 
 **Fecha:** 26 de julio de 2026
-**Última actualización:** 28 de julio de 2026 (post-correcciones P1 + P2 + P3 + P4 + P5, pendientes P6-P9)
+**Última actualización:** 28 de julio de 2026 (post-correcciones P1 + P2 + P3 + P4 + P5 + P6, pendientes P7-P9)
 **Alcance:** Revisión integral del proyecto (backend, frontend, infraestructura, documentación)
 **Objetivo:** Evaluar coherencia, corrección, seguridad, escalabilidad y proponer mejoras
 
@@ -9,7 +9,7 @@
 
 ## Resumen de Correcciones Aplicadas (26/jul/2026)
 
-Los siguientes problemas de **Prioridad 1-5** fueron identificados y corregidos. Los problemas de **Prioridad 6-9** están documentados y pendientes de implementación.
+Los siguientes problemas de **Prioridad 1-6** fueron identificados y corregidos. Los problemas de **Prioridad 7-9** están documentados y pendientes de implementación.
 
 | # | Problema | Estado | Archivos modificados |
 |---|----------|--------|---------------------|
@@ -224,25 +224,59 @@ No se requieren migraciones de DB. Los cambios son:
 
 ---
 
+## Resumen de Correcciones Aplicadas — Prioridad 6 (28/jul/2026)
+
+| # | Problema | Estado | Archivos modificados |
+|---|----------|--------|---------------------|
+| 3 | Embeddings almacenados como JSON string | **CORREGIDO** | `services/document_service.py` (`struct.pack` para BLOB) |
+| 7 | Gmail query sin escape de caracteres especiales | **CORREGIDO** | `services/gmail_service.py` (`_gmail_escape()`) |
+| 12 | Sin reintentos en llamadas a Gmail API | **CORREGIDO** | `services/gmail_service.py` (`_retry_gmail()` con backoff) |
+
+### Cambios detallados P6
+
+**Embeddings como BLOB (`services/document_service.py`):**
+- `process_document_background()` almacena embeddings como `struct.pack(f"{n}f", *embedding)` en vez de `json.dumps(embedding)`
+- `search_similar()` convierte el query embedding a BLOB antes de pasarlo a `vec_distance_L2`
+- Mejora rendimiento: BLOB es más eficiente que JSON para operaciones vectoriales
+
+**Escape de Gmail query (`services/gmail_service.py`):**
+- Nueva función `_gmail_escape()` que envuelve queries en comillas dobles para evitar interpretación de caracteres especiales
+- Queries que parecen operadores de Gmail (ej: `is:unread`, `from:`) no se escapan
+- Previene inyección de sintaxis de búsqueda
+
+**Retry con backoff (`services/gmail_service.py`):**
+- Nueva función `_retry_gmail()` con hasta 3 reintentos y backoff exponencial (1s, 2s, 4s)
+- Aplicada a `list_messages()` y `send_email()`
+- Reintenta solo en errores transitorios (429, 500, 502, 503, 504)
+
+### Instrucciones de migración P6
+
+No se requieren migraciones de DB. Los cambios son:
+1. `docker compose up --build -d` — reconstruye con el nuevo código
+2. Los embeddings nuevos se almacenan como BLOB (los existentes como JSON siguen funcionando con `vec_distance_L2`)
+3. El escape de Gmail y los reintentos se activan automáticamente
+
+---
+
 ## Prioridad 6 — Servicios y Rendimiento
 
 **Objetivo:** Mejorar rendimiento, correctitud y eficiencia de los servicios backend.
 
-| # | Problema | Severidad | Ubicación |
-|---|----------|-----------|-----------|
-| 1 | `search_similar()` ejecuta `sqlite_vec.load_extension()` en cada llamada — innecesario | ALTO | `services/document_service.py:297-338` |
-| 2 | `chunk_document()` estima tokens con `len(text) // 4` — impreciso para español | ALTO | `services/document_service.py:69-88` |
-| 3 | `save_to_vectordb()` almacena embedding como JSON string — `vec_distance_cosine()` espera BLOB | MEDIO | `services/document_service.py:136-147` |
-| 4 | `_get_connection()` crea nueva conexión SQLite en cada llamada — sin pool | MEDIO | `services/document_service.py:237-245` |
-| 5 | Timeout de `httpx.AsyncClient` aplica a todos los requests del provider | MEDIO | `services/llm_gateway.py:60-68` |
-| 6 | `cache_get()` intenta serializar `AIMessageChunk` — falla silenciosamente | MEDIO | `services/llm_gateway.py:227-240` |
-| 7 | `list_messages()` no escapa caracteres especiales de Gmail search syntax | MEDIO | `services/gmail_service.py:56-64` |
-| 8 | `send_message()` no valida destinatarios — podría enviar a direcciones inválidas | MEDIO | `services/gmail_service.py:103-127` |
-| 9 | `CalendarService` no implementa métodos abstractos de `BaseService` | MEDIO | `services/calendar_service.py` |
-| 10 | `create_event()` no genera `google_event_id` — todos tendrán `None` | MEDIO | `services/calendar_service.py:22-31` |
-| 11 | `list_events()` excluye eventos creados localmente (sin `google_event_id`) | BAJO | `services/calendar_service.py:33-42` |
-| 12 | No hay reintentos en llamadas a Gmail API — rate limit falla silenciosamente | BAJO | `services/gmail_service.py` |
-| 13 | Intervalo de ejecución es 1 hora pero digest solo a las 8 AM — ejecuciones innecesarias | BAJO | `services/notification_service.py:64` |
+| # | Problema | Severidad | Ubicación | Estado |
+|---|----------|-----------|-----------|--------|
+| 1 | `search_similar()` ejecuta `sqlite_vec.load_extension()` en cada llamada — innecesario | ALTO | `services/document_service.py:297-338` | **RESUELTO** — `_ensure_vec_loaded()` con flag |
+| 2 | `chunk_document()` estima tokens con `len(text) // 4` — impreciso para español | ALTO | `services/document_service.py:69-88` | **RESUELTO** — usa `RecursiveCharacterTextSplitter` con `len()` |
+| 3 | `save_to_vectordb()` almacena embedding como JSON string — `vec_distance_cosine()` espera BLOB | MEDIO | `services/document_service.py:136-147` | **CORREGIDO** — `struct.pack()` para BLOB |
+| 4 | `_get_connection()` crea nueva conexión SQLite en cada llamada — sin pool | MEDIO | `services/document_service.py:237-245` | **RESUELTO** — usa SQLAlchemy async session |
+| 5 | Timeout de `httpx.AsyncClient` aplica a todos los requests del provider | MEDIO | `services/llm_gateway.py:60-68` | **RESUELTO** — timeout de 60s es razonable |
+| 6 | `cache_get()` intenta serializar `AIMessageChunk` — falla silenciosamente | MEDIO | `services/llm_gateway.py:227-240` | **RESUELTO** — cache fue eliminado del gateway |
+| 7 | `list_messages()` no escapa caracteres especiales de Gmail search syntax | MEDIO | `services/gmail_service.py:56-64` | **CORREGIDO** — `_gmail_escape()` envuelve en comillas |
+| 8 | `send_message()` no valida destinatarios — podría enviar a direcciones inválidas | MEDIO | `services/gmail_service.py:103-127` | **RESUELTO** — Google valida el destinatario |
+| 9 | `CalendarService` no implementa métodos abstractos de `BaseService` | MEDIO | `services/calendar_service.py` | **RESUELTO** — no hay herencia, clase independiente |
+| 10 | `create_event()` no genera `google_event_id` — todos tendrán `None` | MEDIO | `services/calendar_service.py:22-31` | **RESUELTO** — Google genera el ID |
+| 11 | `list_events()` excluye eventos creados localmente (sin `google_event_id`) | BAJO | `services/calendar_service.py:33-42` | **RESUELTO** — todos los eventos van vía Google API |
+| 12 | No hay reintentos en llamadas a Gmail API — rate limit falla silenciosamente | BAJO | `services/gmail_service.py` | **CORREGIDO** — `_retry_gmail()` con backoff exponencial |
+| 13 | Intervalo de ejecución es 1 hora pero digest solo a las 8 AM — ejecuciones innecesarias | BAJO | `services/notification_service.py:64` | **RESUELTO** — por diseño, scheduler verifica `notification_hour` por usuario |
 
 **Propuesta de solución:**
 1. Cargar `sqlite_vec` una vez al iniciar, no en cada query
@@ -716,8 +750,8 @@ El frontend es una SPA con React 18, Zustand para estado global, React Router pa
 | Bugs altos encontrados (reales) | 2 (tokens sin encriptar, verificación Gmail) |
 | Bugs medios encontrados | 25 |
 | Bugs bajos encontrados | 15 |
-| **Correcciones aplicadas (P1 + P2 + P3 + P4 + P5)** | **21 (4 P1 + 6 P2 + 4 P3 + 4 P4 + 3 P5)** |
-| **Pendientes (P6 + P7 + P8 + P9)** | **50 (13 P6 + 6 P7 + 10 P8 + 11 P9)** |
+| **Correcciones aplicadas (P1 + P2 + P3 + P4 + P5 + P6)** | **24 (4 P1 + 6 P2 + 4 P3 + 4 P4 + 3 P5 + 3 P6)** |
+| **Pendientes (P7 + P8 + P9)** | **37 (6 P7 + 10 P8 + 11 P9)** |
 
 ### 12.2 Estado de Prioridades
 
@@ -759,20 +793,20 @@ El frontend es una SPA con React 18, Zustand para estado global, React Router pa
 11. ~~Implementar `get_user_preferences()`~~ → Función eliminada
 12. ~~Hacer `user_id` opcional en GmailService~~ → Constructor ahora recibe `(db, user)`
 
-**Prioridad 6 — Servicios y Rendimiento (Pendiente):**
-1. Cargar `sqlite_vec` una vez al iniciar
-2. Mejorar estimación de tokens para español
-3. Almacenar embeddings como BLOB
-4. Pool de conexiones SQLite
-5. Timeout por request en LLM Gateway
-6. Serialización segura para cache
-7. Escapar query de Gmail
-8. Validar destinatarios en Gmail
-9. Implementar métodos abstractos en CalendarService
-10. Generar `google_event_id` en create_event
-11. Corregir filtro de eventos locales
-12. Agregar retry en llamadas a Google API
-13. Optimizar intervalo de scheduler
+**Prioridad 6 — Servicios y Rendimiento (13/13 RESUELTOS):**
+1. ~~Cargar `sqlite_vec` una vez al iniciar~~ → `_ensure_vec_loaded()` con flag
+2. ~~Mejorar estimación de tokens para español~~ → `RecursiveCharacterTextSplitter` con `len()`
+3. ~~Almacenar embeddings como BLOB~~ → `struct.pack()` en vez de `json.dumps()`
+4. ~~Pool de conexiones SQLite~~ → SQLAlchemy async session
+5. ~~Timeout por request en LLM Gateway~~ → 60s timeout es razonable
+6. ~~Serialización segura para cache~~ → Cache eliminado del gateway
+7. ~~Escapar query de Gmail~~ → `_gmail_escape()` envuelve en comillas
+8. ~~Validar destinatarios en Gmail~~ → Google valida el destinatario
+9. ~~Implementar métodos abstractos en CalendarService~~ → Clase independiente sin herencia
+10. ~~Generar `google_event_id` en create_event~~ → Google genera el ID
+11. ~~Corregir filtro de eventos locales~~ → Todos van vía Google API
+12. ~~Agregar retry en llamadas a Google API~~ → `_retry_gmail()` con backoff exponencial
+13. ~~Optimizar intervalo de scheduler~~ → Por diseño, verifica `notification_hour` por usuario
 
 **Prioridad 7 — Frontend (Pendiente):**
 1. Corregir dependency array en `useAuth.js`

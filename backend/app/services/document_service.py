@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import os
 import sqlite3
+import struct
 from typing import Any
 import asyncio
 
@@ -125,23 +126,22 @@ class DocumentService:
             )
             chunks = text_splitter.split_text(text_content)
 
-            # Insert vectors in batch
+            # Insert vectors in batch — store as BLOB for efficient vec_distance
+            import json
             for idx, chunk in enumerate(chunks):
                 # Request embedding
                 logger.info("Vectorizando chunk %d/%d con modelo: %s", idx + 1, len(chunks), self.embeddings_model.model)
                 embedding = await asyncio.to_thread(self.embeddings_model.embed_query, chunk)
 
-                # sqlite-vec expects raw python list of floats (already provided by embed_query)
-                # and serialised via json.dumps(embedding).
-                # Actually, sqlalchemy parameterized inputs into sqlite-vec must use JSON or specifically formatted blobs.
-                import json
+                # sqlite-vec accepts BLOB format: packed float32 array
+                emb_blob = struct.pack(f"{len(embedding)}f", *embedding)
                 await self.db.execute(
                     text("""
                         INSERT INTO vec_document_chunks (embedding, document_id, chunk_index, content)
                         VALUES (:emb, :doc_id, :c_index, :c_content)
                     """),
                     {
-                        "emb": json.dumps(embedding),
+                        "emb": emb_blob,
                         "doc_id": doc.id,
                         "c_index": idx,
                         "c_content": chunk
@@ -160,16 +160,18 @@ class DocumentService:
             raise
 
     async def search_similar(self, query: str, top_k: int = 3) -> list[str]:
-        """Realiza la búsqueda de los N chunks más similares en base al Query."""
+        """Realiza la busqueda de los N chunks mas similares en base al Query."""
         await self._ensure_vec_loaded()
         # Embed query
         logger.info("Generando embedding para la consulta: %s", query)
         query_embedding = await asyncio.to_thread(self.embeddings_model.embed_query, query)
         logger.info("Embedding de consulta generado. Dimensiones: %d", len(query_embedding))
-        import json
-        
+
+        # Pack query embedding as BLOB for sqlite-vec
+        q_emb_blob = struct.pack(f"{len(query_embedding)}f", *query_embedding)
+
         # We need to filter by user's documents. To do this, we join with documents table.
-        # sqlite-vec uses `vec_distance_l2` in ORDER BY
+        # sqlite-vec uses `vec_distance_L2` in ORDER BY
         stmt = text("""
             SELECT v.content, d.filename 
             FROM vec_document_chunks v
@@ -181,7 +183,7 @@ class DocumentService:
         
         res = await self.db.execute(stmt, {
             "uid": self.user_id, 
-            "q_emb": json.dumps(query_embedding), 
+            "q_emb": q_emb_blob, 
             "k": top_k
         })
         
