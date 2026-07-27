@@ -32,6 +32,7 @@ async def lifespan(app: FastAPI):
     # 1. Ensure standard tables exist
     async with engine.begin() as conn:
         import app.db.models as _models  # noqa: F401
+        import app.db.oauth_state as _oauth_state  # noqa: F401
         await conn.run_sync(Base.metadata.create_all)
         
         # Manual migration for finance module (Fase 7 stability)
