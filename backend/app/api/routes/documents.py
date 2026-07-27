@@ -3,6 +3,7 @@ MarcoAI – Documents API Router (Fase 9)
 ══════════════════════════════════════════════════════════════════════════════
 Endpoints para gestionar la Nube Privada y el inicio de RAG.
 """
+import logging
 from fastapi import APIRouter, Depends, UploadFile, File, BackgroundTasks, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Any
@@ -11,6 +12,8 @@ from app.api.deps import get_current_user
 from app.db.base import get_db
 from app.db.models import User
 from app.services.document_service import DocumentService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/documents", tags=["Nube"])
 
@@ -53,9 +56,22 @@ async def upload_document(
     # DocumentService should instantiate its own safe DB session inside its background task if needed, but for simplicity here we just use the background task on a fresh AsyncSessionLocal.
     async def run_worker():
         from app.db.base import AsyncSessionLocal
-        async with AsyncSessionLocal() as session:
-            bg_service = DocumentService(session, current_user.id)
-            await bg_service.process_document_background(doc.id)
+        from app.db.models import Document
+        from sqlalchemy import update
+        try:
+            async with AsyncSessionLocal() as session:
+                bg_service = DocumentService(session, current_user.id)
+                await bg_service.process_document_background(doc.id)
+        except Exception as exc:
+            logger.exception("Background document processing failed for doc %s", doc.id)
+            try:
+                async with AsyncSessionLocal() as session:
+                    await session.execute(
+                        update(Document).where(Document.id == doc.id).values(status="error")
+                    )
+                    await session.commit()
+            except Exception:
+                logger.exception("Failed to mark doc %s as error", doc.id)
             
     background_tasks.add_task(run_worker)
     

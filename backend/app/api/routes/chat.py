@@ -17,8 +17,9 @@ from __future__ import annotations
 
 import json
 import logging
+import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.agents.supervisor import supervisor_stream
@@ -83,6 +84,15 @@ async def chat_stream(
         history = []
         user_id_str = str(current_user.id)
         conv_id = body.conversation_id
+
+        # Validate conversation_id format if provided
+        if conv_id:
+            try:
+                uuid.UUID(conv_id)
+            except ValueError:
+                yield f"data: {json.dumps({'error': 'conversation_id inválido'})}\n\n"
+                yield "data: [DONE]\n\n"
+                return
 
         try:
             async with AsyncSessionLocal() as db:

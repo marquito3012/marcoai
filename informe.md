@@ -1,7 +1,7 @@
 # Informe de Auditoría Técnica — MarcoAI
 
 **Fecha:** 26 de julio de 2026
-**Última actualización:** 27 de julio de 2026 (post-correcciones P1 + P2 + P3 + P4, pendientes P5-P9)
+**Última actualización:** 28 de julio de 2026 (post-correcciones P1 + P2 + P3 + P4 + P5, pendientes P6-P9)
 **Alcance:** Revisión integral del proyecto (backend, frontend, infraestructura, documentación)
 **Objetivo:** Evaluar coherencia, corrección, seguridad, escalabilidad y proponer mejoras
 
@@ -9,7 +9,7 @@
 
 ## Resumen de Correcciones Aplicadas (26/jul/2026)
 
-Los siguientes problemas de **Prioridad 1-4** fueron identificados y corregidos. Los problemas de **Prioridad 5-9** están documentados y pendientes de implementación.
+Los siguientes problemas de **Prioridad 1-5** fueron identificados y corregidos. Los problemas de **Prioridad 6-9** están documentados y pendientes de implementación.
 
 | # | Problema | Estado | Archivos modificados |
 |---|----------|--------|---------------------|
@@ -153,24 +153,53 @@ No se requieren migraciones de DB. Los cambios son:
 
 ---
 
+## Resumen de Correcciones Aplicadas — Prioridad 5 (28/jul/2026)
+
+| # | Problema | Estado | Archivos modificados |
+|---|----------|--------|---------------------|
+| 1 | `upload_document()` no maneja errores en BackgroundTasks | **CORREGIDO** | `api/routes/documents.py` (try/except + marca doc como "error") |
+| 2 | `conversation_id` no se valida antes de usarlo | **CORREGIDO** | `api/routes/chat.py` (validación UUID) |
+| 3-4, 8-12 | Bugs de backend ya corregidos o eliminados | **YA RESUELTO** | — |
+| 5 | `calendar_node` hardcodea timezone | **PENDIENTE** | Requiere campo `timezone` en `UserSettings` |
+
+### Cambios detallados P5
+
+**Error handling en BackgroundTasks (`api/routes/documents.py`):**
+- `run_worker()` ahora tiene `try/except` que captura errores de `process_document_background()`
+- Si el procesamiento falla, el documento se marca como `"error"` en la DB
+- Se registra el error con `logger.exception()` para debugging
+
+**Validación de conversation_id (`api/routes/chat.py`):**
+- Si se proporciona `conversation_id`, se valida que sea un UUID válido antes de usarlo
+- Si el UUID es inválido, se retorna un error SSE y se termina el stream
+
+### Instrucciones de migración P5
+
+No se requieren migraciones de DB. Los cambios son:
+1. `docker compose up --build -d` — reconstruye con el nuevo código
+2. El manejo de errores de documentos se activa automáticamente
+3. La validación de `conversation_id` se activa automáticamente
+
+---
+
 ## Prioridad 5 — Bugs de Backend
 
 **Objetivo:** Corregir bugs que causan errores de ejecución, crashes o comportamiento incorrecto.
 
-| # | Problema | Severidad | Ubicación |
-|---|----------|-----------|-----------|
-| 1 | `get_best_provider()` busca por `provider` pero `_request_counts` se inicializa por `(model, provider)` — KeyError silenciado | ALTO | `services/llm_gateway.py:117-145` |
-| 2 | `_check_rate_limit()` compara con el rate_limit del primer provider — cálculo incorrecto con múltiples providers | ALTO | `services/llm_gateway.py:155-167` |
-| 3 | `supervisor_node()` no maneja `messages` vacío — IndexError | ALTO | `agents/supervisor.py:39` |
-| 4 | `make_supervisor_node()` no verifica herramientas registradas — puede causar error de LangGraph | ALTO | `agents/supervisor.py:36-47` |
-| 5 | `chat_stream()` hardcodea `timezone="Europe/Madrid"` — no es configurable | ALTO | `api/routes/chat.py:74` |
-| 6 | `conversation_id` no se valida antes de usarlo — UUID inválido falla silenciosamente | ALTO | `api/routes/chat.py:68-100` |
-| 7 | `upload_document()` no maneja errores en BackgroundTasks — documento queda en estado inconsistente | ALTO | `api/routes/documents.py:49-70` |
-| 8 | `save_google_token()` almacena tokens como texto plano en `settings.py` | ALTO | `api/routes/settings.py:82-94` |
-| 9 | `NotificationScheduler.start()` crea jobs duplicados si se llama múltiples veces | ALTO | `services/notification_service.py:52-73` |
-| 10 | `_check_calendar_reminders()` ejecuta `GmailService()` sin `user_id` — crash | MEDIO | `services/notification_service.py:36-37` |
-| 11 | `get_user_preferences()` no existe como método — scheduler lo llama pero nunca se define | MEDIO | `services/notification_service.py:57` |
-| 12 | `GmailService.__init__` requiere `user_id` pero scheduler lo llama sin parámetros | ALTO | `services/gmail_service.py:18` |
+| # | Problema | Severidad | Ubicación | Estado |
+|---|----------|-----------|-----------|--------|
+| 1 | `get_best_provider()` busca por `provider` pero `_request_counts` se inicializa por `(model, provider)` — KeyError silenciado | ALTO | `services/llm_gateway.py:117-145` | **RESUELTO** — función fue reescrita, ya no existe |
+| 2 | `_check_rate_limit()` compara con el rate_limit del primer provider — cálculo incorrecto con múltiples providers | ALTO | `services/llm_gateway.py:155-167` | **RESUELTO** — función fue eliminada |
+| 3 | `supervisor_node()` no maneja `messages` vacío — IndexError | ALTO | `agents/supervisor.py:39` | **RESUELTO** — usa `state["user_message"]` directamente |
+| 4 | `make_supervisor_node()` no verifica herramientas registradas — puede causar error de LangGraph | ALTO | `agents/supervisor.py:36-47` | **RESUELTO** — función fue eliminada, usa `StateGraph` |
+| 5 | `chat_stream()` hardcodea `timezone="Europe/Madrid"` — no es configurable | ALTO | `api/routes/chat.py:74` | **RESUELTO en chat.py** — `calendar_node` aún hardcodea (mejora pendiente, requiere campo en DB) |
+| 6 | `conversation_id` no se valida antes de usarlo — UUID inválido falla silenciosamente | ALTO | `api/routes/chat.py:68-100` | **CORREGIDO** — validación UUID agregada |
+| 7 | `upload_document()` no maneja errores en BackgroundTasks — documento queda en estado inconsistente | ALTO | `api/routes/documents.py:49-70` | **CORREGIDO** — try/except + marca doc como "error" |
+| 8 | `save_google_token()` almacena tokens como texto plano en `settings.py` | ALTO | `api/routes/settings.py:82-94` | **RESUELTO en P1** — encriptación Fernet + tokens guardados en auth.py |
+| 9 | `NotificationScheduler.start()` crea jobs duplicados si se llama múltiples veces | ALTO | `services/notification_service.py:52-73` | **RESUELTO** — `replace_existing=True` + solo se llama una vez |
+| 10 | `_check_calendar_reminders()` ejecuta `GmailService()` sin `user_id` — crash | MEDIO | `services/notification_service.py:36-37` | **RESUELTO** — función fue eliminada del código actual |
+| 11 | `get_user_preferences()` no existe como método — scheduler lo llama pero nunca se define | MEDIO | `services/notification_service.py:57` | **RESUELTO** — función fue eliminada, scheduler consulta UserSettings directamente |
+| 12 | `GmailService.__init__` requiere `user_id` pero scheduler lo llama sin parámetros | ALTO | `services/gmail_service.py:18` | **RESUELTO** — constructor ahora recibe `(db, user)`, todos los callers pasan correctamente |
 
 **Propuesta de solución:**
 1. Corregir `_request_counts` para usar `(model, provider)` como clave consistente
@@ -680,8 +709,8 @@ El frontend es una SPA con React 18, Zustand para estado global, React Router pa
 | Bugs altos encontrados (reales) | 2 (tokens sin encriptar, verificación Gmail) |
 | Bugs medios encontrados | 25 |
 | Bugs bajos encontrados | 15 |
-| **Correcciones aplicadas (P1 + P2 + P3 + P4)** | **18 (4 P1 + 6 P2 + 4 P3 + 4 P4)** |
-| **Pendientes (P5 + P6 + P7 + P8 + P9)** | **57 (12 P5 + 13 P6 + 6 P7 + 10 P8 + 11 P9)** |
+| **Correcciones aplicadas (P1 + P2 + P3 + P4 + P5)** | **20 (4 P1 + 6 P2 + 4 P3 + 4 P4 + 2 P5)** |
+| **Pendientes (P5 restante + P6 + P7 + P8 + P9)** | **56 (1 P5 + 13 P6 + 6 P7 + 10 P8 + 11 P6)** |
 
 ### 12.2 Estado de Prioridades
 
@@ -709,19 +738,19 @@ El frontend es una SPA con React 18, Zustand para estado global, React Router pa
 3. ~~Rate limiting en `/auth/callback`~~ → `ip_rate_limit()` — sliding window por IP
 4. ~~Persistir `JWT_SECRET`~~ → Auto-genera + escribe en `.env` en primer arranque
 
-**Prioridad 5 — Bugs de Backend (Pendiente):**
-1. Corregir `_request_counts` en LLM Gateway (KeyError)
-2. Corregir `_check_rate_limit()` para multi-provider
-3. Validar `messages` vacío en `supervisor_node()`
-4. Verificar herramientas en `make_supervisor_node()`
-5. Hacer timezone configurable en `chat_stream()`
-6. Validar `conversation_id` como UUID
-7. Manejar errores en BackgroundTasks de upload
-8. Encriptar tokens en `save_google_token()`
-9. Corregir jobs duplicados en NotificationScheduler
-10. Corregir `_check_calendar_reminders()` sin user_id
-11. Implementar `get_user_preferences()` o eliminar llamada
-12. Hacer `user_id` opcional en GmailService
+**Prioridad 5 — Bugs de Backend (10/12 RESUELTOS, 1 CORREGIDO, 1 pendiente):**
+1. ~~Corregir `_request_counts` en LLM Gateway (KeyError)~~ → Función eliminada en reescritura
+2. ~~Corregir `_check_rate_limit()` para multi-provider~~ → Función eliminada
+3. ~~Validar `messages` vacío en `supervisor_node()`~~ → Usa `state["user_message"]` directamente
+4. ~~Verificar herramientas en `make_supervisor_node()`~~ → Función eliminada, usa `StateGraph`
+5. Hacer timezone configurable en `calendar_node` — **PENDIENTE** (requiere campo `timezone` en `UserSettings`)
+6. ~~Validar `conversation_id` como UUID~~ → Validación UUID agregada
+7. ~~Manejar errores en BackgroundTasks de upload~~ → try/except + marca doc como "error"
+8. ~~Encriptar tokens en `save_google_token()`~~ → **RESUELTO en P1**
+9. ~~Corregir jobs duplicados en NotificationScheduler~~ → `replace_existing=True`
+10. ~~Corregir `_check_calendar_reminders()` sin user_id~~ → Función eliminada
+11. ~~Implementar `get_user_preferences()`~~ → Función eliminada
+12. ~~Hacer `user_id` opcional en GmailService~~ → Constructor ahora recibe `(db, user)`
 
 **Prioridad 6 — Servicios y Rendimiento (Pendiente):**
 1. Cargar `sqlite_vec` una vez al iniciar
