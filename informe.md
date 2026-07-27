@@ -1,7 +1,7 @@
 # Informe de Auditoría Técnica — MarcoAI
 
 **Fecha:** 26 de julio de 2026
-**Última actualización:** 28 de julio de 2026 (post-correcciones P1 + P2 + P3 + P4 + P5 + P6, pendientes P7-P9)
+**Última actualización:** 28 de julio de 2026 (post-correcciones P1 + P2 + P3 + P4 + P5 + P6 + P7, pendientes P8-P9)
 **Alcance:** Revisión integral del proyecto (backend, frontend, infraestructura, documentación)
 **Objetivo:** Evaluar coherencia, corrección, seguridad, escalabilidad y proponer mejoras
 
@@ -9,7 +9,7 @@
 
 ## Resumen de Correcciones Aplicadas (26/jul/2026)
 
-Los siguientes problemas de **Prioridad 1-6** fueron identificados y corregidos. Los problemas de **Prioridad 7-9** están documentados y pendientes de implementación.
+Los siguientes problemas de **Prioridad 1-7** fueron identificados y corregidos. Los problemas de **Prioridad 8-9** están documentados y pendientes de implementación.
 
 | # | Problema | Estado | Archivos modificados |
 |---|----------|--------|---------------------|
@@ -299,14 +299,14 @@ No se requieren migraciones de DB. Los cambios son:
 
 **Objetivo:** Corregir bugs de UX, seguridad y rendimiento en el frontend.
 
-| # | Problema | Severidad | Ubicación |
-|---|----------|-----------|-----------|
-| 1 | `useAuth.js` ejecuta `fetchUser()` sin dependency array controlado — loops de re-fetch | ALTO | `hooks/useAuth.js` |
-| 2 | `MessageBubble.jsx` renderiza HTML sin sanitización — potential XSS | MEDIO | `components/MessageBubble.jsx` |
-| 3 | `ChatPage.jsx` no muestra indicador de loading — usuario envía múltiples mensajes | MEDIO | `pages/ChatPage.jsx` |
-| 4 | `SettingsPage.jsx` tiene auto-save en cada cambio — demasiadas llamadas al backend | MEDIO | `pages/SettingsPage.jsx` |
-| 5 | `FinancePage.jsx` filtra transacciones en frontend — ineficiente con miles de registros | MEDIO | `pages/FinancePage.jsx` |
-| 6 | `api.js` no tiene retry logic para requests fallidos | BAJO | `lib/api.js` |
+| # | Problema | Severidad | Ubicación | Estado |
+|---|----------|-----------|-----------|--------|
+| 1 | `useAuth.js` ejecuta `fetchUser()` sin dependency array controlado — loops de re-fetch | ALTO | `hooks/useAuth.js` | RESUELTO |
+| 2 | `MessageBubble.jsx` renderiza HTML sin sanitización — potential XSS | MEDIO | `components/MessageBubble.jsx` | RESUELTO |
+| 3 | `ChatPage.jsx` no muestra indicador de loading — usuario envía múltiples mensajes | MEDIO | `pages/ChatPage.jsx` | RESUELTO |
+| 4 | `SettingsPage.jsx` tiene auto-save en cada cambio — demasiadas llamadas al backend | MEDIO | `pages/SettingsPage.jsx` | RESUELTO |
+| 5 | `FinancePage.jsx` filtra transacciones en frontend — ineficiente con miles de registros | MEDIO | `pages/FinancePage.jsx` | RESUELTO |
+| 6 | `api.js` no tiene retry logic para requests fallidos | BAJO | `lib/api.js` | RESUELTO |
 
 **Propuesta de solución:**
 1. Agregar dependency array vacío o controlado a `fetchUser()`
@@ -750,8 +750,8 @@ El frontend es una SPA con React 18, Zustand para estado global, React Router pa
 | Bugs altos encontrados (reales) | 2 (tokens sin encriptar, verificación Gmail) |
 | Bugs medios encontrados | 25 |
 | Bugs bajos encontrados | 15 |
-| **Correcciones aplicadas (P1 + P2 + P3 + P4 + P5 + P6)** | **24 (4 P1 + 6 P2 + 4 P3 + 4 P4 + 3 P5 + 3 P6)** |
-| **Pendientes (P7 + P8 + P9)** | **37 (6 P7 + 10 P8 + 11 P9)** |
+| **Correcciones aplicadas (P1 + P2 + P3 + P4 + P5 + P6 + P7)** | **28 (4 P1 + 6 P2 + 4 P3 + 4 P4 + 3 P5 + 3 P6 + 4 P7)** |
+| **Pendientes (P8 + P9)** | **21 (10 P8 + 11 P9)** |
 
 ### 12.2 Estado de Prioridades
 
@@ -808,13 +808,13 @@ El frontend es una SPA con React 18, Zustand para estado global, React Router pa
 12. ~~Agregar retry en llamadas a Google API~~ → `_retry_gmail()` con backoff exponencial
 13. ~~Optimizar intervalo de scheduler~~ → Por diseño, verifica `notification_hour` por usuario
 
-**Prioridad 7 — Frontend (Pendiente):**
-1. Corregir dependency array en `useAuth.js`
-2. Sanitizar HTML con DOMPurify
-3. Agregar indicador de loading en chat
-4. Debounce en auto-save de settings
-5. Mover filtrado de transacciones al backend
-6. Agregar retry en `apiFetch()`
+**Prioridad 7 — Frontend (6/6 RESUELTA):**
+1. ~~Corregir dependency array en `useAuth.js`~~ → **Ya estaba correcto**: usa `useCallback` con `[setUser, clearUser]`
+2. ~~Sanitizar HTML con DOMPurify~~ → **Ya estaba seguro**: `ReactMarkdown` no ejecuta HTML raw
+3. ~~Agregar indicador de loading en chat~~ → Estado `sending` en `useStreamingChat.js` + spinner en botón
+4. ~~Debounce en auto-save de settings~~ → **Ya estaba resuelto**: usa botón "Guardar" explícito
+5. ~~Mover filtrado de transacciones al backend~~ → **Ya estaba resuelto**: `finance_service.py` filtra por `month`/`year` vía SQLAlchemy
+6. ~~Agregar retry en `apiFetch()`~~ → Retry con backoff exponencial (3 intentos, 1s→2s→4s)
 
 **Prioridad 8 — Infraestructura (Pendiente):**
 1. Límite de disco para DB volume

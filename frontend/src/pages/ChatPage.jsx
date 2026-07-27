@@ -34,14 +34,14 @@ function TypingIndicator() {
 /* ── Main page ─────────────────────────────────────────────────────────────── */
 export default function ChatPage() {
   const { user }                                                     = useAuthStore()
-  const { messages, isStreaming, currentRoute, sendMessage, stopStreaming } = useStreamingChat(user?.name)
+  const { messages, isStreaming, sending, currentRoute, sendMessage, stopStreaming } = useStreamingChat(user?.name)
   const [input, setInput]                             = useState('')
   const bottomRef                                     = useRef(null)
   const textareaRef                                   = useRef(null)
 
-  // Show typing indicator only when streaming but last message content is empty
+  // Show typing indicator when sending (waiting for server) or streaming with empty content
   const lastMsg        = messages[messages.length - 1]
-  const showTypingDots = isStreaming && lastMsg?.role === 'assistant' && lastMsg?.content === ''
+  const showTypingDots = (sending || isStreaming) && lastMsg?.role === 'assistant' && lastMsg?.content === ''
 
   // Auto-scroll
   useEffect(() => {
@@ -64,7 +64,7 @@ export default function ChatPage() {
   }
 
   const handleSend = () => {
-    if (!input.trim() || isStreaming) return
+    if (!input.trim() || isStreaming || sending) return
     sendMessage(input)
     setInput('')
   }
@@ -125,7 +125,7 @@ export default function ChatPage() {
             onKeyDown={handleKeyDown}
             placeholder="Escribe un mensaje… (Shift+Enter para nueva línea)"
             rows={1}
-            disabled={isStreaming}
+            disabled={isStreaming || sending}
             aria-label="Mensaje"
             style={styles.textarea}
           />
@@ -137,6 +137,15 @@ export default function ChatPage() {
               style={{ ...styles.sendBtn, background: 'rgba(239,68,68,0.2)', borderColor: 'rgba(239,68,68,0.4)' }}
             >
               <Square size={17} color="rgb(239,68,68)" strokeWidth={2.5} />
+            </button>
+          ) : sending ? (
+            <button
+              id="btn-loading"
+              disabled
+              title="Enviando..."
+              style={{ ...styles.sendBtn, opacity: 0.6, cursor: 'wait' }}
+            >
+              <div className="spin" style={{ width: 17, height: 17, border: '2px solid var(--color-border-subtle)', borderTopColor: 'white', borderRadius: '50%' }} />
             </button>
           ) : (
             <button

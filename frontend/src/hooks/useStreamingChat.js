@@ -18,13 +18,14 @@ const WELCOME = (name) => ({
 export function useStreamingChat(userName) {
   const [messages, setMessages]       = useState(() => [WELCOME(userName)])
   const [isStreaming, setIsStreaming]  = useState(false)
+  const [sending, setSending]          = useState(false)
   const [currentRoute, setCurrentRoute] = useState(null)  // {intent, label}
   const [conversationId]              = useState(() => `c-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`)
   const abortRef                       = useRef(null)
 
   const sendMessage = useCallback(async (text) => {
     const trimmed = text.trim()
-    if (!trimmed || isStreaming) return
+    if (!trimmed || isStreaming || sending) return
 
     // 1. Append user message + empty assistant placeholder
     const userMsgId      = `u-${Date.now()}`
@@ -35,7 +36,7 @@ export function useStreamingChat(userName) {
       { id: userMsgId,      role: 'user',      content: trimmed },
       { id: assistantMsgId, role: 'assistant',  content: '', streaming: true },
     ])
-    setIsStreaming(true)
+    setSending(true)
 
     // 2. Open SSE stream via fetch (EventSource only supports GET)
     const controller = new AbortController()
@@ -52,6 +53,9 @@ export function useStreamingChat(userName) {
         }),
         signal:      controller.signal,
       })
+
+      setSending(false)
+      setIsStreaming(true)
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: res.statusText }))
@@ -131,10 +135,11 @@ export function useStreamingChat(userName) {
         )
       )
       setIsStreaming(false)
+      setSending(false)
       setCurrentRoute(null)
       abortRef.current = null
     }
-  }, [isStreaming])
+  }, [isStreaming, sending])
 
   const stopStreaming = useCallback(() => {
     abortRef.current?.abort()
@@ -147,5 +152,5 @@ export function useStreamingChat(userName) {
     }
   }, [])
 
-  return { messages, setMessages, isStreaming, currentRoute, sendMessage, stopStreaming }
+  return { messages, setMessages, isStreaming, sending, currentRoute, sendMessage, stopStreaming }
 }
