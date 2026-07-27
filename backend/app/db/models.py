@@ -177,6 +177,8 @@ class UserSettings(Base):
     notifications_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     # Hour of day (0-23) in the user's local timezone to send the digest
     notification_hour: Mapped[int] = mapped_column(default=8)
+    # IANA timezone string (e.g. "Europe/Madrid", "America/New_York")
+    timezone: Mapped[str] = mapped_column(String(40), default="Europe/Madrid")
     # Which sections to include in the daily digest
     notify_calendar: Mapped[bool] = mapped_column(Boolean, default=True)
     notify_habits: Mapped[bool] = mapped_column(Boolean, default=True)

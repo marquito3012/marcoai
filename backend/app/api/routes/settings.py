@@ -27,6 +27,7 @@ class SettingsUpdate(BaseModel):
     # Notifications
     notifications_enabled: bool | None = None
     notification_hour: int | None = Field(None, ge=0, le=23)
+    timezone: str | None = Field(None, max_length=40, description="IANA timezone, e.g. Europe/Madrid")
     notify_calendar: bool | None = None
     notify_habits: bool | None = None
     notify_finance: bool | None = None
@@ -53,6 +54,7 @@ def _settings_to_dict(s: UserSettings) -> dict:
         "language": s.language,
         "notifications_enabled": s.notifications_enabled,
         "notification_hour": s.notification_hour,
+        "timezone": s.timezone,
         "notify_calendar": s.notify_calendar,
         "notify_habits": s.notify_habits,
         "notify_finance": s.notify_finance,

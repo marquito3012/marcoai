@@ -22,7 +22,7 @@ from app.db.models import User, UserSettings
 
 logger = logging.getLogger(__name__)
 
-_TZ_MADRID = zoneinfo.ZoneInfo("Europe/Madrid")
+_DEFAULT_TZ = "Europe/Madrid"
 
 
 async def send_daily_digest(user: User, settings: UserSettings, db: AsyncSession) -> bool:
@@ -39,9 +39,19 @@ async def send_daily_digest(user: User, settings: UserSettings, db: AsyncSession
         return False
 
     try:
+        # Resolve user timezone from settings
+        user_tz_str = _DEFAULT_TZ
+        if settings.timezone:
+            try:
+                zoneinfo.ZoneInfo(settings.timezone)
+                user_tz_str = settings.timezone
+            except (zoneinfo.ZoneInfoNotFoundError, KeyError):
+                pass
+        user_tz = zoneinfo.ZoneInfo(user_tz_str)
+
         sections: list[str] = []
-        # Use Madrid local time for "today" so the digest is relevant for the user
-        now_local = datetime.now(_TZ_MADRID)
+        # Use user's local time for "today" so the digest is relevant
+        now_local = datetime.now(user_tz)
         today = now_local.date()
         # Calendar queries in UTC-aware boundaries
         day_start_utc = datetime(today.year, today.month, today.day, 0, 0, 0, tzinfo=timezone.utc)
@@ -65,7 +75,7 @@ async def send_daily_digest(user: User, settings: UserSettings, db: AsyncSession
                             try:
                                 dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
                                 # Convert to Madrid time for display
-                                dt_local = dt.astimezone(_TZ_MADRID)
+                                dt_local = dt.astimezone(user_tz)
                                 time_label = f" <span style='color:#888'>({dt_local.strftime('%H:%M')})</span>"
                             except Exception:
                                 pass

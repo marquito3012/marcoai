@@ -103,6 +103,10 @@ async def lifespan(app: FastAPI):
             elif "last_digest_sent_at" not in columns:
                 print("⚡ Migrating: Adding last_digest_sent_at to user_settings...")
                 await conn.execute(text("ALTER TABLE user_settings ADD COLUMN last_digest_sent_at DATETIME"))
+
+            if "timezone" not in columns:
+                print("⚡ Migrating: Adding timezone to user_settings...")
+                await conn.execute(text("ALTER TABLE user_settings ADD COLUMN timezone VARCHAR(40) NOT NULL DEFAULT 'Europe/Madrid'"))
         except Exception as e:
             print(f"⚠️ Settings migration warning: {e}")
 

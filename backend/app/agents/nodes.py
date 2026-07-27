@@ -136,14 +136,26 @@ async def calendar_node(state: AgentState) -> dict:
                     "context": {"calendar_result": "No has conectado tu cuenta de Google Calendar."},
                 }
 
+            # Load user timezone from settings
+            from app.db.models import UserSettings
+            from sqlalchemy import select as sa_select
+            settings_res = await db.execute(
+                sa_select(UserSettings).where(UserSettings.user_id == user_id)
+            )
+            user_settings = settings_res.scalar_one_or_none()
+            user_tz_str = (user_settings.timezone if user_settings and user_settings.timezone else "Europe/Madrid")
+            try:
+                user_tz = zoneinfo.ZoneInfo(user_tz_str)
+            except (zoneinfo.ZoneInfoNotFoundError, KeyError):
+                user_tz = zoneinfo.ZoneInfo("Europe/Madrid")
+
             from app.services.calendar_service import CalendarService
             service = CalendarService(db, user)
 
             # ── Single LLM call: classify action + extract data ──────────────
             # This approach is robust to any Spanish conjugation/phrasing.
             import zoneinfo, unicodedata
-            tz_madrid = zoneinfo.ZoneInfo("Europe/Madrid")
-            now_local = datetime.now(tz_madrid)
+            now_local = datetime.now(user_tz)
             day_names = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
             today_weekday = day_names[now_local.weekday()]
 
@@ -159,7 +171,7 @@ CONTEXTO TEMPORAL:
 - Ahora: {now_local.strftime('%Y-%m-%dT%H:%M:%S%z')}
 - Hoy es {today_weekday} {now_local.strftime('%d/%m/%Y')}
 - Mañana es {(now_local + timedelta(days=1)).strftime('%d/%m/%Y')}
-- Zona horaria: Europe/Madrid (usa siempre +02:00 en verano o +01:00 en invierno)
+- Zona horaria: {user_tz_str} (usa siempre el offset correcto para esa zona)
 
 ACCIONES POSIBLES:
 1. "create" – crear un nuevo evento
