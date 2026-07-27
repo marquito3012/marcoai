@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.config import settings
+from app.core.rate_limit import ip_rate_limit
 from app.core.security import create_access_token
 from app.db.base import get_db
 from app.db.models import User
@@ -64,7 +65,7 @@ async def google_login(request: Request, db: AsyncSession = Depends(get_db)):
 
 
 # ── 2. OAuth callback ─────────────────────────────────────────────────────────
-@router.get("/google/callback", summary="Callback de Google OAuth")
+@router.get("/google/callback", summary="Callback de Google OAuth", dependencies=[Depends(ip_rate_limit)])
 async def google_callback(
     request: Request,
     code: str,
