@@ -109,18 +109,18 @@ No se requieren migraciones de DB. Los cambios son:
 ### Cambios detallados P4
 
 **CSRF State persistente (`db/oauth_state.py`):**
-- Modelo `OAuthState` con `state` (hex, 32 bytes), `user_id`, `created_at`
+- Modelo `OAuthState` con `state` (hex, 32 bytes), `created_at`
 - TTL de 10 minutos — registros expirados se eliminan automáticamente
 - `create_state()` genera y almacena, `validate_and_delete_state()` consume en un solo request
 - Eliminado `_pending_states` en memoria de `auth.py`
 
 **Rate limiting IP-based (`core/rate_limit.py`):**
-- `ip_rate_limit()` — sliding window por IP (default: 10 requests/minute)
+- `ip_rate_limit()` — sliding window por IP (default: 20 requests/minute)
 - Aplicado al endpoint `/auth/callback`
 - Retorna HTTP 429 con header `Retry-After`
 
 **JWT_SECRET auto-generated (`core/config.py`):**
-- Si `SECRET_KEY` está vacío en `.env`, se genera con `secrets.token_urlsafe(64)` al iniciar
+- Si `SECRET_KEY` está vacío en `.env`, se genera con `secrets.token_urlsafe(32)` al iniciar
 - Se escribe automáticamente en `.env` para persistir entre reinicios
 - Logs de warning cuando se genera un key nuevo
 

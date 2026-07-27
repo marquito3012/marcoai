@@ -27,6 +27,9 @@ STATE_TTL_MINUTES = 10
 
 async def create_state(db) -> str:
     """Generate a random state token, store it, and return it."""
+    # Cleanup expired states (lazy, runs on each login)
+    await cleanup_expired_states(db)
+
     state = secrets.token_urlsafe(32)
     db.add(OAuthState(state=state))
     await db.commit()
