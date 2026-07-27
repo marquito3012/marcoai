@@ -12,7 +12,7 @@ Security:
   • JWT is stored in an HttpOnly, SameSite=Lax cookie (not accessible by JS).
   • Row-Level Security: every subsequent request carries user_id via JWT.
 """
-import secrets
+import logging
 from datetime import datetime, timezone
 from urllib.parse import urlencode
 
@@ -27,6 +27,7 @@ from app.core.config import settings
 from app.core.security import create_access_token
 from app.db.base import get_db
 from app.db.models import User
+from app.db.oauth_state import create_state, validate_and_delete_state
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
 
@@ -34,11 +35,6 @@ router = APIRouter(prefix="/auth", tags=["Autenticación"])
 _GOOGLE_AUTH_URL    = "https://accounts.google.com/o/oauth2/v2/auth"
 _GOOGLE_TOKEN_URL   = "https://oauth2.googleapis.com/token"
 _GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
-
-# In-memory CSRF state store.
-# For a single-process deployment on RPi this is sufficient.
-# Upgrade to Redis if you ever run multiple workers.
-_pending_states: set[str] = set()
 
 
 def _callback_uri(request: Request) -> str:
@@ -51,10 +47,9 @@ def _callback_uri(request: Request) -> str:
 
 # ── 1. Initiate Google login ──────────────────────────────────────────────────
 @router.get("/google", summary="Iniciar sesión con Google (SSO)")
-async def google_login(request: Request):
+async def google_login(request: Request, db: AsyncSession = Depends(get_db)):
     """Redirect the user to Google's OAuth 2.0 consent page."""
-    state = secrets.token_urlsafe(32)
-    _pending_states.add(state)
+    state = await create_state(db)
 
     params = {
         "client_id":     settings.google_client_id,
@@ -77,12 +72,11 @@ async def google_callback(
     db: AsyncSession = Depends(get_db),
 ):
     # ── CSRF validation ──────────────────────────────────────────────────────
-    if state not in _pending_states:
+    if not await validate_and_delete_state(db, state):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Estado OAuth inválido o expirado.",
         )
-    _pending_states.discard(state)
 
     redirect_uri = _callback_uri(request)
 
