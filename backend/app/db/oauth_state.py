@@ -13,7 +13,7 @@ from app.db.base import Base
 
 def _utcnow():
     """UTC now as naive datetime — SQLite doesn't store tzinfo."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.utcnow()
 
 
 class OAuthState(Base):
