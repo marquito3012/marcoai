@@ -55,6 +55,13 @@ User Message -> Supervisor Node (clasificacion de intencion via LLM FAST)
 - **Cost-Aware Routing:** Enrutamiento inteligente por tier (FAST / STANDARD / INTELLIGENT).
 - **Resiliencia:** Si un proveedor falla, el sistema pasa automaticamente al siguiente disponible.
 
+### Servicios y Rendimiento
+
+- **RAG con BLOB:** Embeddings almacenados como `struct.pack` (float32 array) para busqueda vectorial eficiente con `vec_distance_L2`.
+- **Gmail Resiliente:** Reintentos automaticos con backoff exponencial en llamadas a Gmail API (hasta 3 intentos en errores 429/5xx).
+- **Query Escape:** Queries de Gmail sanitizadas automaticamente para evitar inyeccion de sintaxis de busqueda.
+- **Async I/O:** Operaciones de archivos (PDF, texto) envueltas en `asyncio.to_thread` para no bloquear el event loop.
+
 ### Interfaz de Usuario Moderna
 
 Frontend construido con **React 18 + Vite**, **Tailwind CSS v4**, **Zustand** para estado y **React Router v7** para navegacion. Incluye:
