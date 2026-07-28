@@ -178,10 +178,14 @@ Frontend construido con **React 18 + Vite**, **Tailwind CSS v4**, **Zustand** pa
    GROQ_API_KEY=tu_groq_api_key
    OPENROUTER_API_KEY=tu_openrouter_api_key
 
-   # Rate limiting (default: 30 RPM por usuario)
-   RATE_LIMIT_RPM=30
+    # Rate limiting (default: 30 RPM por usuario)
+    RATE_LIMIT_RPM=30
 
-   # Tunel seguro (sin necesidad de abrir puertos)
+    # RAG document processing (optional)
+    CHUNK_SIZE=1000            # Characters per chunk (default: 1000)
+    CHUNK_OVERLAP=200          # Overlap between chunks (default: 200)
+
+    # Tunel seguro (sin necesidad de abrir puertos)
    CLOUDFLARE_TUNNEL_TOKEN=tu_token_opcional
    ```
 
