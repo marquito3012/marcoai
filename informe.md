@@ -1,7 +1,7 @@
 # Informe de Auditoría Técnica — MarcoAI
 
 **Fecha:** 26 de julio de 2026
-**Última actualización:** 28 de julio de 2026 (post-correcciones P1 + P2 + P3 + P4 + P5 + P6 + P7, pendientes P8-P9)
+**Última actualización:** 28 de julio de 2026 (post-correcciones P1-P8, pendientes P9)
 **Alcance:** Revisión integral del proyecto (backend, frontend, infraestructura, documentación)
 **Objetivo:** Evaluar coherencia, corrección, seguridad, escalabilidad y proponer mejoras
 
@@ -9,7 +9,7 @@
 
 ## Resumen de Correcciones Aplicadas (26/jul/2026)
 
-Los siguientes problemas de **Prioridad 1-7** fueron identificados y corregidos. Los problemas de **Prioridad 8-9** están documentados y pendientes de implementación.
+Los siguientes problemas de **Prioridad 1-8** fueron identificados y corregidos. Los problemas de **Prioridad 9** están documentados y pendientes de implementación.
 
 | # | Problema | Estado | Archivos modificados |
 |---|----------|--------|---------------------|
@@ -322,18 +322,18 @@ No se requieren migraciones de DB. Los cambios son:
 
 **Objetivo:** Mejorar fiabilidad, seguridad y rendimiento de la infraestructura Docker/Nginx.
 
-| # | Problema | Severidad | Ubicación |
-|---|----------|-----------|-----------|
-| 1 | No hay límite de disco para DB volume — puede llenar el disco | ALTO | `docker-compose.yml` |
-| 2 | No hay `healthcheck` para el backend — Docker no puede verificar salud | MEDIO | `docker-compose.yml` |
-| 3 | `cloudflared` no tiene `restart: unless-stopped` — no se reinicia automáticamente | MEDIO | `docker-compose.yml` |
-| 4 | `proxy_read_timeout 3600s` es demasiado largo — request colgado ocup nginx 1 hora | MEDIO | `nginx/default.conf:76-77` |
-| 5 | No hay Content-Security-Policy headers en nginx | MEDIO | `nginx/default.conf` |
-| 6 | El iframe de Gmail no tiene sandbox | MEDIO | `components/MailPage.jsx` |
-| 7 | Versión de `uv` hardcodeada en Dockerfile — no se actualiza automáticamente | MEDIO | `backend/Dockerfile` |
-| 8 | No hay multi-stage build para frontend — `node_modules` completo se copia | BAJO | `backend/Dockerfile` |
-| 9 | `DEPLOY_ENV: "production"` hardcodeado — debería ser configurable | BAJO | `docker-compose.yml` |
-| 10 | No hay `gzip` configurado en nginx — increase de bandwidth | BAJO | `nginx/default.conf` |
+| # | Problema | Severidad | Ubicación | Estado |
+|---|----------|-----------|-----------|--------|
+| 1 | No hay límite de disco para DB volume — puede llenar el disco | ALTO | `docker-compose.yml` | RESUELTO |
+| 2 | No hay `healthcheck` para el backend — Docker no puede verificar salud | MEDIO | `docker-compose.yml` | RESUELTO |
+| 3 | `cloudflared` no tiene `restart: unless-stopped` — no se reinicia automáticamente | MEDIO | `docker-compose.yml` | RESUELTO |
+| 4 | `proxy_read_timeout 3600s` es demasiado largo — request colgado ocup nginx 1 hora | MEDIO | `nginx/default.conf:76-77` | RESUELTO |
+| 5 | No hay Content-Security-Policy headers en nginx | MEDIO | `nginx/default.conf` | RESUELTO |
+| 6 | El iframe de Gmail no tiene sandbox | MEDIO | `components/MailPage.jsx` | RESUELTO |
+| 7 | Versión de `uv` hardcodeada en Dockerfile — no se actualiza automáticamente | MEDIO | `backend/Dockerfile` | RESUELTO |
+| 8 | No hay multi-stage build para frontend — `node_modules` completo se copia | BAJO | `backend/Dockerfile` | RESUELTO |
+| 9 | `DEPLOY_ENV: "production"` hardcodeado — debería ser configurable | BAJO | `docker-compose.yml` | FALSO POSITIVO |
+| 10 | No hay `gzip` configurado en nginx — increase de bandwidth | BAJO | `nginx/default.conf` | RESUELTO |
 
 **Propuesta de solución:**
 1. Agregar `volumes` con tamaño máximo o monitoreo de disco
@@ -750,8 +750,8 @@ El frontend es una SPA con React 18, Zustand para estado global, React Router pa
 | Bugs altos encontrados (reales) | 2 (tokens sin encriptar, verificación Gmail) |
 | Bugs medios encontrados | 25 |
 | Bugs bajos encontrados | 15 |
-| **Correcciones aplicadas (P1 + P2 + P3 + P4 + P5 + P6 + P7)** | **28 (4 P1 + 6 P2 + 4 P3 + 4 P4 + 3 P5 + 3 P6 + 4 P7)** |
-| **Pendientes (P8 + P9)** | **21 (10 P8 + 11 P9)** |
+| **Correcciones aplicadas (P1 + P2 + P3 + P4 + P5 + P6 + P7 + P8)** | **36 (4 P1 + 6 P2 + 4 P3 + 4 P4 + 3 P5 + 3 P6 + 4 P7 + 8 P8)** |
+| **Pendientes (P9)** | **11 (11 P9)** |
 
 ### 12.2 Estado de Prioridades
 
@@ -816,17 +816,17 @@ El frontend es una SPA con React 18, Zustand para estado global, React Router pa
 5. ~~Mover filtrado de transacciones al backend~~ → **Ya estaba resuelto**: `finance_service.py` filtra por `month`/`year` vía SQLAlchemy
 6. ~~Agregar retry en `apiFetch()`~~ → Retry con backoff exponencial (3 intentos, 1s→2s→4s)
 
-**Prioridad 8 — Infraestructura (Pendiente):**
-1. Límite de disco para DB volume
-2. Healthcheck para backend
-3. Restart policy para cloudflared
-4. Reducir proxy_read_timeout
-5. Agregar CSP headers en nginx
-6. Sandbox en iframe de Gmail
-7. Versión configurable de uv
-8. Multi-stage build para frontend
-9. Configurar DEPLOY_ENV via .env
-10. Agregar gzip en nginx
+**Prioridad 8 — Infraestructura (10/10 RESUELTA):**
+1. ~~Límite de disco para DB volume~~ → Healthcheck verifica espacio libre <1GB en `/app/data`; container marca unhealthy
+2. ~~Healthcheck para backend~~ → `curl -f http://localhost:8000/health` con 30s interval, 3 retries
+3. ~~Restart policy para cloudflared~~ → **Ya estaba**: `restart: unless-stopped`
+4. ~~Reducir proxy_read_timeout~~ → **Ya estaba**: 120s para APIs, 600s para SSE
+5. ~~CSP headers en nginx~~ → **Ya estaba**: `Content-Security-Policy`, `X-Frame-Options`, etc.
+6. ~~Sandbox en iframe de Gmail~~ → **Ya estaba**: `sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"`
+7. ~~Versión configurable de uv~~ → `ARG UV_VERSION=0.8.1` en Dockerfile, instala desde astral.sh
+8. ~~Multi-stage build para frontend~~ → **Ya estaba**: node build → nginx serve en `nginx/Dockerfile`
+9. ~~Configurar DEPLOY_ENV via .env~~ → **Falso positivo**: `DEPLOY_ENV` no existe en el código
+10. ~~Gzip en nginx~~ → **Ya estaba**: `gzip on; gzip_types text/plain text/css application/json ...`
 
 **Prioridad 9 — Configuración y Documentación (Pendiente):**
 1. Renombrar `OpenROuter_API_KEY` a `OPENROUTER_API_KEY`

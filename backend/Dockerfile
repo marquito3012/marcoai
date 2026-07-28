@@ -4,7 +4,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
 FROM python:3.11-slim
 
-# Prevents Python from writing .pyc files and buffers stdout
+ARG UV_VERSION=0.8.1
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
@@ -16,10 +17,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
+# Install uv for fast dependency installation
+ADD --chmod=755 https://astral.sh/uv/${UV_VERSION}/install.sh /tmp/install-uv.sh
+RUN /tmp/install-uv.sh && rm /tmp/install-uv.sh
+ENV PATH="/root/.local/bin:${PATH}"
+
 # Copy and install Python dependencies first (layer caching)
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN uv pip install --system --no-cache -r requirements.txt
 
 # Copy application source
 COPY app/ ./app/

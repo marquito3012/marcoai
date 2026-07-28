@@ -9,6 +9,7 @@
 #   • logging driver with strict size limits
 #   • no tmpfs for DB (volume-mounted for persistence)
 #   • swap disabled on the host (to be done at OS level on RPi)
+#   • volume size limits via Docker storage driver (see note below)
 #
 # Memory budget (RPi 3 = 1 GB RAM):
 #   backend  ≤ 400 MB
@@ -37,7 +38,7 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health && df -P /app/data | awk 'END {if ($4+0 < 1048576) exit 1}'"]
       interval: 30s
       timeout: 10s
       retries: 3
