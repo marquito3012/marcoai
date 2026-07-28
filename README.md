@@ -77,6 +77,98 @@ Frontend construido con **React 18 + Vite**, **Tailwind CSS v4**, **Zustand** pa
 
 ---
 
+## Guía de Uso — Ejemplos desde el Chat
+
+MarcoAI se usa principalmente a través del chat. El **Supervisor** clasifica tu mensaje y lo enruta al módulo especializado. Aquí tienes todos los comandos que puedes usar con cada agente.
+
+### 💬 Chat General
+
+| Acción | Ejemplo |
+|--------|---------|
+| Conversación libre | _"Hola, ¿cómo estás?"_ |
+| Preguntas generales | _"¿Cuál es la capital de Francia?"_ |
+| Consejos | _"¿Qué me recomiendas para ser más productivo?"_ |
+| Personalización vía ajustes | Tono: amigable / profesional / motivador + instrucciones permanentes |
+
+### 📅 Agenda (Calendar)
+
+Requiere haber iniciado sesión con Google (permisos de Calendar).
+
+| Acción | Ejemplo |
+|--------|---------|
+| **Listar eventos** | _"¿Qué tengo esta semana?"_, _"¿Qué eventos tengo mañana?"_, _"Muéstrame mi agenda"_, _"¿Tengo algo el viernes?"_ |
+| **Crear evento** | _"Apúntame una reunión el jueves a las 16:00"_, _"Crea un evento para el próximo lunes a las 10h: Revisión semanal"_, _"Agenda una cita con el dentista el 15 de mayo a las 9:30"_ |
+| **Mover/actualizar evento** | _"Mueve la reunión del jueves al viernes a la misma hora"_, _"Cambia la cita del dentista al 20 de mayo"_, _"Retrasa el evento de las 16:00 a las 18:00"_ |
+| **Eliminar evento** | _"Borra la reunión del viernes"_, _"Elimina el evento de la cena de mañana"_ |
+
+El asistente entiende fechas relativas: _"este sábado"_, _"pasado mañana"_, _"el próximo jueves"_, _"misma hora"_.
+
+### 💰 Finanzas (Finance)
+
+| Acción | Ejemplo |
+|--------|---------|
+| **Registrar gasto** | _"Gasté 35€ en gasolina"_, _"Pagado 50€ en el supermercado"_, _"Compré un billete de metro por 10€"_, _"Apunta 25€ en el cine"_ |
+| **Registrar ingreso** | _"He cobrado 2000€ de nómina"_ |
+| **Ver balance** | _"¿Cuánto dinero he gastado este mes?"_, _"Muéstrame el balance de abril"_, _"¿Cuánto me queda?"_ |
+| **Gastos por categoría** | _"¿Cómo se distribuyen mis gastos?"_, _"Gráfica de gastos por categoría"_ |
+| **Últimos movimientos** | _"Enséñame los últimos gastos"_, _"Quiero ver el historial de este mes"_ |
+
+**Categorías automáticas:** alimentación, transporte, ocio, tecnología, salud, hogar. El asistente detecta la categoría según las palabras clave de tu mensaje.
+
+### 📧 Correo (Mail)
+
+Requiere haber iniciado sesión con Google (permisos de Gmail).
+
+| Acción | Ejemplo |
+|--------|---------|
+| **Leer bandeja** | _"¿Tengo correos nuevos?"_, _"Enséñame mi bandeja de entrada"_, _"Lee mis últimos emails"_ |
+| **Filtrar no leídos** | _"¿Tengo correos sin leer?"_, _"Muéstrame los no leídos"_ |
+| **Enviar correo** | _"Envía un email a juan@gmail.com con asunto 'Reunión' y cuerpo 'Confirmamos la reunión del jueves'"_ |
+
+### 📁 Nube · Documentos (Files / RAG)
+
+Requiere haber subido documentos (PDF o TXT) desde la página "Nube".
+
+| Acción | Ejemplo |
+|--------|---------|
+| **Buscar en documentos** | _"Busca en mis documentos qué dice sobre inversiones"_, _"Encuentra información sobre machine learning en mis archivos"_, _"¿Qué dice el PDF que subí ayer?"_ |
+| **Subir documento** | Desde la página **Nube**, arrastra o selecciona un archivo `.pdf` o `.txt`. |
+
+La búsqueda es semántica (RAG con embeddings de Gemini + SQLite-vec), no solo por palabras clave.
+
+### 🔥 Hábitos (Habits)
+
+| Acción | Ejemplo |
+|--------|---------|
+| **Ver hábitos** | _"¿Qué hábitos tengo?"_, _"Muéstrame mis hábitos"_ |
+| **Crear hábito** | _"Crea el hábito de leer 30 minutos"_, _"Añade un hábito de hacer ejercicio los lunes, miércoles y viernes"_, _"Quiero crear el hábito de meditar"_ |
+| **Crear varios a la vez** | Crea un plan en el chat, luego: _"Crea ambos hábitos"_, _"Añade el plan completo"_ |
+| **Eliminar hábito** | _"Borra el hábito de leer"_, _"Elimina el hábito de fumar"_ |
+| **Registrar progreso** | Marca el círculo junto al hábito en la página **Hábitos** |
+| **Ver consistencia** | El gráfico tipo "GitHub contributions" muestra tu racha en la página **Hábitos** |
+
+### ⚙️ Ajustes (Settings)
+
+Configurables desde la página **Ajustes** o en el chat a través del contexto:
+
+| Acción | Descripción |
+|--------|-------------|
+| **Tono de la IA** | Amigable (por defecto), Profesional o Motivador |
+| **Instrucciones permanentes** | Texto libre que MARCOAI recordará siempre (ej: _"Soy aficionado del ajedrez"_) |
+| **Zona horaria** | Para eventos y notificaciones (ej: Europe/Madrid) |
+| **Resumen diario** | Recibe un correo cada mañana con eventos del día, hábitos pendientes y balance del mes |
+| **Notificaciones** | Activa/desactiva el resumen diario, elige la hora y qué secciones incluir |
+
+### 📬 Resumen Diario Automático
+
+Si activas las notificaciones en Ajustes, MarcoAI te envía un correo cada mañana con:
+- 📅 **Eventos del día** — lo que tienes en tu calendario
+- 🔥 **Hábitos pendientes** — lo que te queda por completar hoy
+- 💰 **Balance del mes** — ingresos, gastos y balance
+- 📬 **Correos sin leer** — resumen de las últimas 24h
+
+---
+
 ## Stack Tecnologico
 
 ### Backend
