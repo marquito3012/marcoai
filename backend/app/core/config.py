@@ -79,6 +79,10 @@ class Settings(BaseSettings):
     # How often (in seconds) deferred writes should be flushed to SQLite
     write_batch_interval_seconds: int = 60
 
+    # ── RAG Document Processing ──────────────────────────────────────────────
+    chunk_size: int = 1000
+    chunk_overlap: int = 200
+
 
 @lru_cache()
 def get_settings() -> Settings:

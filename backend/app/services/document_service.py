@@ -119,8 +119,8 @@ class DocumentService:
                 text_content = await asyncio.to_thread(_read_txt)
 
             text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200,
+                chunk_size=settings.chunk_size,
+                chunk_overlap=settings.chunk_overlap,
                 length_function=len,
                 is_separator_regex=False,
             )

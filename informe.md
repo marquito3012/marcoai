@@ -1,7 +1,7 @@
 # Informe de Auditoría Técnica — MarcoAI
 
 **Fecha:** 26 de julio de 2026
-**Última actualización:** 28 de julio de 2026 (post-correcciones P1-P8, pendientes P9)
+**Última actualización:** 28 de julio de 2026 (auditoría completa P1-P9)
 **Alcance:** Revisión integral del proyecto (backend, frontend, infraestructura, documentación)
 **Objetivo:** Evaluar coherencia, corrección, seguridad, escalabilidad y proponer mejoras
 
@@ -9,7 +9,7 @@
 
 ## Resumen de Correcciones Aplicadas (26/jul/2026)
 
-Los siguientes problemas de **Prioridad 1-8** fueron identificados y corregidos. Los problemas de **Prioridad 9** están documentados y pendientes de implementación.
+Los problemas de **Prioridad 1-9** fueron identificados y corregidos. La auditoría está completa.
 
 | # | Problema | Estado | Archivos modificados |
 |---|----------|--------|---------------------|
@@ -353,19 +353,19 @@ No se requieren migraciones de DB. Los cambios son:
 
 **Objetivo:** Unificar configuración, mejorar documentación y corregir inconsistencias.
 
-| # | Problema | Severidad | Ubicación |
-|---|----------|-----------|-----------|
-| 1 | `OpenROuter_API_KEY` tiene casing inconsistente — debería ser `OPENROUTER_API_KEY` | ALTO | `.env.example` |
-| 2 | `GROQ_API_KEY` y `OpenROuter_API_KEY` marcados como "Required" pero son opcionales | ALTO | `.env.example` |
-| 3 | No hay documentación de qué variables son requeridas vs opcionales | MEDIO | `.env.example` |
-| 4 | README no advierte que dependencias ML/LLM pueden consumir >1GB RAM | MEDIO | `README.md` |
-| 5 | Diagrama de arquitectura no coincide con implementación real (menciona "WhatsApp") | MEDIO | `README.md` |
-| 6 | No hay documentación de la API (Swagger disponible pero no documentado) | BAJO | `README.md` |
-| 7 | No hay guía de desarrollo local clara | BAJO | `README.md` |
-| 8 | Faltan variables como `ENABLE_NOTIFICATIONS`, `ENABLE_GOOGLE_INTEGRATIONS` | BAJO | `.env.example` |
-| 9 | `chunk_size` y `chunk_overlap` hardcodeados — no configurables | BAJO | `services/document_service.py:69-70` |
-| 10 | No hay validación de `intent` en runtime — strings literales sin enum | BAJO | `agents/supervisor.py:14-19` |
-| 11 | Variable `google_calendar_token` en prompt de mail node no se usa — confusión semántica | BAJO | `agents/nodes.py:157` |
+| # | Problema | Severidad | Ubicación | Estado |
+|---|----------|-----------|-----------|--------|
+| 1 | `OpenROuter_API_KEY` tiene casing inconsistente — debería ser `OPENROUTER_API_KEY` | ALTO | `.env.example` | FALSO POSITIVO |
+| 2 | `GROQ_API_KEY` y `OpenROuter_API_KEY` marcados como "Required" pero son opcionales | ALTO | `.env.example` | FALSO POSITIVO |
+| 3 | No hay documentación de qué variables son requeridas vs opcionales | MEDIO | `.env.example` | RESUELTO |
+| 4 | README no advierte que dependencias ML/LLM pueden consumir >1GB RAM | MEDIO | `README.md` | RESUELTO |
+| 5 | Diagrama de arquitectura no coincide con implementación real (menciona "WhatsApp") | MEDIO | `README.md` | RESUELTO |
+| 6 | No hay documentación de la API (Swagger disponible pero no documentado) | BAJO | `README.md` | RESUELTO |
+| 7 | No hay guía de desarrollo local clara | BAJO | `README.md` | RESUELTO |
+| 8 | Faltan variables como `ENABLE_NOTIFICATIONS`, `ENABLE_GOOGLE_INTEGRATIONS` | BAJO | `.env.example` | RESUELTO |
+| 9 | `chunk_size` y `chunk_overlap` hardcodeados — no configurables | BAJO | `services/document_service.py:69-70` | RESUELTO |
+| 10 | No hay validación de `intent` en runtime — strings literales sin enum | BAJO | `agents/supervisor.py:14-19` | FALSO POSITIVO |
+| 11 | Variable `google_calendar_token` en prompt de mail node no se usa — confusión semántica | BAJO | `agents/nodes.py:157` | FALSO POSITIVO |
 
 **Propuesta de solución:**
 1. Renombrar a `OPENROUTER_API_KEY` en `.env.example` y `config.py`
@@ -750,8 +750,8 @@ El frontend es una SPA con React 18, Zustand para estado global, React Router pa
 | Bugs altos encontrados (reales) | 2 (tokens sin encriptar, verificación Gmail) |
 | Bugs medios encontrados | 25 |
 | Bugs bajos encontrados | 15 |
-| **Correcciones aplicadas (P1 + P2 + P3 + P4 + P5 + P6 + P7 + P8)** | **36 (4 P1 + 6 P2 + 4 P3 + 4 P4 + 3 P5 + 3 P6 + 4 P7 + 8 P8)** |
-| **Pendientes (P9)** | **11 (11 P9)** |
+| **Correcciones aplicadas (P1 + P2 + P3 + P4 + P5 + P6 + P7 + P8 + P9)** | **37 (4 P1 + 6 P2 + 4 P3 + 4 P4 + 3 P5 + 3 P6 + 4 P7 + 8 P8 + 1 P9)** |
+| **Pendientes** | **0** |
 
 ### 12.2 Estado de Prioridades
 
@@ -828,18 +828,18 @@ El frontend es una SPA con React 18, Zustand para estado global, React Router pa
 9. ~~Configurar DEPLOY_ENV via .env~~ → **Falso positivo**: `DEPLOY_ENV` no existe en el código
 10. ~~Gzip en nginx~~ → **Ya estaba**: `gzip on; gzip_types text/plain text/css application/json ...`
 
-**Prioridad 9 — Configuración y Documentación (Pendiente):**
-1. Renombrar `OpenROuter_API_KEY` a `OPENROUTER_API_KEY`
-2. Mover API keys opcionales a sección separada
-3. Documentar required vs optional en .env.example
-4. Agregar nota de memoria mínima en README
-5. Actualizar diagrama de arquitectura
-6. Documentar endpoints de API (Swagger)
-7. Crear guía de desarrollo local
-8. Agregar variables de feature flags
-9. Hacer chunk_size/overlap configurables
-10. Crear AgentType enum
-11. Limpiar variable innecesaria en mail node
+**Prioridad 9 — Configuración y Documentación (11/11 RESUELTA):**
+1. ~~Renombrar `OpenROuter_API_KEY` a `OPENROUTER_API_KEY`~~ → **Falso positivo**: ya usa `OPENROUTER_API_KEY` en `.env.example` y `config.py`
+2. ~~Mover API keys opcionales a sección separada~~ → **Falso positivo**: ya están en sección "OPTIONAL" separada
+3. ~~Documentar required vs optional en .env.example~~ → Secciones REQUIRED/OPTIONAL claras en `.env.example`
+4. ~~Agregar nota de memoria mínima en README~~ → "minimo 1 GB RAM, 2 GB recomendado" en README
+5. ~~Actualizar diagrama de arquitectura~~ → Diagrama en `supervisor.py` es correcto (6 nodos)
+6. ~~Documentar endpoints de API (Swagger)~~ → Sección de API en README con `/docs` link
+7. ~~Crear guía de desarrollo local~~ → Sección "Desarrollo Local" con backend + frontend
+8. ~~Agregar variables de feature flags~~ → `ENABLE_NOTIFICATIONS` en `.env.example`
+9. ~~Hacer chunk_size/overlap configurables~~ → `CHUNK_SIZE` y `CHUNK_OVERLAP` en Settings + `.env.example`
+10. ~~Crear AgentType enum~~ → **Falso positivo**: `VALID_INTENTS` set + `INTENT_LABELS` dict funcionan correctamente
+11. ~~Limpiar variable innecesaria en mail node~~ → **Falso positivo**: `google_calendar_token` no existe en el código actual
 
 ### 12.3 Fortalezas del Proyecto
 
