@@ -368,5 +368,5 @@ Este proyecto esta bajo la Licencia MIT. Consulta el archivo [LICENSE](LICENSE) 
 ---
 
 <p align="center">
-  Desarrollado con para la comunidad open source.
+  Desarrollado con ❤️ para la comunidad open source.
 </p>
