@@ -61,6 +61,7 @@ User Message -> Supervisor Node (clasificacion de intencion via LLM FAST)
 - **Gmail Resiliente:** Reintentos automaticos con backoff exponencial en llamadas a Gmail API (hasta 3 intentos en errores 429/5xx).
 - **Query Escape:** Queries de Gmail sanitizadas automaticamente para evitar inyeccion de sintaxis de busqueda.
 - **Async I/O:** Operaciones de archivos (PDF, texto) envueltas en `asyncio.to_thread` para no bloquear el event loop.
+- **API Retry:** El cliente HTTP del frontend reintent automaticamente con backoff exponencial en errores de red y 5xx (3 intentos, 1s→2s→4s).
 
 ### Interfaz de Usuario Moderna
 
@@ -68,6 +69,7 @@ Frontend construido con **React 18 + Vite**, **Tailwind CSS v4**, **Zustand** pa
 
 - Modo oscuro con diseno responsivo.
 - Streaming de respuestas en tiempo real con SSE.
+- Indicador de carga durante envio de mensajes (spinner + typing dots).
 - Visualizaciones de datos con **Recharts**.
 - Iconos con **lucide-react**.
 - Renderizado de markdown con **react-markdown**.
@@ -117,7 +119,8 @@ Frontend construido con **React 18 + Vite**, **Tailwind CSS v4**, **Zustand** pa
 | Tecnologia                  | Proposito                                     |
 | --------------------------- | --------------------------------------------- |
 | **Docker + Docker Compose** | Orquestacion de contenedores                  |
-| **Nginx**                   | Proxy inverso y serving de archivos estaticos |
+| **uv**                      | Instalacion rapida de dependencias Python     |
+| **Nginx**                   | Proxy inverso, gzip, CSP headers              |
 | **Cloudflared**             | Tuneles seguros para exposicion a internet    |
 
 ---
@@ -316,9 +319,9 @@ La API esta disponible en `/api/v1/` con documentacion automatica en `/docs` (Sw
 │       │       └── ProtectedRoute.jsx
 │       ├── hooks/
 │       │   ├── useAuth.js
-│       │   └── useStreamingChat.js    # SSE streaming + AbortController
+│       │   └── useStreamingChat.js    # SSE streaming + sending state + AbortController
 │       ├── lib/
-│       │   └── api.js                 # apiFetch with signal support
+│       │   └── api.js                 # apiFetch with retry + exponential backoff
 │       ├── pages/
 │       │   ├── LoginPage.jsx
 │       │   ├── ChatPage.jsx
@@ -349,6 +352,8 @@ La API esta disponible en `/api/v1/` con documentacion automatica en `/docs` (Sw
 - **Circuit Breaker:** Providers de LLM deshabilitados tras 3 fallos consecutivos.
 - **Error Boundaries:** React error boundaries por pagina para aislar crashes.
 - **Auto-generated SECRET_KEY:** JWT secret se genera y persiste automaticamente en `.env`.
+- **Disk Monitoring:** Healthcheck verifica espacio libre en DB volume; container marca unhealthy si <1GB disponible.
+- **Nginx Hardening:** CSP headers, X-Frame-Options, HSTS, X-Content-Type-Options.
 
 ---
 
