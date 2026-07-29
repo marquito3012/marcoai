@@ -119,8 +119,19 @@ class DocumentService:
                         break
                     except GoogleGenerativeAIError as exc:
                         last_exc = exc
-                        is_quota = "RESOURCE_EXHAUSTED" in str(exc) or "quota" in str(exc).lower()
-                        delay = 30 if is_quota else 10
+                        is_rate_limit = "RESOURCE_EXHAUSTED" in str(exc) or "quota" in str(exc).lower()
+                        is_daily_quota = "PerDay" in str(exc)
+                        if is_daily_quota:
+                            logger.error("Límite diario de Gemini alcanzado (1000 embeddings/día). "
+                                         "El documento queda en espera. Reintentar mañana.")
+                            await self.db.execute(
+                                text("DELETE FROM vec_document_chunks WHERE document_id = :did"),
+                                {"did": doc_id}
+                            )
+                            doc.status = "quota_exceeded"
+                            await self.db.commit()
+                            return
+                        delay = 30 if is_rate_limit else 10
                         logger.warning("Error Gemini en embedding (chunk %d, intento %d/%d). Reintentando en %ds...",
                                        idx + 1, attempt + 1, 5, delay)
                         await asyncio.sleep(delay)
