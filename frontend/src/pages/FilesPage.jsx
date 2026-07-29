@@ -28,6 +28,7 @@ export default function FilesPage() {
   const [docs, setDocs] = useState([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [uploadingFileName, setUploadingFileName] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
 
   const fetchDocs = async () => {
@@ -65,6 +66,7 @@ export default function FilesPage() {
     formData.append('file', file)
     
     setUploading(true)
+    setUploadingFileName(file.name)
     try {
       // apiFetch doesn't handle FormData with its default Content-Type
       // We use base fetch or modify apiFetch, but here we'll use a local fetch call
@@ -80,6 +82,7 @@ export default function FilesPage() {
       alert('Error en la subida: ' + err.message)
     } finally {
       setUploading(false)
+      setUploadingFileName('')
     }
   }
 
@@ -124,6 +127,22 @@ export default function FilesPage() {
           </label>
         </div>
       </header>
+
+      {/* ── Upload Overlay ──────────────────────────────────────────────── */}
+      {uploading && (
+        <div style={styles.uploadOverlay}>
+          <div style={styles.uploadModal}>
+            <div style={styles.uploadAnimation}>
+              <div style={styles.uploadSpinner} />
+            </div>
+            <Upload size={28} color="var(--color-primary)" style={{ marginTop: 8 }} />
+            <div style={styles.uploadFileName}>{uploadingFileName}</div>
+            <div style={styles.uploadStatus}>
+              Subiendo<span className="upload-dot">.</span><span className="upload-dot">.</span><span className="upload-dot">.</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Dashboard Stats ─────────────────────────────────────────────── */}
       <div style={styles.statsRow}>
@@ -263,5 +282,41 @@ const styles = {
   deleteBtn: { background: 'transparent', border: 'none', color: 'var(--color-text-faint)', cursor: 'pointer', transition: 'color 0.2s' },
   
   emptyState: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 60 },
-  Activity: { width: 48, height: 48 },
+
+  uploadOverlay: {
+    position: 'fixed', inset: 0, zIndex: 9999,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'rgba(5, 5, 5, 0.85)',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+    animation: 'fadeInUp 0.3s ease forwards',
+  },
+  uploadModal: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+    padding: '48px 56px',
+    background: 'var(--color-surface)',
+    border: '1px solid var(--color-border)',
+    borderRadius: 'var(--radius-lg)',
+    boxShadow: '0 0 60px var(--color-primary-glow)',
+  },
+  uploadAnimation: {
+    width: 72, height: 72, position: 'relative',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  uploadSpinner: {
+    width: 60, height: 60, position: 'absolute',
+    borderRadius: '50%',
+    border: '3px solid var(--color-border-subtle)',
+    borderTopColor: 'var(--color-primary)',
+    animation: 'spin 0.8s linear infinite',
+  },
+  uploadFileName: {
+    fontSize: 16, fontWeight: 600, color: 'var(--color-text)',
+    textAlign: 'center', maxWidth: 280,
+    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+  },
+  uploadStatus: {
+    fontSize: 14, color: 'var(--color-text-muted)',
+    display: 'flex', alignItems: 'center',
+  },
 }
