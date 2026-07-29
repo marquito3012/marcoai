@@ -234,7 +234,7 @@ function StatusBadge({ status }) {
     processing: { icon: RefreshCw,    color: 'var(--color-info)',    text: 'Procesando...', spin: true },
     pending:    { icon: Clock,        color: 'var(--color-warning)', text: 'Pendiente' },
     error:          { icon: AlertCircle,  color: 'var(--color-danger)',  text: 'Error' },
-    quota_exceeded: { icon: AlertCircle,  color: 'var(--color-warning)', text: 'Límite diario — Reintentar mañana' },
+    quota_exceeded: { icon: AlertCircle,  color: 'var(--color-warning)', text: 'Intentar Mañana' },
   }
   const config = map[status] || map.pending
   const Icon = config.icon
