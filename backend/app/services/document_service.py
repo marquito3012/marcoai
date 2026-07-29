@@ -128,10 +128,31 @@ class DocumentService:
 
             # Insert vectors in batch — store as BLOB for efficient vec_distance
             import json
+            from langchain_google_genai._common import GoogleGenerativeAIError
+
             for idx, chunk in enumerate(chunks):
-                # Request embedding
+                # Request embedding with retry on quota exhaustion
                 logger.info("Vectorizando chunk %d/%d con modelo: %s", idx + 1, len(chunks), self.embeddings_model.model)
-                embedding = await asyncio.to_thread(self.embeddings_model.embed_query, chunk)
+                embedding = None
+                last_exc = None
+                for attempt in range(5):
+                    try:
+                        embedding = await asyncio.to_thread(self.embeddings_model.embed_query, chunk)
+                        break
+                    except GoogleGenerativeAIError as exc:
+                        last_exc = exc
+                        is_quota = "RESOURCE_EXHAUSTED" in str(exc) or "quota" in str(exc).lower()
+                        delay = 30 if is_quota else 10
+                        logger.warning("Error Gemini en embedding (chunk %d, intento %d/%d). Reintentando en %ds...",
+                                       idx + 1, attempt + 1, 5, delay)
+                        await asyncio.sleep(delay)
+                    except Exception as exc:
+                        last_exc = exc
+                        logger.warning("Error inesperado en embedding (chunk %d, intento %d/%d): %s. Reintentando en 5s...",
+                                       idx + 1, attempt + 1, 5, exc)
+                        await asyncio.sleep(5)
+                if embedding is None:
+                    raise last_exc or RuntimeError(f"Fallo al generar embedding para chunk {idx}")
 
                 # sqlite-vec accepts BLOB format: packed float32 array
                 emb_blob = struct.pack(f"{len(embedding)}f", *embedding)
