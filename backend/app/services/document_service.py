@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sqlite3
 import struct
 from typing import Any
 import asyncio
@@ -20,8 +19,6 @@ from fastapi import UploadFile
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from google.oauth2.credentials import Credentials
 
-# Para embeddings usamos Gemini API directo o vía LangChain
-# Dado que ya tenemos langchain-google-genai, lo usamos acá
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,30 +37,11 @@ class DocumentService:
     def __init__(self, db: AsyncSession, user_id: str):
         self.db = db
         self.user_id = user_id
-        # We will use Gemini embeddings (text-embedding-004 is current standard)
         self.embeddings_model = GoogleGenerativeAIEmbeddings(
             model="models/gemini-embedding-001", 
             google_api_key=settings.google_api_key,
             task_type="retrieval_document"
         )
-        self._vec_loaded = False
-
-    async def _ensure_vec_loaded(self):
-        if self._vec_loaded:
-            return
-        import sqlite_vec
-        try:
-            # We get the underlying aiosqlite connection from the AsyncSession
-            conn = await self.db.connection()
-            # In SQLAlchemy 2.0+ async, we can access the driver connection
-            raw_conn = await conn.engine.raw_connection()
-            # aiosqlite connection is at ._connection
-            # CRITICAL: We must enable loading before calling it
-            await raw_conn._connection.enable_load_extension(True)
-            await raw_conn._connection.load_extension(sqlite_vec.loadable_path())
-        except Exception as e:
-            logger.warning(f"Failed to load sqlite_vec extension dynamically: {e}")
-        self._vec_loaded = True
         
     async def ingest_file(self, file: UploadFile) -> Document:
         """Guarda archivo local y encula el procesamiento en base de datos."""
@@ -94,7 +72,6 @@ class DocumentService:
     
     async def process_document_background(self, doc_id: str):
         """Tarea pesada en segundo plano para procesar y vectorializar el documento."""
-        await self._ensure_vec_loaded()
         try:
             doc = await self.db.get(Document, doc_id)
             if not doc:
@@ -127,8 +104,9 @@ class DocumentService:
             chunks = text_splitter.split_text(text_content)
 
             # Insert vectors in batch — store as BLOB for efficient vec_distance
-            import json
             from langchain_google_genai._common import GoogleGenerativeAIError
+            # Gemini free tier: 100 req/min → 0.7s between chunks keeps us safely under
+            EMBEDDING_INTER_CHUNK_DELAY = 0.7
 
             for idx, chunk in enumerate(chunks):
                 # Request embedding with retry on quota exhaustion
@@ -153,6 +131,10 @@ class DocumentService:
                         await asyncio.sleep(5)
                 if embedding is None:
                     raise last_exc or RuntimeError(f"Fallo al generar embedding para chunk {idx}")
+
+                # Proactive delay to stay within Gemini free tier quota (100 req/min)
+                if idx > 0:
+                    await asyncio.sleep(EMBEDDING_INTER_CHUNK_DELAY)
 
                 # sqlite-vec accepts BLOB format: packed float32 array
                 emb_blob = struct.pack(f"{len(embedding)}f", *embedding)
@@ -182,7 +164,6 @@ class DocumentService:
 
     async def search_similar(self, query: str, top_k: int = 3) -> list[str]:
         """Realiza la busqueda de los N chunks mas similares en base al Query."""
-        await self._ensure_vec_loaded()
         # Embed query
         logger.info("Generando embedding para la consulta: %s", query)
         query_embedding = await asyncio.to_thread(self.embeddings_model.embed_query, query)
