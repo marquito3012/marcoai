@@ -31,6 +31,8 @@ User Message -> Supervisor Node (clasificacion de intencion via LLM FAST)
 **Capacidades de los Agentes:**
 
 - **General Chat:** Conversacional contextual con memoria de sesion y tono personalizado del usuario (amigable, profesional, motivacional).
+  <img width="2534" height="1273" alt="image" src="https://github.com/user-attachments/assets/3530a394-6194-42e5-b806-08ccbd31ccb1" />
+
 - **Files (RAG):** Busqueda semantica sobre documentos PDF y texto usando **SQLite-vec** con embeddings de Gemini. Tu "nube privada" de conocimiento.
 - **Finance:** Seguimiento de ingresos y gastos, balances mensuales, analisis por categoria con deteccion automatica y visualizaciones con Recharts.
 - **Calendar:** CRUD completo con Google Calendar — crear, listar, actualizar y eliminar eventos. Soporta timezone configurable por usuario.
