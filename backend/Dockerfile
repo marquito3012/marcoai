@@ -44,4 +44,4 @@ CMD ["uvicorn", "app.main:app", \
      "--port", "8000", \
      "--workers", "1", \
      "--loop", "uvloop", \
-     "--log-level", "warning"]
+           "--log-level", "info"]

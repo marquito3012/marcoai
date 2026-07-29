@@ -7,7 +7,10 @@ Responsibilities:
   - Mount all API routers under /api/v1.
   - Expose a /health endpoint so Docker can verify the container.
 """
+import logging
 from contextlib import asynccontextmanager
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(name)s %(levelname)s: %(message)s')
 
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
