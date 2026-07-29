@@ -546,6 +546,7 @@ async def mail_node(state: AgentState) -> dict:
 async def files_node(state: AgentState) -> dict:
     """
     Files agent node with Document RAG tool integration.
+    Always performs RAG search — the supervisor already classified the intent.
     """
     from app.db.base import AsyncSessionLocal
     
@@ -554,15 +555,15 @@ async def files_node(state: AgentState) -> dict:
     user_name = state.get("user_name", "usuario")
 
     system_prompt = AGENT_PROMPTS["FILES"].format(name=user_name)
-
     tool_result = None
-    message_lower = user_message.lower()
 
     try:
-        if any(kw in message_lower for kw in ["busca", "archivo", "documento", "pdf", "encuentra", "nube", "sobre", "qué dice"]):
-            async with AsyncSessionLocal() as db:
-                from app.services.document_service import DocumentService
-                service = DocumentService(db, user_id)
+        async with AsyncSessionLocal() as db:
+            from app.services.document_service import DocumentService
+            service = DocumentService(db, user_id)
+            docs = await service.get_documents()
+
+            if docs:
                 results = await service.search_similar(query=user_message, top_k=5)
                 
                 if results:
@@ -570,6 +571,12 @@ async def files_node(state: AgentState) -> dict:
                     for r in results:
                         lines.append(f"• {r}\n")
                     tool_result = "\n".join(lines)
+                else:
+                    doc_names = "\n".join(f"• {d.filename}" for d in docs[:10])
+                    tool_result = (
+                        f"Tienes {len(docs)} documento(s) en tu nube privada:\n{doc_names}\n\n"
+                        "No encontré información relevante para tu consulta en los documentos."
+                    )
     except Exception as exc:
         logger.warning("Files/RAG tool execution failed: %s", exc)
         tool_result = None

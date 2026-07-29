@@ -17,7 +17,8 @@ GENERAL_CHAT  – Saludos, charla informal, preguntas de conocimiento general.
 CALENDAR      – Consultas sobre agenda, eventos, reuniones, tareas, "qué tengo que hacer", "anota esto", recordatorios.
 FINANCE       – Gastos, ingresos, dinero, "cuánto me queda", registrar compras.
 MAIL          – Leer emails, ver la bandeja de entrada, redactar correos.
-FILES         – "Busca en mis documentos", "¿qué dice el PDF?", consultar información en la nube privada.
+    FILES         – Consultas sobre documentos subidos, "busca en mis documentos", "¿qué dice el PDF?",
+                    preguntar sobre un TFG/memoria/archivo, pedir resúmenes de documentos, "nube privada".
 HABITS        – Consultas sobre hábitos recurrentes (beber agua, gym), rastreo de rutinas diarias y mapa de calor de consistencia.
 
 Categoría:"""
