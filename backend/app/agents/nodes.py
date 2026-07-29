@@ -68,6 +68,15 @@ async def supervisor_node(state: AgentState) -> dict:
         logger.warning("Intent classification failed (%s). Defaulting to GENERAL_CHAT.", exc)
         intent = "GENERAL_CHAT"
 
+    # Fallback: if classifier says GENERAL_CHAT but message mentions a known document keyword,
+    # reroute to FILES so the RAG node can attempt to answer.
+    if intent == "GENERAL_CHAT":
+        msg_lower = state["user_message"].lower()
+        doc_keywords = ["tfg", "memoria", "documento", "archivo", "pdf", "nube", "rag", "subido"]
+        if any(kw in msg_lower for kw in doc_keywords):
+            logger.info("Supervisor fallback: overriding GENERAL_CHAT → FILES (keyword match)")
+            intent = "FILES"
+
     logger.info("Supervisor → %s  (user=%s)", intent, state.get("user_name"))
     return {"intent": intent}
 

@@ -13,12 +13,11 @@ CLASSIFIER = """\
 Eres un clasificador de intenciones experto. Tu misión es analizar el mensaje del usuario y clasificarlo en una de estas categorías.
 Responde ÚNICAMENTE con la palabra de la categoría (en MAYÚSCULAS).
 
-GENERAL_CHAT  – Saludos, charla informal, preguntas de conocimiento general.
+GENERAL_CHAT  – Preguntas de cultura general, saludos, charla informal. EXCLUYE cualquier consulta sobre documentos, archivos o TFGs.
 CALENDAR      – Consultas sobre agenda, eventos, reuniones, tareas, "qué tengo que hacer", "anota esto", recordatorios.
 FINANCE       – Gastos, ingresos, dinero, "cuánto me queda", registrar compras.
 MAIL          – Leer emails, ver la bandeja de entrada, redactar correos.
-    FILES         – Consultas sobre documentos subidos, "busca en mis documentos", "¿qué dice el PDF?",
-                    preguntar sobre un TFG/memoria/archivo, pedir resúmenes de documentos, "nube privada".
+FILES         – CUALQUIER consulta sobre documentos subidos, TFG, memoria, archivos, PDFs, incluyendo "resumen", "de qué trata", "busca", "encuentra", "nube privada". También si el usuario pregunta sobre el contenido de un documento concreto.
 HABITS        – Consultas sobre hábitos recurrentes (beber agua, gym), rastreo de rutinas diarias y mapa de calor de consistencia.
 
 Categoría:"""
