@@ -66,8 +66,14 @@ async def lifespan(app: FastAPI):
             columns = [row[1] for row in result.fetchall()]
             if columns and "target_days" not in columns:
                 print("⚡ Migrating: Adding target_days to habits...")
-                # Use a safe default for existing habits
-                await conn.execute(text("ALTER TABLE habits ADD COLUMN target_days TEXT DEFAULT '0,1,2,3,4,5,6'"))
+                # NULL por defecto: los días explícitos los pone create_habit (target_type="days")
+                await conn.execute(text("ALTER TABLE habits ADD COLUMN target_days TEXT"))
+            if columns and "target_type" not in columns:
+                print("⚡ Migrating: Adding target_type to habits...")
+                await conn.execute(text("ALTER TABLE habits ADD COLUMN target_type VARCHAR(16) DEFAULT 'days'"))
+            if columns and "target_per_week" not in columns:
+                print("⚡ Migrating: Adding target_per_week to habits...")
+                await conn.execute(text("ALTER TABLE habits ADD COLUMN target_per_week INTEGER"))
         except Exception as e:
             print(f"⚠️ Habit migration warning: {e}")
 

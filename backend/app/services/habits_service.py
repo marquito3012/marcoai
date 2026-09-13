@@ -6,7 +6,7 @@ Servicio para la gestión de hábitos y desglose inteligente (LLM) de proyectos 
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from sqlalchemy import select
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +15,11 @@ from app.services.llm_gateway import TaskTier, gateway
 import json
 
 logger = logging.getLogger(__name__)
+
+
+def week_start(day: date) -> date:
+    """Lunes que inicia la semana ISO/local (lunes a domingo) de `day`."""
+    return day - timedelta(days=day.weekday())
 
 
 class HabitsService:
@@ -26,9 +31,26 @@ class HabitsService:
         res = await self.db.execute(select(Habit).where(Habit.user_id == self.user_id))
         return list(res.scalars().all())
 
-    async def create_habit(self, name: str, description: str = None, target_days: str = "0,1,2,3,4,5,6") -> Habit:
-        logger.info("HabitsService: Creating habit '%s' with days %s for user %s", name, target_days, self.user_id)
-        habit = Habit(user_id=self.user_id, name=name, description=description, target_days=target_days)
+    async def create_habit(
+        self,
+        name: str,
+        description: str = None,
+        target_days: str = "0,1,2,3,4,5,6",
+        target_type: str = "days",
+        target_per_week: int | None = None,
+    ) -> Habit:
+        logger.info(
+            "HabitsService: Creating habit '%s' type=%s days=%s weekly_target=%s for user %s",
+            name, target_type, target_days, target_per_week, self.user_id,
+        )
+        habit = Habit(
+            user_id=self.user_id,
+            name=name,
+            description=description,
+            target_days=target_days if target_type == "days" else None,
+            target_type=target_type,
+            target_per_week=target_per_week if target_type == "weekly" else None,
+        )
         self.db.add(habit)
         await self.db.commit()
         await self.db.refresh(habit)
@@ -41,33 +63,55 @@ class HabitsService:
         habit = res.scalar_one_or_none()
         if not habit:
             return False
-        
+
         await self.db.execute(delete(HabitLog).where(HabitLog.habit_id == habit.id))
         await self.db.delete(habit)
         await self.db.commit()
         return True
 
-    async def track_habit(self, habit_name: str, date_str: str) -> str:
-        """Busca o crea un hábito, y luego registra su completitud."""
+    async def toggle_habit(self, habit_id: str, date_str: str) -> tuple[str, bool] | None:
+        """Registra o des-registra un hábito en una fecha. Returns (message, completed) | None."""
         res = await self.db.execute(
-            select(Habit).where(Habit.user_id == self.user_id, Habit.name == habit_name)
+            select(Habit).where(Habit.id == habit_id, Habit.user_id == self.user_id)
         )
         habit = res.scalar_one_or_none()
-        
         if not habit:
-            habit = Habit(user_id=self.user_id, name=habit_name)
-            self.db.add(habit)
-            await self.db.commit()
-            await self.db.refresh(habit)
+            return None
 
         log_res = await self.db.execute(
             select(HabitLog).where(HabitLog.habit_id == habit.id, HabitLog.completed_date == date_str)
         )
         existing_log = log_res.scalar_one_or_none()
         if existing_log:
-            return f"El hábito '{habit_name}' ya estaba registrado el {date_str}."
+            await self.db.delete(existing_log)
+            await self.db.commit()
+            return f"Hábito '{habit.name}' desmarcado del {date_str}.", False
 
         new_log = HabitLog(habit_id=habit.id, completed_date=date_str)
         self.db.add(new_log)
         await self.db.commit()
-        return f"Hábito '{habit_name}' registrado para el {date_str}."
+        return f"Hábito '{habit.name}' registrado para el {date_str}.", True
+
+    async def count_logs_in_week(self, habit_id: str, date_str: str | None = None) -> int:
+        """Nº de veces completado en la semana (lunes a domingo) de `date_str`."""
+        day = date.fromisoformat(date_str) if date_str else date.today()
+        start = week_start(day)
+        end = start + timedelta(days=6)
+        return await self._count_logs_between(habit_id, start.isoformat(), end.isoformat())
+
+    async def count_logs_in_month(self, habit_id: str, date_str: str | None = None) -> int:
+        """Nº de veces completado en el mes calendario de `date_str`."""
+        day = date.fromisoformat(date_str) if date_str else date.today()
+        start = day.replace(day=1)
+        return await self._count_logs_between(habit_id, start.isoformat(), day.isoformat())
+
+    async def _count_logs_between(self, habit_id: str, start: str, end: str) -> int:
+        from sqlalchemy import func
+        res = await self.db.execute(
+            select(func.count(HabitLog.id)).where(
+                HabitLog.habit_id == habit_id,
+                HabitLog.completed_date >= start,
+                HabitLog.completed_date <= end,
+            )
+        )
+        return res.scalar_one() or 0

@@ -19,17 +19,21 @@ import {
   ChevronRight,
   Loader2,
   Sparkles,
-  Trash2
+  Trash2,
+  Target,
+  CalendarPlus
 } from 'lucide-react'
 import { apiFetch } from '../lib/api.js'
 
 export default function HabitsPage() {
-  const [data, setData] = useState({ habits: [], other_habits: [], todos: [] })
+  const [data, setData] = useState({ habits: [], other_habits: [], weekly_habits: [], flexible_habits: [], todos: [] })
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
   const [newHabitName, setNewHabitName] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [selectedDays, setSelectedDays] = useState([0,1,2,3,4,5,6])
+  const [targetType, setTargetType] = useState('days')
+  const [weeklyTarget, setWeeklyTarget] = useState(3)
   const DAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
 
   const toggleDay = (idx) => {
@@ -78,15 +82,20 @@ export default function HabitsPage() {
     if (!newHabitName.trim() || isCreating) return
     setIsCreating(true)
     try {
+      const body = { name: newHabitName.trim(), target_type: targetType }
+      if (targetType === 'days') {
+        body.target_days = selectedDays.length > 0 ? selectedDays.join(',') : "0,1,2,3,4,5,6"
+      } else if (targetType === 'weekly') {
+        body.target_per_week = weeklyTarget
+      }
       await apiFetch('/habits', {
         method: 'POST',
-        body: JSON.stringify({ 
-           name: newHabitName.trim(),
-           target_days: selectedDays.length > 0 ? selectedDays.join(',') : "0,1,2,3,4,5,6"
-        })
+        body: JSON.stringify(body)
       })
       setNewHabitName('')
       setSelectedDays([0,1,2,3,4,5,6])
+      setTargetType('days')
+      setWeeklyTarget(3)
       fetchAll()
     } catch (err) {
       console.error('Error creating habit:', err)
@@ -189,24 +198,67 @@ export default function HabitsPage() {
                 </div>
                 {newHabitName.trim() !== '' && (
                   <div style={styles.habitCreationActions}>
-                    <div style={styles.daySelector}>
-                      {DAYS.map((d, idx) => (
-                        <button 
-                          key={idx} 
+                    <div style={styles.typeSelector}>
+                      {['days', 'weekly', 'flexible'].map(t => (
+                        <button
+                          key={t}
                           type="button"
-                          onClick={() => toggleDay(idx)}
+                          onClick={() => setTargetType(t)}
                           style={{
-                            ...styles.dayBtn,
-                            backgroundColor: selectedDays.includes(idx) ? 'var(--color-primary)' : 'var(--color-surface-3)',
-                            color: selectedDays.includes(idx) ? 'white' : 'var(--color-text-muted)'
+                            ...styles.typeBtn,
+                            backgroundColor: targetType === t ? 'var(--color-primary)' : 'var(--color-surface-3)',
+                            color: targetType === t ? 'white' : 'var(--color-text-muted)'
                           }}
                         >
-                          {d}
+                          {t === 'days' ? 'Días' : t === 'weekly' ? 'Semanal' : 'Flexible'}
                         </button>
                       ))}
                     </div>
-                    <button 
-                      type="submit" 
+
+                    {targetType === 'days' && (
+                      <div style={styles.daySelector}>
+                        {DAYS.map((d, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => toggleDay(idx)}
+                            style={{
+                              ...styles.dayBtn,
+                              backgroundColor: selectedDays.includes(idx) ? 'var(--color-primary)' : 'var(--color-surface-3)',
+                              color: selectedDays.includes(idx) ? 'white' : 'var(--color-text-muted)'
+                            }}
+                          >
+                            {d}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {targetType === 'weekly' && (
+                      <div style={styles.weeklyStepper}>
+                        <span style={styles.weeklyStepperLabel}>Veces/semana</span>
+                        <button
+                          type="button"
+                          style={styles.stepperBtn}
+                          onClick={() => setWeeklyTarget(Math.max(1, weeklyTarget - 1))}
+                          disabled={weeklyTarget <= 1}
+                        >−</button>
+                        <span style={styles.weeklyStepperValue}>{weeklyTarget}</span>
+                        <button
+                          type="button"
+                          style={styles.stepperBtn}
+                          onClick={() => setWeeklyTarget(Math.min(7, weeklyTarget + 1))}
+                          disabled={weeklyTarget >= 7}
+                        >+</button>
+                      </div>
+                    )}
+
+                    {targetType === 'flexible' && (
+                      <div style={styles.flexibleNote}>Sin frecuencia fija; se registra al realizarlo</div>
+                    )}
+
+                    <button
+                      type="submit"
                       style={styles.saveHabitBtn}
                       disabled={isCreating}
                     >
@@ -220,8 +272,84 @@ export default function HabitsPage() {
           </div>
         </div>
 
-        {/* Right Column: Programmed Habits */}
+        {/* Right Column: Objetivos semanales + flexibles + otros */}
         <div style={styles.rightCol}>
+          {/* Weekly target objectives */}
+          <div style={styles.card} className="glass-card">
+            <div style={styles.cardHeader}>
+              <Target size={18} color="var(--color-primary-light)" />
+              <h3 style={styles.cardTitle}>Objetivos Semanales</h3>
+            </div>
+            <div style={styles.habitList}>
+              {data.weekly_habits && data.weekly_habits.length > 0 ? (
+                data.weekly_habits.map(habit => {
+                  const pct = Math.min(1, (habit.done_this_week || 0) / (habit.target_per_week || 3))
+                  const done = (habit.done_this_week || 0) >= (habit.target_per_week || 3)
+                  return (
+                    <div key={habit.id} style={styles.habitItemOther}>
+                      <button style={styles.otherToggle} onClick={() => handleToggleHabit(habit.id)} title={habit.is_done_today ? 'Desmarcar hoy' : 'Registrar hoy'}>
+                        {habit.is_done_today
+                          ? <CheckCircle2 size={22} color="var(--color-success)" />
+                          : <Circle size={22} color="var(--color-text-faint)" />}
+                      </button>
+                      <div style={styles.habitItemOtherInfo}>
+                        <span style={styles.habitNameOther}>{habit.name}</span>
+                        <div style={styles.progressTrack}>
+                          <div style={{ ...styles.progressFill, width: `${Math.round(pct * 100)}%` }} />
+                        </div>
+                        <div style={styles.progressLabel}>
+                          <span style={{ color: done ? 'var(--color-success)' : 'var(--color-text-faint)', fontWeight: 600 }}>
+                            {habit.done_this_week || 0}/{habit.target_per_week || 3}
+                          </span>
+                          <span style={{ color: 'var(--color-text-faint)', fontSize: 11 }}>esta semana{done ? ' · ✅ completado' : ''}</span>
+                        </div>
+                      </div>
+                      <button style={styles.deleteBtn} onClick={(e) => handleDeleteHabit(e, habit.id)} title="Borrar hábito">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  )
+                })
+              ) : (
+                <div style={{ color: 'var(--color-text-muted)', fontSize: 14 }}>No tienes objetivos semanales. Crea uno pulsando Semanal.</div>
+              )}
+            </div>
+          </div>
+
+          {/* Flexible habits */}
+          <div style={styles.card} className="glass-card">
+            <div style={styles.cardHeader}>
+              <CalendarPlus size={18} color="var(--color-habits)" />
+              <h3 style={styles.cardTitle}>Hábitos Flexibles</h3>
+            </div>
+            <div style={styles.habitList}>
+              {data.flexible_habits && data.flexible_habits.length > 0 ? (
+                data.flexible_habits.map(habit => (
+                  <div key={habit.id} style={styles.habitItemOther}>
+                    <button style={styles.otherToggle} onClick={() => handleToggleHabit(habit.id)} title={habit.is_done_today ? 'Desmarcar hoy' : 'Registrar hoy'}>
+                      {habit.is_done_today
+                        ? <CheckCircle2 size={22} color="var(--color-success)" />
+                        : <Circle size={22} color="var(--color-text-faint)" />}
+                    </button>
+                    <div style={styles.habitItemOtherInfo}>
+                      <span style={styles.habitNameOther}>{habit.name}</span>
+                      <div style={styles.flexibleCounts}>
+                        <span style={styles.flexibleCount}>{habit.done_this_week || 0} esta semana</span>
+                        <span style={styles.flexibleCount}>· {habit.done_this_month || 0} este mes</span>
+                      </div>
+                    </div>
+                    <button style={styles.deleteBtn} onClick={(e) => handleDeleteHabit(e, habit.id)} title="Borrar hábito">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div style={{ color: 'var(--color-text-muted)', fontSize: 14 }}>Sin hábitos flexibles. Crea uno pulsando Flexible.</div>
+              )}
+            </div>
+          </div>
+
+          {/* Other days-type habits */}
           <div style={styles.card} className="glass-card">
             <div style={styles.cardHeader}>
               <ListTodo size={18} color="var(--color-primary-light)" />
@@ -288,7 +416,7 @@ function ContributionGraph({ logs }) {
           style={{
             ...styles.graphCell,
             backgroundColor: 
-              day.status === 'success' ? 'var(--color-success)' :
+              day.status === 'success' || day.status === 'done' ? 'var(--color-success)' :
               day.status === 'failed' ? 'var(--color-danger)' :
               'var(--color-surface-3)',
             opacity: day.status === 'pending' ? 0.6 : 1,
@@ -336,7 +464,25 @@ const styles = {
   },
   daySelector: { display: 'flex', gap: 6, justifyContent: 'center' },
   dayBtn: { width: 28, height: 28, borderRadius: '50%', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' },
-  habitCreationActions: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginTop: 4, padding: '0 8px' },
+  typeSelector: { display: 'flex', gap: 6, justifyContent: 'center' },
+  typeBtn: { padding: '6px 12px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, transition: 'all 0.2s' },
+  weeklyStepper: { display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center' },
+  weeklyStepperLabel: { fontSize: 12, color: 'var(--color-text-muted)' },
+  weeklyStepperValue: { fontSize: 15, fontWeight: 700, minWidth: 20, textAlign: 'center' },
+  stepperBtn: {
+    width: 28, height: 28, borderRadius: '50%', border: 'none', cursor: 'pointer',
+    background: 'var(--color-surface-3)', color: 'var(--color-text)', fontSize: 16,
+    fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    transition: 'all 0.2s'
+  },
+  flexibleNote: { fontSize: 12, color: 'var(--color-text-faint)', textAlign: 'center' },
+  otherToggle: { background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' },
+  progressTrack: { width: '100%', height: 6, borderRadius: 4, background: 'var(--color-surface-3)', overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 4, background: 'linear-gradient(90deg, var(--color-habits), var(--color-primary))', transition: 'width 0.3s ease' },
+  progressLabel: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, flexWrap: 'wrap' },
+  flexibleCounts: { display: 'flex', gap: 8, fontSize: 12, color: 'var(--color-text-faint)', flexWrap: 'wrap' },
+  flexibleCount: { color: 'var(--color-text-muted)' },
+  habitCreationActions: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginTop: 8, padding: '0 8px' },
   saveHabitBtn: {
     display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 'var(--radius-md)',
     background: 'var(--color-primary)', color: 'white', border: 'none', cursor: 'pointer',

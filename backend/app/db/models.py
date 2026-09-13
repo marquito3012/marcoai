@@ -7,7 +7,7 @@ Every future domain table MUST include a `user_id` column referencing
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -133,7 +133,10 @@ class Habit(Base):
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     frequency: Mapped[str] = mapped_column(String(32), default="daily") # daily, weekly
-    target_days: Mapped[str] = mapped_column(String(64), default="0,1,2,3,4,5,6") # 0=Monday, 6=Sunday
+    target_days: Mapped[str | None] = mapped_column(String(64), nullable=True) # 0=Monday, 6=Sunday; NULL si no es "days"
+    # days (dia(s) concreto(s)) | weekly (objetivo semanal) | flexible (sin frecuencia)
+    target_type: Mapped[str] = mapped_column(String(16), default="days")
+    target_per_week: Mapped[int | None] = mapped_column(Integer, nullable=True) # solo si target_type="weekly"
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     user: Mapped["User"] = relationship("User")

@@ -618,7 +618,7 @@ async def habits_node(state: AgentState) -> dict:
     message_lower = user_message.lower()
 
     # Determine if we should attempt habit creation/management
-    is_habit_creation = any(kw in message_lower for kw in ["crea", "añade", "nuevo", "agrega", "pon", "guarda", "registrar"]) and \
+    is_habit_creation = any(kw in message_lower for kw in ["crea", "añade", "añadé", "nuevo", "agrega", "pon", "guarda", "registrar", "registra", "apunta", "anota"]) and \
                         any(kw in message_lower for kw in ["hábito", "habito", "lista", "estos", "lo", "los", "plan", "ambos"])
     
     is_habit_deletion = any(kw in message_lower for kw in ["borra", "elimina", "quita", "suprime"]) and \
@@ -641,13 +641,23 @@ async def habits_node(state: AgentState) -> dict:
                     Eres un asistente experto en extracción de datos. 
                     Tu objetivo es extraer una lista de hábitos a crear a partir de la conversación.
                     
-                    REGLAS:
-                    1. Identifica el nombre del hábito (ej: "Salir a correr", "Hacer skate").
-                    2. Identifica los días programados (0=Lunes, 1=Martes, 2=Miércoles, 3=Jueves, 4=Viernes, 5=Sábado, 6=Domingo).
-                    3. IGNORA explícitamente días de descanso, relax u off. No los incluyas en los días del hábito.
-                    4. Si el usuario dice "añade ambos" o "crea el plan", busca en el último mensaje del ASISTENTE el plan propuesto.
+                    CADA HÁBITO DEBE TENER UN TIPO:
+                    - "days": hábito con días concretos de la semana (ej: "los lunes y miércoles", "todos los días").
+                    - "weekly": objetivo de frecuencia semanal SIN días fijos (ej: "3 veces por semana", "salir a correr 2 días por semana", "semanal"). El usuario decide qué días.
+                    - "flexible": hábito sin frecuencia, se registra cuando se realiza (ej: "sin frecuencia", "libre", "flexible", "cuando salga", "cuando pueda", "sin días fijos", "apunta cuando lo haga").
                     
-                    Responde ÚNICAMENTE con un array JSON: [{"name": "...", "days": "0,2,4"}, ...]
+                    INDICADORES:
+                    1. "X veces por semana", "X días por semana", "objetivo semanal" → "weekly" con target_per_week = X.
+                    2. "cuando salga", "cuando pueda", "libre", "flexible", "sin frecuencia", "sin día fijo", "sin días" → "flexible".
+                    3. En cualquier otro caso con días explícitos → "days".
+                    4. Identifica los días programados para "days" (0=Lunes, 1=Martes, 2=Miércoles, 3=Jueves, 4=Viernes, 5=Sábado, 6=Domingo).
+                    5. IGNORA explícitamente días de descanso, relax u off. No los incluyas en los días del hábito.
+                    6. Si el usuario dice "añade ambos" o "crea el plan", busca en el último mensaje del ASISTENTE el plan propuesto.
+                    
+                    Responde ÚNICAMENTE con un array JSON:
+                    [{"name": "...", "target_type": "days|weekly|flexible", "target_per_week": 3, "days": "0,2,4"}, ...]
+                    - target_per_week: solo para "weekly" (número entero entre 1 y 7).
+                    - days: solo para "days" (string de índices separados por coma). En otro caso usa null.
                     Si no hay hábitos claros, responde: []
                     """},
                     {"role": "user", "content": f"HISTORIAL:\n{history_context}\nMENSAJE ACTUAL: {user_message}"}
@@ -671,15 +681,25 @@ async def habits_node(state: AgentState) -> dict:
                     
                     if isinstance(extracted, list) and len(extracted) > 0:
                         created = []
+                        day_names = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
                         for item in extracted:
                             name = item.get("name", "Nuevo Hábito").capitalize()
-                            days = item.get("days", "0,1,2,3,4,5,6")
-                            logger.info("HabitsNode: Calling service.create_habit for '%s'", name)
-                            habit = await service.create_habit(name=name, target_days=days)
-                            # Convert day numbers to names for the confirmation message
-                            day_names = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-                            h_days_list = [day_names[int(d)] for d in days.split(",") if d.strip().isdigit()]
-                            created.append(f"{habit.name} ({', '.join(h_days_list)})")
+                            target_type = item.get("target_type", "days")
+                            logger.info("HabitsNode: Creating habit '%s' type=%s", name, target_type)
+                            if target_type == "weekly":
+                                target = int(item.get("target_per_week") or 3)
+                                habit = await service.create_habit(
+                                    name=name, target_type="weekly", target_per_week=target
+                                )
+                                created.append(f"{habit.name} ({target} veces/semana)")
+                            elif target_type == "flexible":
+                                habit = await service.create_habit(name=name, target_type="flexible")
+                                created.append(f"{habit.name} (flexible)")
+                            else:
+                                days = item.get("days") or "0,1,2,3,4,5,6"
+                                habit = await service.create_habit(name=name, target_days=days)
+                                h_days_list = [day_names[int(d)] for d in days.split(",") if d.strip().isdigit()]
+                                created.append(f"{habit.name} ({', '.join(h_days_list)})")
                         
                         tool_result = f"✅ He creado con éxito los siguientes hábitos: {'; '.join(created)}."
                         logger.info("HabitsNode: Created %d habits", len(created))

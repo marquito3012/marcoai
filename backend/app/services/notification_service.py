@@ -90,7 +90,7 @@ async def send_daily_digest(user: User, settings: UserSettings, db: AsyncSession
             except Exception as exc:
                 logger.warning("Could not fetch calendar for digest: %s", exc)
 
-        # ── 2. Hábitos pendientes ──────────────────────────────────────────────
+        # ── 2. Hábitos ────────────────────────────────────────────────────────
         if settings.notify_habits:
             try:
                 from app.services.habits_service import HabitsService
@@ -102,8 +102,21 @@ async def send_daily_digest(user: User, settings: UserSettings, db: AsyncSession
 
                 pending_habits: list[str] = []
                 done_habits: list[str] = []
+                weekly_lines: list[str] = []
 
                 for h in habits:
+                    if h.target_type == "weekly":
+                        # Objetivo semanal: mostramos el progreso acumulado de la semana
+                        target = h.target_per_week or 3
+                        done = await habits_service.count_logs_in_week(h.id, today_iso)
+                        done_html = (f"<span style='color:#4CAF50'>✅ {done}/{target}</span>"
+                                     if done >= target else f"<span style='color:#FFB347'>⏳ {done}/{target}</span>")
+                        weekly_lines.append(f"<b>{h.name}:</b> {done_html}")
+                        continue
+                    if h.target_type == "flexible":
+                        # Sin expectativa: no aparece como pendiente
+                        continue
+                    # Hábitos de tipo 'days'
                     target_days = (
                         [int(d) for d in h.target_days.split(",")]
                         if h.target_days
@@ -131,7 +144,14 @@ async def send_daily_digest(user: User, settings: UserSettings, db: AsyncSession
                     habit_html.append(
                         f"<p style='color:#FFB347'>⏳ <b>Pendientes:</b> {', '.join(pending_habits)}</p>"
                     )
-                if not done_habits and not pending_habits:
+                if weekly_lines:
+                    habit_html.append(
+                        "<p style='margin-top:8px'>🎯 <b>Objetivos semanales:</b></p>"
+                        "<ul style='margin:0;padding-left:20px'>"
+                        + "".join(f"<li>{line}</li>" for line in weekly_lines)
+                        + "</ul>"
+                    )
+                if not done_habits and not pending_habits and not weekly_lines:
                     habit_html.append("<p style='color:#888'>No tienes hábitos programados para hoy.</p>")
                 sections.append("\n".join(habit_html))
             except Exception as exc:
