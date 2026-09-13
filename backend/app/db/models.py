@@ -133,7 +133,7 @@ class Habit(Base):
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     frequency: Mapped[str] = mapped_column(String(32), default="daily") # daily, weekly
-    target_days: Mapped[str | None] = mapped_column(String(64), nullable=True) # 0=Monday, 6=Sunday; NULL si no es "days"
+    target_days: Mapped[str | None] = mapped_column(String(64), nullable=True) # 0=Monday, 6=Sunday; en weekly/flexible se guarda "0,1,2,3,4,5,6" (BD NOT NULL), pero nunca se interpreta
     # days (dia(s) concreto(s)) | weekly (objetivo semanal) | flexible (sin frecuencia)
     target_type: Mapped[str] = mapped_column(String(16), default="days")
     target_per_week: Mapped[int | None] = mapped_column(Integer, nullable=True) # solo si target_type="weekly"

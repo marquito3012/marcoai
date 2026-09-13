@@ -47,7 +47,9 @@ class HabitsService:
             user_id=self.user_id,
             name=name,
             description=description,
-            target_days=target_days if target_type == "days" else None,
+            # La BD existente tiene target_days NOT NULL; para weekly/flexible se guarda el
+            # valor por defecto (ninguna ruta lo interpreta: siempre se filtra por target_type).
+            target_days=target_days if target_days else "0,1,2,3,4,5,6",
             target_type=target_type,
             target_per_week=target_per_week if target_type == "weekly" else None,
         )
