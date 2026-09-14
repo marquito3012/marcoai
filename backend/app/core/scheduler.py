@@ -25,7 +25,9 @@ _TZ_MADRID = zoneinfo.ZoneInfo("Europe/Madrid")
 async def _run_digest_job() -> None:
     """
     Checks every hour which users should receive their digest right now.
-    Uses Europe/Madrid time so notification_hour=6 means 06:00 Madrid, not UTC.
+    Interprets each user's notification_hour in that user's own local timezone
+    (fallback: Europe/Madrid when a user has none), so notification_hour=6
+    means 06:00 for that user, not UTC.
     Includes dedup: won't send if last_digest_sent_at is within the same hour.
     """
     now_utc = datetime.now(timezone.utc)
