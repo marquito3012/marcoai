@@ -38,6 +38,15 @@ function getFirstDayOfMonth(year, month) {
   return new Date(year, month, 1).getDay()
 }
 
+function getWeekStart(date) {
+  const d = new Date(date)
+  const dayOfWeek = d.getDay()
+  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  d.setDate(d.getDate() - daysFromMonday)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
 function formatDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
@@ -81,16 +90,11 @@ export default function CalendarPage() {
         start = new Date(y, m, 1, 0, 0, 0).toISOString()
         end = new Date(y, m + 1, 0, 23, 59, 59).toISOString()
       } else {
-        const d = new Date(currentDate)
-        const day = d.getDay()
-        const diff = d.getDate() - day
-        const startOfWeek = new Date(d.setDate(diff))
-        startOfWeek.setHours(0, 0, 0, 0)
-        
+        const startOfWeek = getWeekStart(currentDate)
         const endOfWeek = new Date(startOfWeek)
         endOfWeek.setDate(startOfWeek.getDate() + 6)
         endOfWeek.setHours(23, 59, 59, 999)
-        
+
         start = startOfWeek.toISOString()
         end = endOfWeek.toISOString()
       }
@@ -352,11 +356,7 @@ function MonthView({ grid, loading, onEventClick }) {
 // ── Week View ────────────────────────────────────────────────────────────────
 function WeekView({ currentDate, events, loading, onEventClick }) {
   const weekDays = useMemo(() => {
-    const startOfWeek = new Date(currentDate)
-    // Start on Monday: getDay() 0=Sun,1=Mon..6=Sat → shift so Mon=0
-    const dayOfWeek = currentDate.getDay() // 0=Sun
-    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
-    startOfWeek.setDate(currentDate.getDate() - daysFromMonday)
+    const startOfWeek = getWeekStart(currentDate)
 
     const days = []
     for (let i = 0; i < 7; i++) {
