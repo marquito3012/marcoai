@@ -368,7 +368,8 @@ class FinanceService:
         result = await self.db.execute(
             select(Transaction).where(
                 Transaction.user_id == self.user_id,
-                Transaction.is_fixed == True,
+                Transaction.is_fixed == True,  # noqa: E712
+                Transaction.deleted_at == None,  # noqa: E711
             ).order_by(Transaction.amount.desc())
         )
         return list(result.scalars().all())
