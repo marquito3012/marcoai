@@ -22,7 +22,14 @@ export class ApiError extends Error {
   }
 }
 
-function isRetryable(status) {
+// Only auto-retry idempotent methods. A 5xx or dropped connection on a
+// mutation may mean the server already applied the write — retrying could
+// duplicate transactions, events, bookmark toggles, etc.
+const IDEMPOTENT = new Set(['GET', 'HEAD', 'OPTIONS'])
+
+export function shouldRetry(method, status) {
+  const m = (method || 'GET').toUpperCase()
+  if (!IDEMPOTENT.has(m)) return false
   return !status || status >= 500
 }
 
@@ -66,7 +73,7 @@ export async function apiFetch(path, options = {}) {
         } catch {
           // ignore parse error
         }
-        if (isRetryable(res.status) && attempt < MAX_RETRIES) {
+        if (shouldRetry(rest.method, res.status) && attempt < MAX_RETRIES) {
           await sleep(RETRY_BASE_DELAY * Math.pow(2, attempt))
           continue
         }
@@ -78,7 +85,7 @@ export async function apiFetch(path, options = {}) {
     } catch (err) {
       if (err.name === 'AbortError') throw err
       lastError = err
-      if (attempt < MAX_RETRIES && (!err.status || err.name === 'TypeError')) {
+      if (attempt < MAX_RETRIES && shouldRetry(rest.method, err.status)) {
         await sleep(RETRY_BASE_DELAY * Math.pow(2, attempt))
         continue
       }
