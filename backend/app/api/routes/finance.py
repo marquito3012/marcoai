@@ -139,6 +139,13 @@ async def list_transactions(
             year=year,
         )
 
+        total = await service.count_transactions(
+            tx_type=tx_type,
+            category=category,
+            month=month,
+            year=year,
+        )
+
         return {
             "transactions": [
                 {
@@ -155,7 +162,7 @@ async def list_transactions(
                 }
                 for tx in transactions
             ],
-            "total": len(transactions),
+            "total": total,
         }
     except Exception as exc:
         logger.exception("Error listing transactions")

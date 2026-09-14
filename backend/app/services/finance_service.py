@@ -119,6 +119,48 @@ class FinanceService:
         )
         return result.scalar_one_or_none()
 
+    def _apply_filters(
+        self,
+        query: Select,
+        tx_type: str | None = None,
+        category: str | None = None,
+        month: int | None = None,
+        year: int | None = None,
+    ) -> Select:
+        """Aplica los filtros compartidos entre listado y conteo."""
+        if tx_type:
+            query = query.where(Transaction.type == tx_type)
+        if category:
+            query = query.where(Transaction.category == category)
+
+        if month and year:
+            month_start = datetime(year, month, 1, tzinfo=timezone.utc)
+            _, last_day = calendar.monthrange(year, month)
+            month_end = datetime(year, month, last_day, 23, 59, 59, tzinfo=timezone.utc)
+
+            query = query.where(
+                or_(
+                    and_(
+                        Transaction.is_fixed == False,  # noqa: E712
+                        Transaction.date >= month_start,
+                        Transaction.date <= month_end,
+                    ),
+                    and_(
+                        Transaction.is_fixed == True,  # noqa: E712
+                        Transaction.date <= month_end,
+                        or_(
+                            Transaction.deleted_at == None,  # noqa: E711
+                            Transaction.deleted_at > month_end,
+                        ),
+                    ),
+                )
+            )
+        elif year:
+            query = query.where(func.strftime("%Y", Transaction.date) == str(year))
+        elif month:
+            query = query.where(func.strftime("%m", Transaction.date) == f"{month:02d}")
+        return query
+
     async def list_transactions(
         self,
         limit: int = 50,
@@ -139,48 +181,29 @@ class FinanceService:
             month: Filtrar por mes (1-12)
             year: Filtrar por año
         """
-        query = select(Transaction).where(Transaction.user_id == self.user_id)
-
-        if tx_type:
-            query = query.where(Transaction.type == tx_type)
-        if category:
-            query = query.where(Transaction.category == category)
-        
-        if month and year:
-            # logic for specific month/year
-            month_start = datetime(year, month, 1, tzinfo=timezone.utc)
-            _, last_day = calendar.monthrange(year, month)
-            month_end = datetime(year, month, last_day, 23, 59, 59, tzinfo=timezone.utc)
-
-            # Condition:
-            # 1. Non-fixed: must be in this month
-            # 2. Fixed: must have started before or during this month AND not deleted before this month
-            query = query.where(
-                or_(
-                    and_(
-                        Transaction.is_fixed == False,
-                        Transaction.date >= month_start,
-                        Transaction.date <= month_end
-                    ),
-                    and_(
-                        Transaction.is_fixed == True,
-                        Transaction.date <= month_end,
-                        or_(
-                            Transaction.deleted_at == None,
-                            Transaction.deleted_at > month_end
-                        )
-                    )
-                )
-            )
-        elif year:
-            query = query.where(func.strftime("%Y", Transaction.date) == str(year))
-        elif month:
-            query = query.where(func.strftime("%m", Transaction.date) == f"{month:02d}")
-
+        query = self._apply_filters(
+            select(Transaction).where(Transaction.user_id == self.user_id),
+            tx_type, category, month, year,
+        )
         query = query.order_by(Transaction.date.desc()).limit(limit).offset(offset)
 
         result = await self.db.execute(query)
         return list(result.scalars().all())
+
+    async def count_transactions(
+        self,
+        tx_type: str | None = None,
+        category: str | None = None,
+        month: int | None = None,
+        year: int | None = None,
+    ) -> int:
+        """Cuenta transacciones del usuario con los mismos filtros que el listado."""
+        query = self._apply_filters(
+            select(func.count(Transaction.id)).where(Transaction.user_id == self.user_id),
+            tx_type, category, month, year,
+        )
+        result = await self.db.execute(query)
+        return int(result.scalar_one() or 0)
 
     async def update_transaction(
         self,
