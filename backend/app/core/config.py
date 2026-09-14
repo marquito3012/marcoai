@@ -4,9 +4,7 @@ Reads from the .env file at the repository root.
 All values are typed and validated by pydantic-settings.
 """
 import logging
-import secrets
 from functools import lru_cache
-from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -36,29 +34,19 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24  # 24 h
 
     def model_post_init(self, __context) -> None:
-        """Auto-generate and persist JWT_SECRET if not provided."""
-        if not self.secret_key:
-            self.secret_key = secrets.token_urlsafe(32)
-            # Persist to .env for next restart
-            env_path = Path(".env")
-            if env_path.exists():
-                content = env_path.read_text()
-                if "SECRET_KEY" not in content:
-                    with open(env_path, "a") as f:
-                        f.write(f"\nSECRET_KEY={self.secret_key}\n")
-                    logger.warning(
-                        "JWT_SECRET auto-generated and persisted to .env"
-                    )
-                else:
-                    logger.warning(
-                        "SECRET_KEY is empty but exists in .env — "
-                        "check your .env file"
-                    )
-            else:
-                logger.warning(
-                    "SECRET_KEY not set and no .env file — secret will be "
-                    "regenerated on next restart"
-                )
+        """Fail fast unless SECRET_KEY is stable.
+
+        SECRET_KEY signs JWTs; regenerating it on every restart invalidates
+        sessions and encrypted tokens. The app never auto-generates it — the
+        operator must set a value of at least 32 characters in .env.
+        """
+        if not self.secret_key or len(self.secret_key) < 32:
+            raise RuntimeError(
+                "SECRET_KEY must be set in .env with at least 32 characters "
+                "(e.g. a 32+ char random string from `python -c "
+                "\"import secrets; print(secrets.token_urlsafe(32))\"`). "
+                "MarcoAI refuses to start without a stable signing key."
+            )
 
     # ── Encryption (Fernet key for Google OAuth tokens at rest) ─────────────
     encryption_key: str
