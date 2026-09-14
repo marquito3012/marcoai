@@ -21,8 +21,10 @@ export function useAuth() {
     try {
       const userData = await apiFetch('/auth/me')
       setUser(userData)
-    } catch {
-      clearUser()
+    } catch (err) {
+      // A missing/expired cookie is the only *authentication* failure;
+      // backend hiccups (5xx, network) must not log the user out mid-session.
+      if (err.status === 401) clearUser()
     }
   }, [setUser, clearUser])
 
