@@ -18,6 +18,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from app.core.dates import local_day_bounds_utc
 from app.db.models import User, UserSettings
 
 logger = logging.getLogger(__name__)
@@ -53,9 +54,8 @@ async def send_daily_digest(user: User, settings: UserSettings, db: AsyncSession
         # Use user's local time for "today" so the digest is relevant
         now_local = datetime.now(user_tz)
         today = now_local.date()
-        # Calendar queries in UTC-aware boundaries
-        day_start_utc = datetime(today.year, today.month, today.day, 0, 0, 0, tzinfo=timezone.utc)
-        day_end_utc   = datetime(today.year, today.month, today.day, 23, 59, 59, tzinfo=timezone.utc)
+        # Calendar queries in user-local boundaries, converted to UTC
+        day_start_utc, day_end_utc = local_day_bounds_utc(today, user_tz)
 
         # ── 1. Eventos del día ─────────────────────────────────────────────────
         if settings.notify_calendar:
