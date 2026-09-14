@@ -125,7 +125,7 @@ async def google_callback(
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
 
     # ── Encrypt tokens before storing ──────────────────────────────────────
-    from app.core.crypto import encrypt_token, is_encrypted
+    from app.core.crypto import encrypt_token
     encrypted_access = encrypt_token(calendar_access_token) if calendar_access_token else None
     encrypted_refresh = encrypt_token(calendar_refresh_token) if calendar_refresh_token else None
 
@@ -151,12 +151,6 @@ async def google_callback(
         if encrypted_refresh:
             user.google_refresh_token = encrypted_refresh
 
-        # ── Re-encrypt legacy plaintext tokens if present ──────────────────
-        # Detect tokens that were stored before encryption was enabled
-        if user.google_access_token and not is_encrypted(user.google_access_token):
-            user.google_access_token = encrypt_token(user.google_access_token)
-        if user.google_refresh_token and not is_encrypted(user.google_refresh_token):
-            user.google_refresh_token = encrypt_token(user.google_refresh_token)
 
     await db.commit()
     await db.refresh(user)
