@@ -24,6 +24,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.files import sanitize_filename
 from app.db.base import AsyncSessionLocal
 from app.db.models import Document, User
 
@@ -46,14 +47,15 @@ class DocumentService:
     async def ingest_file(self, file: UploadFile) -> Document:
         """Guarda archivo local y encula el procesamiento en base de datos."""
         content = await file.read()
-        file_path = os.path.join(UPLOAD_DIR, f"{self.user_id}_{file.filename}")
-        
+        safe_filename = sanitize_filename(file.filename)
+        file_path = os.path.join(UPLOAD_DIR, f"{self.user_id}_{safe_filename}")
+
         with open(file_path, "wb") as f:
             f.write(content)
 
         doc = Document(
             user_id=self.user_id,
-            filename=file.filename,
+            filename=safe_filename,
             mime_type=file.content_type,
             size_bytes=len(content),
             status="pending"
