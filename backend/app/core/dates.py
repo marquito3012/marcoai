@@ -15,3 +15,8 @@ def local_day_bounds_utc(day: date, user_tz: ZoneInfo) -> tuple[datetime, dateti
     start_local = datetime(day.year, day.month, day.day, tzinfo=user_tz)
     end_local = start_local + timedelta(days=1)
     return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
+
+
+def is_local_hour(user_tz: ZoneInfo, notification_hour: int, now: datetime) -> bool:
+    """True when `now` falls inside clock hour `notification_hour` in `user_tz`."""
+    return now.astimezone(user_tz).hour == notification_hour

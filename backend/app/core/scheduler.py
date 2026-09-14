@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
+from app.core.dates import is_local_hour
+
 logger = logging.getLogger(__name__)
 
 _scheduler: AsyncIOScheduler | None = None
@@ -27,8 +29,7 @@ async def _run_digest_job() -> None:
     Includes dedup: won't send if last_digest_sent_at is within the same hour.
     """
     now_utc = datetime.now(timezone.utc)
-    current_hour = datetime.now(_TZ_MADRID).hour
-    logger.info("Digest job running — Madrid hour: %d", current_hour)
+    logger.info("Digest job running — checking per-user local hours")
 
     try:
         from sqlalchemy import select
@@ -44,7 +45,6 @@ async def _run_digest_job() -> None:
                 .join(User, User.id == UserSettings.user_id)
                 .where(
                     UserSettings.notifications_enabled == True,  # noqa: E712
-                    UserSettings.notification_hour == current_hour,
                     User.is_active == True,  # noqa: E712
                 )
             )
@@ -52,6 +52,15 @@ async def _run_digest_job() -> None:
             rows = res.all()
 
             for settings_row, user_row in rows:
+                if settings_row.notification_hour is None:
+                    continue
+                user_tz_str = settings_row.timezone or "Europe/Madrid"
+                try:
+                    user_tz = zoneinfo.ZoneInfo(user_tz_str)
+                except (zoneinfo.ZoneInfoNotFoundError, KeyError):
+                    user_tz = _TZ_MADRID
+                if not is_local_hour(user_tz, settings_row.notification_hour, now_utc):
+                    continue
                 # ── Dedup: skip if digest was already sent this hour ──────────
                 if settings_row.last_digest_sent_at:
                     last = settings_row.last_digest_sent_at
@@ -75,10 +84,10 @@ async def _run_digest_job() -> None:
                 })
 
         if not pending:
-            logger.debug("No users to notify at Madrid hour %d.", current_hour)
+            logger.debug("No users to notify right now.")
             return
 
-        logger.info("Sending digest to %d user(s) at hour %d.", len(pending), current_hour)
+        logger.info("Sending digest to %d user(s).", len(pending))
 
         for data in pending:
             try:
