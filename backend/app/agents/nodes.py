@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import logging
 import json
+import unicodedata
+import zoneinfo
 from datetime import datetime, timezone, timedelta
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
@@ -163,7 +165,6 @@ async def calendar_node(state: AgentState) -> dict:
 
             # ── Single LLM call: classify action + extract data ──────────────
             # This approach is robust to any Spanish conjugation/phrasing.
-            import zoneinfo, unicodedata
             now_local = datetime.now(user_tz)
             day_names = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
             today_weekday = day_names[now_local.weekday()]
